@@ -18,10 +18,10 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 // Hyper Parameters
-const val learningRate = 0.05f
-const val dimension = 100L
-const val nEpoch = 1000
-const val batchSize = 3
+const val LEARNING_RATE = 0.05f
+const val DIMENSION = 100L
+const val NEPOCH = 1000
+const val BATCH_SIZE = 3
 
 fun main() {
     val manager = NDManager.newBaseManager()
@@ -30,15 +30,15 @@ fun main() {
     val dataset = ArrayDataset.Builder()
         .setData(input) // set the features
         .optLabels(labels) // set the labels
-        .setSampling(batchSize, true) // set the batch size and random sampling
+        .setSampling(BATCH_SIZE, true) // set the batch size and random sampling
         .build()
     val validationSet = ArrayDataset.Builder()
         .setData(input) // set the features
         .optLabels(labels) // set the labels
-        .setSampling(batchSize, false) // set the batch size and random sampling
+        .setSampling(BATCH_SIZE, false) // set the batch size and random sampling
         .build()
 
-    val transe = TransE(4, 2, dimension)
+    val transe = TransE(4, 2, DIMENSION)
     transe.setInitializer(NormalInitializer(), Parameter.Type.WEIGHT)
     transe.initialize(manager, DataType.FLOAT32, input.shape)
 
@@ -50,9 +50,8 @@ fun main() {
 //    println(transe.getEdges())
 //    println(transe.getEntities())
 
-
     val l2loss = Loss.l2Loss()
-    val lrt = Tracker.fixed(learningRate)
+    val lrt = Tracker.fixed(LEARNING_RATE)
     val sgd = Optimizer.sgd().setLearningRateTracker(lrt).build()
 
     val config = DefaultTrainingConfig(l2loss)
@@ -65,7 +64,7 @@ fun main() {
     val metrics = Metrics()
     trainer.metrics = metrics
 
-    EasyTrain.fit(trainer, nEpoch, dataset, validationSet)
+    EasyTrain.fit(trainer, NEPOCH, dataset, validationSet)
     println(trainer.trainingResult)
     println(trainer.metrics.metricNames)
     println(metrics.getMetric("train_epoch_L2Loss")[5].value)
@@ -77,5 +76,4 @@ fun main() {
     val test = manager.create(longArrayOf(1, 1, 2))
     println(predictor.predict(NDList(test)).singletonOrThrow())
 }
-
 class Test3

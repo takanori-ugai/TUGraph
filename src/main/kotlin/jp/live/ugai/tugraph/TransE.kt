@@ -64,11 +64,11 @@ class TransE(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
         return arrayOf<Shape>(Shape(1, dim))
     }
 
-    fun getEntities() : NDArray {
-        return getParameters().valueAt(0).getArray()
+    fun getEntities(): NDArray {
+        return getParameters().valueAt(0).array
     }
 
-    fun getEdges() : NDArray {
-        return getParameters().valueAt(1).getArray()
+    fun getEdges(): NDArray {
+        return getParameters().valueAt(1).array
     }
 }

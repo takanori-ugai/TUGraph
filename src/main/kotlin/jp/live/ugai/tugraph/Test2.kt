@@ -40,7 +40,6 @@ fun main() {
 //    println(transe.getEdges())
 //    println(transe.getEntities())
 
-
     val l2loss = Loss.l2Loss()
     val lrt = Tracker.fixed(0.005f)
     val sgd = Optimizer.sgd().setLearningRateTracker(lrt).build()
@@ -57,7 +56,7 @@ fun main() {
 
     val loss = mutableListOf<Float>()
     val epochNum = 1000
-    for (i in 0..epochNum) {
+    (0..epochNum).forEach {
         var l0 = 0f
         for (batch in trainer.iterateDataset(dataset)) {
             val X = batch.data.head()
@@ -81,6 +80,4 @@ fun main() {
     val test = manager.create(longArrayOf(1, 1, 2))
     println(predictor.predict(NDList(test)).singletonOrThrow())
 }
-
-
 class Test2
