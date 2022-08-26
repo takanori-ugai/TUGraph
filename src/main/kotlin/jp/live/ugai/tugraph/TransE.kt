@@ -71,4 +71,10 @@ class TransE(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
     fun getEdges(): NDArray {
         return getParameters().valueAt(1).array
     }
+
+    fun normalize() {
+        getParameters().forEach {
+            it.value.array.divi(it.value.array.pow(2).sum().sqrt())
+        }
+    }
 }

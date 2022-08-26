@@ -8,17 +8,39 @@ import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
 import ai.djl.nn.Parameter
 import ai.djl.training.DefaultTrainingConfig
+import ai.djl.training.EasyTrain
 import ai.djl.training.dataset.ArrayDataset
+import ai.djl.training.dataset.Batch
 import ai.djl.training.initializer.NormalInitializer
 import ai.djl.training.listener.TrainingListener
 import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
+import com.opencsv.CSVReader
+import java.io.FileInputStream
+import java.io.InputStream
+import java.io.InputStreamReader
+import kotlin.random.Random
 
 fun main() {
     val manager = NDManager.newBaseManager()
-    val input = manager.create(longArrayOf(2, 0, 1, 2, 1, 3, 0, 0, 1, 0, 1, 2), Shape(4, 3))
+    var input = manager.zeros(Shape(0), DataType.INT64)
+
+    val arr = mutableListOf<List<Long>>()
+    var istream: InputStream = FileInputStream("data/sample.csv")
+    var ireader: InputStreamReader = InputStreamReader(istream, "UTF-8")
+    var reader: CSVReader = CSVReader(ireader)
+
+    reader.forEach {
+        val list = it.map { it.trim().toLong() }
+        input = input.concat(manager.create(list.toLongArray()))
+        println(list)
+        arr.add(list)
+    }
+    println(arr.contains(listOf<Long>(0, 0, 1)))
+    input = input.reshape(arr.size.toLong(), input.size()/arr.size)
+
     val labels = manager.create(floatArrayOf(0f, 0f, 1f, 0f))
     val batchSize = 1
     val dataset = ArrayDataset.Builder()
@@ -40,7 +62,7 @@ fun main() {
 //    println(transe.getEntities())
 
     val l2loss = Loss.l2Loss()
-    val lrt = Tracker.fixed(0.005f)
+    val lrt = Tracker.fixed(0.1f)
     val sgd = Optimizer.sgd().setLearningRateTracker(lrt).build()
 
     val config = DefaultTrainingConfig(l2loss)
@@ -54,31 +76,28 @@ fun main() {
     trainer.metrics = metrics
 
     val loss = mutableListOf<Float>()
-    val epochNum = 1000
-    (0..epochNum).forEach {
+    val epochNum = 1
+    (1..epochNum).forEach {
         var l0 = 0f
         for (batch in trainer.iterateDataset(dataset)) {
             val X = batch.data.head()
+            println(X.toLongArray()[2])
+            val Z = X.toLongArray().clone()
+            val n = Random.nextLong(4)
+            Z[2] = n
+            println("$n, ${Z.toList()}, ${arr.contains(Z.toList())}")
             val y = batch.labels.head()
-            trainer.newGradientCollector().use { gc ->
-                val f0 = trainer.forward(NDList(X))
-                val l = f0.singletonOrThrow().pow(2).sqrt().sub(y).abs()
+            val f0 = trainer.forward(NDList(X))
+            val l = f0.singletonOrThrow().sub(y).abs()
 //                print(l)
-                l0 += l.sum().toFloatArray()[0] / X.size(1)
-//                val l = point.pow(2).sum(intArrayOf(1)).sqrt().sub(y).abs()
-//                l0 += l.sum().toFloatArray()[0]/ X.size(1)
-//    val l : NDArray = l2loss.evaluate( NDList(NDArrays.pow(2, point).sum(intArrayOf(1)).sqrt()),
-//    NDList(manager.create(floatArrayOf(0f,0f,1f,0f))))
-//             if(i % 100 == 0) {
-//                  println("l = $l")
-//             }
-                gc.backward(l)
-                trainer.step()
-//    println(model.block.getParameters().valueAt(0).getArray())
-                gc.close()
-            }
+            l0 += l.sum().toFloatArray()[0] / X.size(1)
+            EasyTrain.trainBatch(trainer, batch)
+            trainer.step()
+            batch.close()
         }
+//        trainer.notifyListeners { listener -> listener.onEpoch(trainer) }
         loss.add(l0)
+//        transe.normalize()
     }
 
     println(transe.getEdges())
@@ -87,7 +106,7 @@ fun main() {
     println(predictor.predict(NDList(input)).singletonOrThrow())
     val test = manager.create(longArrayOf(1, 1, 2))
     println(predictor.predict(NDList(test)).singletonOrThrow())
-    //   println(predictor.predict(NDList(test)).singletonOrThrow().pow(2).sum().sqrt())
 }
 
-class Test
+class Test5 {
+}

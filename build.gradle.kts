@@ -35,6 +35,7 @@ dependencies {
     implementation("ai.djl.pytorch:pytorch-jni:1.11.0-$v")
     implementation("org.slf4j:slf4j-simple:1.7.36")
     implementation(kotlin("stdlib-jdk8"))
+    implementation("com.opencsv:opencsv:5.6")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.0")
     ktlint("com.pinterest:ktlint:0.47.0") {
