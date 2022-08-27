@@ -17,7 +17,6 @@ import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
-
 fun main() {
     val manager = NDManager.newBaseManager()
     val input = manager.create(longArrayOf(2, 0, 1, 2, 1, 3, 0, 0, 1, 0, 1, 2), Shape(4, 3))
@@ -71,4 +70,5 @@ fun main() {
     val test = manager.create(longArrayOf(1, 1, 2))
     println(predictor.predict(NDList(test)).singletonOrThrow())
 }
+
 class Test3

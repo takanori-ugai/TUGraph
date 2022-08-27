@@ -80,4 +80,5 @@ fun main() {
     val test = manager.create(longArrayOf(1, 1, 2))
     println(predictor.predict(NDList(test)).singletonOrThrow())
 }
+
 class Test2

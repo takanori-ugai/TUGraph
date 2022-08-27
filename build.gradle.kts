@@ -31,9 +31,9 @@ repositories {
 dependencies {
     implementation("ai.djl:basicdataset:$v")
     implementation("ai.djl:api:$v")
-    implementation("ai.djl.mxnet:mxnet-engine:$v")
-//    implementation("ai.djl.pytorch:pytorch-engine:$v")
-//    implementation("ai.djl.pytorch:pytorch-jni:1.11.0-$v")
+//    implementation("ai.djl.mxnet:mxnet-engine:$v")
+    implementation("ai.djl.pytorch:pytorch-engine:$v")
+    implementation("ai.djl.pytorch:pytorch-jni:1.11.0-$v")
     implementation("org.slf4j:slf4j-simple:1.7.36")
     implementation(kotlin("stdlib-jdk8"))
     implementation("com.opencsv:opencsv:5.6")

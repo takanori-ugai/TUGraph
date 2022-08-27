@@ -10,7 +10,6 @@ import ai.djl.nn.Parameter
 import ai.djl.training.DefaultTrainingConfig
 import ai.djl.training.EasyTrain
 import ai.djl.training.dataset.ArrayDataset
-import ai.djl.training.dataset.Batch
 import ai.djl.training.initializer.NormalInitializer
 import ai.djl.training.listener.TrainingListener
 import ai.djl.training.loss.Loss
@@ -29,8 +28,8 @@ fun main() {
 
     val arr = mutableListOf<List<Long>>()
     var istream: InputStream = FileInputStream("data/sample.csv")
-    var ireader: InputStreamReader = InputStreamReader(istream, "UTF-8")
-    var reader: CSVReader = CSVReader(ireader)
+    var ireader = InputStreamReader(istream, "UTF-8")
+    var reader = CSVReader(ireader)
 
     reader.forEach {
         val list = it.map { it.trim().toLong() }
@@ -39,7 +38,7 @@ fun main() {
         arr.add(list)
     }
     println(arr.contains(listOf<Long>(0, 0, 1)))
-    input = input.reshape(arr.size.toLong(), input.size()/arr.size)
+    input = input.reshape(arr.size.toLong(), input.size() / arr.size)
 
     val labels = manager.create(floatArrayOf(0f, 0f, 1f, 0f))
     val batchSize = 1
@@ -108,5 +107,4 @@ fun main() {
     println(predictor.predict(NDList(test)).singletonOrThrow())
 }
 
-class Test5 {
-}
+class Test5

@@ -11,7 +11,6 @@ fun main() {
     val manager = NDManager.newBaseManager()
     var input = manager.zeros(Shape(0))
 
-
     val arr = mutableListOf<List<Long>>()
     var istream: InputStream = FileInputStream("data/sample.csv")
     var ireader: InputStreamReader = InputStreamReader(istream, "UTF-8")
@@ -24,8 +23,7 @@ fun main() {
         arr.add(list)
     }
     println(arr.contains(listOf<Long>(0, 0, 1)))
-    println(input.reshape(arr.size.toLong(), input.size()/arr.size))
+    println(input.reshape(arr.size.toLong(), input.size() / arr.size))
 }
 
-class Test4 {
-}
+class Test4

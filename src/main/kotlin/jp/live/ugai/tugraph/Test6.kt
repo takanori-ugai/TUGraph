@@ -8,7 +8,6 @@ import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
 import ai.djl.nn.Parameter
 import ai.djl.training.DefaultTrainingConfig
-import ai.djl.training.dataset.ArrayDataset
 import ai.djl.training.initializer.NormalInitializer
 import ai.djl.training.listener.TrainingListener
 import ai.djl.training.loss.Loss
@@ -19,14 +18,15 @@ import kotlin.random.Random
 
 fun main() {
     val manager = NDManager.newBaseManager()
+    val csvReader = CsvToNdarray(manager)
 
-    val input = manager.create(triples, Shape(NUM_TRIPLE, TRIPLE))
+    val input = csvReader.read("data/sample.csv")
+    println(input)
+    val numOfTriples = input.shape[0]
     val inputList = mutableListOf<List<Long>>()
-    (0 until NUM_TRIPLE).forEach {
+    (0 until numOfTriples).forEach {
         inputList.add(input.get(it).toLongArray().toList())
     }
-//    println(inputList.contains(listOf<Long>(2,0,1)))
-    val labels = manager.create(labelData)
 
     val transe = TransE(NUM_ENTITIES, NUM_EDGES, DIMENSION).also {
         it.setInitializer(NormalInitializer(), Parameter.Type.WEIGHT)
@@ -54,19 +54,12 @@ fun main() {
     val lossList = mutableListOf<Float>()
     (0..NEPOCH).forEach {
         var epochLoss = 0f
-        (0 until NUM_TRIPLE).forEach {
+        (0 until numOfTriples).forEach {
             val X = input.get(it)
-//            println(X)
-            val y = labels.get(it)
-//            println("${element} and ${listOf(fst, sec, ran)}")
-//            println(y)
             trainer.newGradientCollector().use { gc ->
                 val f0 = trainer.forward(NDList(X))
                 val l = f0.singletonOrThrow()
-                epochLoss += l.sum().toFloatArray()[0]
-//             if(i % 100 == 0) {
-//                  println("l = $l")
-//             }
+                epochLoss += l.toFloatArray()[0]
                 gc.backward(l)
                 gc.close()
                 trainer.step()
@@ -83,10 +76,7 @@ fun main() {
                 trainer.newGradientCollector().use { gc ->
                     val f0 = trainer.forward(NDList(manager.create(longArrayOf(fst, sec, ran))))
                     val l = f0.singletonOrThrow().sub(1f).abs()
-                    epochLoss += l.sum().toFloatArray()[0]
-//             if(i % 100 == 0) {
-//                  println("l = $l")
-//             }
+                    epochLoss += l.toFloatArray()[0]
                     gc.backward(l)
                     gc.close()
                     trainer.step()
@@ -99,29 +89,36 @@ fun main() {
                 trainer.newGradientCollector().use { gc ->
                     val f0 = trainer.forward(NDList(manager.create(longArrayOf(ran, sec, trd))))
                     val l = f0.singletonOrThrow().sub(1f).abs()
-                    epochLoss += l.sum().toFloatArray()[0]
-//             if(i % 100 == 0) {
-//                  println("l = $l")
-//             }
+                    epochLoss += l.toFloatArray()[0]
                     gc.backward(l)
                     gc.close()
                     trainer.step()
                 }
             }
-
         }
-//        println("${it} : ${epochLoss/NUM_TRIPLE/2}")
+        if (it % (NEPOCH / 10L) == 0L) {
+            println("$it : ${epochLoss / NUM_TRIPLE / 2}")
+        }
         lossList.add(epochLoss)
     }
 
     println(transe.getEdges())
     println(transe.getEntities())
-//    println(loss)
-    println(predictor.predict(NDList(input)).singletonOrThrow())
+//    println(predictor.predict(NDList(input)).singletonOrThrow())
     val test = manager.create(longArrayOf(1, 1, 2))
     println(predictor.predict(NDList(test)).singletonOrThrow())
-    //   println(predictor.predict(NDList(test)).singletonOrThrow().pow(2).sum().sqrt())
-}
+    inputList.forEach { triple ->
+        val rank = mutableMapOf<Long, Float>()
+        (0 until NUM_ENTITIES).forEach {
+            val t0 = manager.create(longArrayOf(triple[0], triple[1], it))
+            rank[it] = predictor.predict(NDList(t0)).singletonOrThrow().toFloatArray()[0]
+//            println("${triple}, $it, ${predictor.predict(NDList(t0)).singletonOrThrow()}")
+        }
+        val lengthOrder = rank.toList().sortedBy { it.second }
+        println("$triple, ${lengthOrder.indexOf(Pair(triple[2], rank[triple[2]])) + 1}")
+    }
 
+//    println(predictor.predict(NDList(input)).singletonOrThrow())
+}
 
 class Test6
