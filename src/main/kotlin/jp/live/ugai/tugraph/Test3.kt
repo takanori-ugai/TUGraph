@@ -17,11 +17,6 @@ import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
-// Hyper Parameters
-const val LEARNING_RATE = 0.05f
-const val DIMENSION = 100L
-const val NEPOCH = 1000
-const val BATCH_SIZE = 3
 
 fun main() {
     val manager = NDManager.newBaseManager()
