@@ -37,7 +37,7 @@ fun main() {
     }
     val predictor = model.newPredictor(NoopTranslator())
 
-    val l2loss = Loss.l2Loss()
+    val l2loss = Loss.l1Loss()
     val lrt = Tracker.fixed(LEARNING_RATE)
     val sgd = Optimizer.sgd().setLearningRateTracker(lrt).build()
 
@@ -51,56 +51,9 @@ fun main() {
         it.metrics = Metrics()
     }
 
-    val lossList = mutableListOf<Float>()
-    (0..NEPOCH).forEach {
-        var epochLoss = 0f
-        (0 until numOfTriples).forEach {
-            val X = input.get(it)
-            trainer.newGradientCollector().use { gc ->
-                val f0 = trainer.forward(NDList(X))
-                val l = f0.singletonOrThrow()
-                epochLoss += l.toFloatArray()[0]
-                gc.backward(l)
-                gc.close()
-                trainer.step()
-            }
-            val element = inputList.elementAt(it.toInt())
-            val fst = element.elementAt(0)
-            val sec = element.elementAt(1)
-            val trd = element.elementAt(2)
-            if (Random.nextInt(1) == 0) {
-                var ran = Random.nextLong(NUM_ENTITIES)
-                while (ran == fst || inputList.contains(listOf(fst, sec, ran))) {
-                    ran = Random.nextLong(NUM_ENTITIES)
-                }
-                trainer.newGradientCollector().use { gc ->
-                    val f0 = trainer.forward(NDList(manager.create(longArrayOf(fst, sec, ran))))
-                    val l = f0.singletonOrThrow().sub(1f).abs()
-                    epochLoss += l.toFloatArray()[0]
-                    gc.backward(l)
-                    gc.close()
-                    trainer.step()
-                }
-            } else {
-                var ran = Random.nextLong(NUM_ENTITIES)
-                while (ran == trd || inputList.contains(listOf(ran, sec, trd))) {
-                    ran = Random.nextLong(NUM_ENTITIES)
-                }
-                trainer.newGradientCollector().use { gc ->
-                    val f0 = trainer.forward(NDList(manager.create(longArrayOf(ran, sec, trd))))
-                    val l = f0.singletonOrThrow().sub(1f).abs()
-                    epochLoss += l.toFloatArray()[0]
-                    gc.backward(l)
-                    gc.close()
-                    trainer.step()
-                }
-            }
-        }
-        if (it % (NEPOCH / 10L) == 0L) {
-            println("$it : ${epochLoss / NUM_TRIPLE / 2}")
-        }
-        lossList.add(epochLoss)
-    }
+    val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, NUM_ENTITIES, trainer, NEPOCH)
+    eTrainer.training()
+    println(trainer.trainingResult)
 
     println(transe.getEdges())
     println(transe.getEntities())
