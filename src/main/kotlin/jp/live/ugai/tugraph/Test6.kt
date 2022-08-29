@@ -49,7 +49,7 @@ fun main() {
         it.metrics = Metrics()
     }
 
-    val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, NUM_ENTITIES, trainer, NEPOCH)
+    val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, NUM_ENTITIES, trainer, 10)
     eTrainer.training()
     println(trainer.trainingResult)
 

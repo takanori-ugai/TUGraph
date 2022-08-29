@@ -2,8 +2,8 @@ package jp.live.ugai.tugraph
 
 // Hyper Parameters
 const val LEARNING_RATE = 0.001f
-const val DIMENSION = 100L
-const val NEPOCH = 1000
+const val DIMENSION = 10L
+const val NEPOCH = 2
 const val BATCH_SIZE = 3
 const val TRIPLE = 3L
 const val NUM_ENTITIES = 4L
