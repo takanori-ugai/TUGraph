@@ -14,7 +14,6 @@ import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
-import kotlin.random.Random
 
 fun main() {
     val manager = NDManager.newBaseManager()
@@ -37,11 +36,10 @@ fun main() {
     }
     val predictor = model.newPredictor(NoopTranslator())
 
-    val l2loss = Loss.l1Loss()
     val lrt = Tracker.fixed(LEARNING_RATE)
     val sgd = Optimizer.sgd().setLearningRateTracker(lrt).build()
 
-    val config = DefaultTrainingConfig(l2loss)
+    val config = DefaultTrainingConfig(Loss.l1Loss())
         .optOptimizer(sgd) // Optimizer (loss function)
         .optDevices(manager.engine.getDevices(1)) // single GPU
         .addTrainingListeners(*TrainingListener.Defaults.logging()) // Logging
@@ -57,21 +55,19 @@ fun main() {
 
     println(transe.getEdges())
     println(transe.getEntities())
-//    println(predictor.predict(NDList(input)).singletonOrThrow())
+
     val test = manager.create(longArrayOf(1, 1, 2))
     println(predictor.predict(NDList(test)).singletonOrThrow())
-    inputList.forEach { triple ->
-        val rank = mutableMapOf<Long, Float>()
-        (0 until NUM_ENTITIES).forEach {
-            val t0 = manager.create(longArrayOf(triple[0], triple[1], it))
-            rank[it] = predictor.predict(NDList(t0)).singletonOrThrow().toFloatArray()[0]
-//            println("${triple}, $it, ${predictor.predict(NDList(t0)).singletonOrThrow()}")
-        }
-        val lengthOrder = rank.toList().sortedBy { it.second }
-        println("$triple, ${lengthOrder.indexOf(Pair(triple[2], rank[triple[2]])) + 1}")
+
+    val result = ResultEval(inputList, manager.newSubManager(), predictor)
+    println("Tail")
+    result.getTailResult().forEach {
+        println("${it.key} : ${it.value}")
     }
-
-//    println(predictor.predict(NDList(input)).singletonOrThrow())
+    println("Head")
+    result.getHeadResult().forEach {
+        println("${it.key} : ${it.value}")
+    }
+    result.close()
 }
-
 class Test6
