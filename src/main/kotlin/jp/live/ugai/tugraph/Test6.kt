@@ -4,6 +4,7 @@ import ai.djl.Model
 import ai.djl.metric.Metrics
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
+import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
 import ai.djl.nn.Parameter
@@ -59,6 +60,7 @@ fun main() {
     val test = manager.create(longArrayOf(1, 1, 2))
     println(predictor.predict(NDList(test)).singletonOrThrow())
 
+    val test0 = input.transpose().get(NDIndex("0:-1"))
     val result = ResultEval(inputList, manager.newSubManager(), predictor)
     println("Tail")
     result.getTailResult().forEach {

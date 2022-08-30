@@ -3,6 +3,8 @@ package jp.live.ugai.tugraph
 import ai.djl.inference.Predictor
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
+import ai.djl.ndarray.types.DataType
+import ai.djl.ndarray.types.Shape
 
 class ResultEval(val inputList: List<List<Long>>, val manager: NDManager, val predictor: Predictor<NDList, NDList>) {
 
@@ -10,13 +12,18 @@ class ResultEval(val inputList: List<List<Long>>, val manager: NDManager, val pr
         val res = mutableMapOf<String, Float>()
         val rankList = mutableListOf<Int>()
         inputList.forEach { triple ->
-            val rank = mutableMapOf<Long, Float>()
-            (0 until NUM_ENTITIES).forEach {
-                val t0 = manager.create(longArrayOf(triple[0], triple[1], it))
-                rank[it] = predictor.predict(NDList(t0)).singletonOrThrow().toFloatArray()[0]
-            }
-            val lengthOrder = rank.toList().sortedBy { it.second }
-            rankList.add(lengthOrder.indexOf(Pair(triple[2], rank[triple[2]])) + 1)
+            val rank = predictor.predict(
+                NDList(
+                    manager.create(longArrayOf(triple[0], triple[1]))
+                        .reshape(1, 2)
+                        .repeat(0, NUM_ENTITIES)
+                        .concat(manager.arange(NUM_ENTITIES.toInt()).reshape(NUM_ENTITIES, 1), 1)
+                )
+            )
+                .singletonOrThrow().toFloatArray()
+            val lengthOrder = rank.mapIndexed { index, fl -> Pair(index, fl) }
+                .toList().sortedBy { it.second }
+            rankList.add(lengthOrder.indexOf(Pair(triple[2].toInt(), rank[triple[2].toInt()])) + 1)
         }
 
         res["HIT@1"] = rankList.filter { it <= 1 }.size.toFloat() / rankList.size.toFloat()
