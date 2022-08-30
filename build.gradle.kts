@@ -13,6 +13,7 @@ plugins {
 //    kotlin("jupyter.api") version "0.10.1-8"
     id("com.github.jk1.dependency-license-report") version "2.1"
     id("com.github.spotbugs") version "5.0.9"
+    application
 }
 
 group = "jp.live.ugai"
@@ -33,7 +34,8 @@ dependencies {
     implementation("ai.djl:api:$v")
 //    implementation("ai.djl.mxnet:mxnet-engine:$v")
     implementation("ai.djl.pytorch:pytorch-engine:$v")
-    implementation("ai.djl.pytorch:pytorch-jni:1.11.0-$v")
+    implementation("ai.djl.pytorch:pytorch-jni:1.12.1-$v")
+    implementation("ai.djl.pytorch:pytorch-native-cpu:1.12.1")
     implementation("org.slf4j:slf4j-simple:1.7.36")
     implementation(kotlin("stdlib-jdk8"))
     implementation("com.opencsv:opencsv:5.6")
@@ -133,4 +135,8 @@ spotbugs {
 jacoco {
     toolVersion = "0.8.8"
 //    reportsDirectory.set(layout.buildDirectory.dir("customJacocoReportDir"))
+}
+
+application {
+    mainClass.set("jp.live.ugai.tugraph.Test6Kt")
 }
