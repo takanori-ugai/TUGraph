@@ -8,8 +8,11 @@ import ai.djl.training.Trainer
 import kotlin.random.Random
 
 class EmbeddingTrainer(
-    private val manager: NDManager, private val triples: NDArray, private val numOfEntities: Long,
-    private val trainer: Trainer, private val epoch: Int
+    private val manager: NDManager,
+    private val triples: NDArray,
+    private val numOfEntities: Long,
+    private val trainer: Trainer,
+    private val epoch: Int
 ) {
     val lossList = mutableListOf<Float>()
     private val numOfTriples = triples.shape[0]

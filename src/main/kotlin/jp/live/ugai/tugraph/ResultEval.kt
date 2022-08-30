@@ -4,9 +4,9 @@ import ai.djl.inference.Predictor
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
 
-class ResultEval(val inputList : List<List<Long>>, val manager : NDManager, val predictor : Predictor<NDList, NDList>) {
+class ResultEval(val inputList: List<List<Long>>, val manager: NDManager, val predictor: Predictor<NDList, NDList>) {
 
-    fun getTailResult() : Map<String, Float> {
+    fun getTailResult(): Map<String, Float> {
         val res = mutableMapOf<String, Float>()
         val rankList = mutableListOf<Int>()
         inputList.forEach { triple ->
@@ -21,12 +21,12 @@ class ResultEval(val inputList : List<List<Long>>, val manager : NDManager, val 
 
         res["HIT@1"] = rankList.filter { it <= 1 }.size.toFloat() / rankList.size.toFloat()
         res["HIT@10"] = rankList.filter { it <= 10 }.size.toFloat() / rankList.size.toFloat()
-        res["HIT@100"] =  rankList.filter { it <= 100 }.size.toFloat() / rankList.size.toFloat()
+        res["HIT@100"] = rankList.filter { it <= 100 }.size.toFloat() / rankList.size.toFloat()
         res["MRR"] = rankList.map { 1 / it.toFloat() }.sum() / rankList.size
         return res
     }
 
-    fun getHeadResult() : Map<String, Float> {
+    fun getHeadResult(): Map<String, Float> {
         val res = mutableMapOf<String, Float>()
         val rankList = mutableListOf<Int>()
         inputList.forEach { triple ->
@@ -41,7 +41,7 @@ class ResultEval(val inputList : List<List<Long>>, val manager : NDManager, val 
 
         res["HIT@1"] = rankList.filter { it <= 1 }.size.toFloat() / rankList.size.toFloat()
         res["HIT@10"] = rankList.filter { it <= 10 }.size.toFloat() / rankList.size.toFloat()
-        res["HIT@100"] =  rankList.filter { it <= 100 }.size.toFloat() / rankList.size.toFloat()
+        res["HIT@100"] = rankList.filter { it <= 100 }.size.toFloat() / rankList.size.toFloat()
         res["MRR"] = rankList.map { 1 / it.toFloat() }.sum() / rankList.size
         return res
     }

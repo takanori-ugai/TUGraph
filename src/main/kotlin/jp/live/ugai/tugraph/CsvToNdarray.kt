@@ -5,7 +5,6 @@ import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
 import com.opencsv.CSVParserBuilder
-import com.opencsv.CSVReader
 import com.opencsv.CSVReaderBuilder
 import java.io.FileInputStream
 import java.io.InputStreamReader

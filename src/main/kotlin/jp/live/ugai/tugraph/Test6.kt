@@ -70,4 +70,5 @@ fun main() {
     }
     result.close()
 }
+
 class Test6

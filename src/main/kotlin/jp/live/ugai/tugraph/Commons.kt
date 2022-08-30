@@ -8,8 +8,8 @@ const val BATCH_SIZE = 3
 const val TRIPLE = 3L
 const val NUM_ENTITIES = 4L
 
-//const val NUM_ENTITIES = 7658L
+// const val NUM_ENTITIES = 7658L
 const val NUM_EDGES = 2L
-//const val NUM_EDGES = 57L
+// const val NUM_EDGES = 57L
 
 class Commons
