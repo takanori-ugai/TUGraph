@@ -2,8 +2,12 @@ package jp.live.ugai.tugraph
 
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.index.NDIndex
+import ai.djl.ndarray.types.Shape
+import ai.djl.training.dataset.ArrayDataset
 
 fun main() {
+
+
     val rank = mapOf<Int, Float>(
         2 to 0.2f,
         3 to 0.7f,
@@ -26,6 +30,14 @@ fun main() {
     println(matrix.transpose().get(NDIndex("0:-1")).concat(mini3).transpose())
     val mini4 = manager.arange(5).reshape(1, 5)
     println(mini4.repeat(0, 2))
+
+    val dataset = ArrayDataset.Builder()
+        .setData(manager.arange(0,4), manager.arange(5,9))
+        .optLabels(manager.ones(Shape(1)), manager.zeros(Shape(1)))
+        .setSampling(20, false)
+        .build()
+    dataset.prepare()
+
 }
 
 class Test7

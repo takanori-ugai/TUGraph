@@ -3,8 +3,6 @@ package jp.live.ugai.tugraph
 import ai.djl.inference.Predictor
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
-import ai.djl.ndarray.types.DataType
-import ai.djl.ndarray.types.Shape
 
 class ResultEval(val inputList: List<List<Long>>, val manager: NDManager, val predictor: Predictor<NDList, NDList>) {
 
@@ -19,8 +17,7 @@ class ResultEval(val inputList: List<List<Long>>, val manager: NDManager, val pr
                         .repeat(0, NUM_ENTITIES)
                         .concat(manager.arange(NUM_ENTITIES.toInt()).reshape(NUM_ENTITIES, 1), 1)
                 )
-            )
-                .singletonOrThrow().toFloatArray()
+            ).singletonOrThrow().toFloatArray()
             val lengthOrder = rank.mapIndexed { index, fl -> Pair(index, fl) }
                 .toList().sortedBy { it.second }
             rankList.add(lengthOrder.indexOf(Pair(triple[2].toInt(), rank[triple[2].toInt()])) + 1)

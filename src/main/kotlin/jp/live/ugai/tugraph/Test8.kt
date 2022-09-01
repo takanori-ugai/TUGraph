@@ -1,6 +1,7 @@
 package jp.live.ugai.tugraph
 
 import ai.djl.Model
+import ai.djl.basicdataset.tabular.CsvDataset
 import ai.djl.metric.Metrics
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
@@ -8,12 +9,14 @@ import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
 import ai.djl.nn.Parameter
 import ai.djl.training.DefaultTrainingConfig
+import ai.djl.training.dataset.ArrayDataset
 import ai.djl.training.initializer.NormalInitializer
 import ai.djl.training.listener.TrainingListener
 import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
+import org.apache.commons.csv.CSVFormat
 
 fun main() {
     val manager = NDManager.newBaseManager()
@@ -48,27 +51,48 @@ fun main() {
         it.initialize(Shape(NUM_ENTITIES, TRIPLE))
         it.metrics = Metrics()
     }
-
-    val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, NUM_ENTITIES, trainer, 1000)
-    eTrainer.training()
-    println(trainer.trainingResult)
-
-    println(transe.getEdges())
-    println(transe.getEntities())
-
-    val test = manager.create(longArrayOf(1, 1, 2))
-    println(predictor.predict(NDList(test)).singletonOrThrow())
-
-    val result = ResultEval(inputList, manager.newSubManager(), predictor)
-    println("Tail")
-    result.getTailResult().forEach {
-        println("${it.key} : ${it.value}")
+    val csv = CsvDataset.CsvBuilder()
+        .optCsvUrl("file:./data/sample.csv")
+        .setCsvFormat(CSVFormat.DEFAULT.withHeader("Col1", "Col2", "Col3"))
+        .addNumericFeature("Col1")
+        .addNumericFeature("Col2")
+        .addNumericFeature("Col3")
+        .addNumericLabel("Col3")
+        .setSampling(3,false)
+        .build()
+    csv.prepare()
+    trainer.iterateDataset(csv).forEach {
+        println(it.data)
+        println(it.data[0])
     }
-    println("Head")
-    result.getHeadResult().forEach {
-        println("${it.key} : ${it.value}")
+    val dataset = ArrayDataset.Builder()
+        .setData(
+            manager.arange(0,4).reshape(1,4),
+            manager.arange(5,9).reshape(1,4),
+            manager.arange(10,14).reshape(1,4),
+            manager.arange(0,4).reshape(1,4),
+            manager.arange(5,9).reshape(1,4),
+            manager.arange(10,14).reshape(1,4)
+        )
+        .optLabels(manager.ones(Shape(1)),
+            manager.zeros(Shape(1)),
+            manager.zeros(Shape(1)),
+            manager.ones(Shape(1)),
+            manager.zeros(Shape(1)),
+            manager.zeros(Shape(1))
+        )
+        .setSampling(2, true)
+        .build()
+    for(batch in trainer.iterateDataset(dataset)) {
+        println(batch)
+        println(batch.data[2])
+        for(minibatch in batch.split(trainer.getDevices(), false)) {
+            println(minibatch.data.size)
+            println(minibatch.data[1])
+        }
     }
-    result.close()
+    val ll = trainer.loss.evaluate(NDList(manager.create(floatArrayOf(1f)),manager.create(floatArrayOf(1f))),NDList(manager.create(1.5f)))
+    println(ll)
 }
 
-class Test6
+class Test8
