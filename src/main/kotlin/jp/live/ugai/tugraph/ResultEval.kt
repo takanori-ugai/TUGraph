@@ -15,7 +15,7 @@ class ResultEval(val inputList: List<List<Long>>, val manager: NDManager, val pr
                     manager.create(longArrayOf(triple[0], triple[1]))
                         .reshape(1, 2)
                         .repeat(0, NUM_ENTITIES)
-                        .concat(manager.arange(NUM_ENTITIES.toInt()).reshape(NUM_ENTITIES, 1), 1)
+                        .concat(manager.create(LongArray(NUM_ENTITIES.toInt()) { it.toLong() }).reshape(NUM_ENTITIES, 1), 1)
                 )
             ).singletonOrThrow().toFloatArray()
             val lengthOrder = rank.mapIndexed { index, fl -> Pair(index, fl) }
