@@ -32,9 +32,10 @@ repositories {
 dependencies {
     implementation("ai.djl:basicdataset:$v")
     implementation("ai.djl:api:$v")
-//    implementation("ai.djl.mxnet:mxnet-engine:$v")
-    implementation("ai.djl.pytorch:pytorch-engine:$v")
-    runtimeOnly("ai.djl.pytorch:pytorch-jni:1.12.1-$v")
+    runtimeOnly("ai.djl.mxnet:mxnet-engine:$v")
+    runtimeOnly("ai.djl.mxnet:mxnet-native-cu112mkl:1.9.1:linux-x86_64")
+//    implementation("ai.djl.pytorch:pytorch-engine:$v")
+//    runtimeOnly("ai.djl.pytorch:pytorch-jni:1.12.1-$v")
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cpu:1.12.1")
     //    implementation("ai.djl.pytorch:pytorch-native-cpu:1.12.1:linux-x86_64")
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cu116:1.12.1:linux-x86_64")
