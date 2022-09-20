@@ -58,7 +58,7 @@ fun main() {
         .addNumericFeature("Col2")
         .addNumericFeature("Col3")
         .addNumericLabel("Col3")
-        .setSampling(3,false)
+        .setSampling(3, false)
         .build()
     csv.prepare()
     trainer.iterateDataset(csv).forEach {
@@ -67,14 +67,15 @@ fun main() {
     }
     val dataset = ArrayDataset.Builder()
         .setData(
-            manager.arange(0,4).reshape(1,4),
-            manager.arange(5,9).reshape(1,4),
-            manager.arange(10,14).reshape(1,4),
-            manager.arange(0,4).reshape(1,4),
-            manager.arange(5,9).reshape(1,4),
-            manager.arange(10,14).reshape(1,4)
+            manager.arange(0, 4).reshape(1, 4),
+            manager.arange(5, 9).reshape(1, 4),
+            manager.arange(10, 14).reshape(1, 4),
+            manager.arange(0, 4).reshape(1, 4),
+            manager.arange(5, 9).reshape(1, 4),
+            manager.arange(10, 14).reshape(1, 4)
         )
-        .optLabels(manager.ones(Shape(1)),
+        .optLabels(
+            manager.ones(Shape(1)),
             manager.zeros(Shape(1)),
             manager.zeros(Shape(1)),
             manager.ones(Shape(1)),
@@ -83,15 +84,15 @@ fun main() {
         )
         .setSampling(2, true)
         .build()
-    for(batch in trainer.iterateDataset(dataset)) {
+    for (batch in trainer.iterateDataset(dataset)) {
         println(batch)
         println(batch.data[2])
-        for(minibatch in batch.split(trainer.getDevices(), false)) {
+        for (minibatch in batch.split(trainer.getDevices(), false)) {
             println(minibatch.data.size)
             println(minibatch.data[1])
         }
     }
-    val ll = trainer.loss.evaluate(NDList(manager.create(floatArrayOf(1f)),manager.create(floatArrayOf(1f))),NDList(manager.create(1.5f)))
+    val ll = trainer.loss.evaluate(NDList(manager.create(floatArrayOf(1f)), manager.create(floatArrayOf(1f))), NDList(manager.create(1.5f)))
     println(ll)
 }
 

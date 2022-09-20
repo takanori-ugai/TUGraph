@@ -1,5 +1,6 @@
-import io.gitlab.arturbosch.detekt.Detekt
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import io.gitlab.arturbosch.detekt.Detekt
+import org.jlleitschuh.gradle.ktlint.reporter.ReporterType
 
 plugins {
     kotlin("jvm") version "1.7.10"
@@ -13,14 +14,13 @@ plugins {
 //    kotlin("jupyter.api") version "0.10.1-8"
     id("com.github.jk1.dependency-license-report") version "2.1"
     id("com.github.spotbugs") version "5.0.9"
+    id("org.jlleitschuh.gradle.ktlint") version "11.0.0"
     application
 }
 
 group = "jp.live.ugai"
 version = "1.0-SNAPSHOT"
-val v = "0.19.0-SNAPSHOT"
-
-val ktlint by configurations.creating
+val v = "0.20.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -32,22 +32,17 @@ repositories {
 dependencies {
     implementation("ai.djl:basicdataset:$v")
     implementation("ai.djl:api:$v")
-//    implementation("ai.djl.mxnet:mxnet-engine:$v")
-    implementation("ai.djl.pytorch:pytorch-engine:$v")
-    runtimeOnly("ai.djl.pytorch:pytorch-jni:1.12.1-$v")
-    runtimeOnly("ai.djl.pytorch:pytorch-native-cpu:1.12.1")
+    implementation("ai.djl.mxnet:mxnet-engine:$v")
+//    implementation("ai.djl.pytorch:pytorch-engine:$v")
+//    runtimeOnly("ai.djl.pytorch:pytorch-jni:1.12.1-$v")
+//    runtimeOnly("ai.djl.pytorch:pytorch-native-cpu:1.12.1")
     //    implementation("ai.djl.pytorch:pytorch-native-cpu:1.12.1:linux-x86_64")
-    runtimeOnly("ai.djl.pytorch:pytorch-native-cu116:1.12.1:linux-x86_64")
-    implementation("org.slf4j:slf4j-simple:1.7.36")
+//    runtimeOnly("ai.djl.pytorch:pytorch-native-cu116:1.12.1:linux-x86_64")
+    implementation("org.slf4j:slf4j-simple:2.0.0")
     implementation(kotlin("stdlib-jdk8"))
-    implementation("com.opencsv:opencsv:5.6")
+    implementation("com.opencsv:opencsv:5.7.0")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.0")
-    ktlint("com.pinterest:ktlint:0.47.0") {
-        attributes {
-            attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
-        }
-    }
 }
 
 tasks {
@@ -93,7 +88,7 @@ tasks {
     }
 
     check {
-        dependsOn("ktlint")
+        dependsOn("ktlintCheck")
     }
 
     jacocoTestReport {
@@ -107,19 +102,18 @@ tasks {
     }
 }
 
-task("ktlint", JavaExec::class) {
-    group = "verification"
-    description = "Check Kotlin code style."
-    classpath = ktlint
-    mainClass.set("com.pinterest.ktlint.Main")
-    args = listOf("src/**/*.kt")
-}
-
-val ktlintFormat by tasks.creating(JavaExec::class) {
-    description = "Fix Kotlin code style deviations."
-    classpath = ktlint
-    mainClass.set("com.pinterest.ktlint.Main")
-    args = listOf("-F", "src/**/*.kt")
+ktlint {
+    verbose.set(true)
+    outputToConsole.set(true)
+    coloredOutput.set(true)
+    reporters {
+        reporter(ReporterType.CHECKSTYLE)
+        reporter(ReporterType.JSON)
+        reporter(ReporterType.HTML)
+    }
+    filter {
+        exclude("**/style-violations.kt")
+    }
 }
 
 detekt {

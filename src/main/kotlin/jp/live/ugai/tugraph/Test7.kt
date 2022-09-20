@@ -7,7 +7,6 @@ import ai.djl.training.dataset.ArrayDataset
 
 fun main() {
 
-
     val rank = mapOf<Int, Float>(
         2 to 0.2f,
         3 to 0.7f,
@@ -32,12 +31,11 @@ fun main() {
     println(mini4.repeat(0, 2))
 
     val dataset = ArrayDataset.Builder()
-        .setData(manager.arange(0,4), manager.arange(5,9))
+        .setData(manager.arange(0, 4), manager.arange(5, 9))
         .optLabels(manager.ones(Shape(1)), manager.zeros(Shape(1)))
         .setSampling(20, false)
         .build()
     dataset.prepare()
-
 }
 
 class Test7
