@@ -3,7 +3,6 @@ package jp.live.ugai.tugraph
 import ai.djl.inference.Predictor
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
-import ai.djl.ndarray.types.DataType
 
 class ResultEval(val inputList: List<LongArray>, val manager: NDManager, val predictor: Predictor<NDList, NDList>) {
 
