@@ -59,7 +59,8 @@ class TransE(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
             val line0 = inputs.get(i).toLongArray()
             v = v.concat(entities.get(line0[0]).add(edges.get(line0[1])).sub(entities.get(line0[2])))
         }
-        val ret = v.reshape(input.size() / 3, dim).pow(2).sum(intArrayOf(1)).sqrt()
+//        val ret = v.reshape(input.size() / 3, dim).pow(2).sum(intArrayOf(1)).sqrt()
+        val ret = v.reshape(input.size() / 3, dim).abs().sum(intArrayOf(1)).div(dim)
         return ret
     }
 

@@ -55,10 +55,10 @@ class EmbeddingTrainer(
                     gc.close()
                 }
                 trainer.step()
+                (trainer.model.block as TransE).normalize()
             }
             if (it % (epoch / 10L) == 0L) {
                 println("Epoch $it finished. (L2Loss: ${epochLoss / numOfTriples})")
-                (trainer.model.block as TransE).normalize()
             }
             lossList.add(epochLoss)
 //        trainer.notifyListeners { listener -> listener.onEpoch(trainer) }

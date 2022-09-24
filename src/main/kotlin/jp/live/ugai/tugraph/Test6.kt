@@ -8,7 +8,7 @@ import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
 import ai.djl.nn.Parameter
 import ai.djl.training.DefaultTrainingConfig
-import ai.djl.training.initializer.NormalInitializer
+import ai.djl.training.initializer.UniformInitializer
 import ai.djl.training.listener.TrainingListener
 import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
@@ -26,7 +26,7 @@ fun main() {
         inputList.add(input.get(it).toLongArray())
     }
     val transe = TransE(NUM_ENTITIES, NUM_EDGES, DIMENSION).also {
-        it.setInitializer(NormalInitializer(), Parameter.Type.WEIGHT)
+        it.setInitializer(UniformInitializer(6.0f / Math.sqrt(DIMENSION.toDouble()).toFloat()), Parameter.Type.WEIGHT)
         it.initialize(manager, DataType.FLOAT32, input.shape)
     }
     val model = Model.newInstance("transe").also {
