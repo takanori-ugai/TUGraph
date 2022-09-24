@@ -25,8 +25,6 @@ fun main() {
     (0 until numOfTriples).forEach {
         inputList.add(input.get(it).toLongArray())
     }
-    val a = manager.arange(5)
-    println(a.pow(2))
     val transe = TransE(NUM_ENTITIES, NUM_EDGES, DIMENSION).also {
         it.setInitializer(NormalInitializer(), Parameter.Type.WEIGHT)
         it.initialize(manager, DataType.FLOAT32, input.shape)
@@ -49,7 +47,7 @@ fun main() {
         it.metrics = Metrics()
     }
 
-    val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, NUM_ENTITIES, trainer, 200)
+    val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, NUM_ENTITIES, trainer, 1000)
     eTrainer.training()
     println(trainer.trainingResult)
 

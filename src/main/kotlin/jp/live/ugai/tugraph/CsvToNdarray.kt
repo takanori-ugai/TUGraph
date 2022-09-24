@@ -29,6 +29,6 @@ class CsvToNdarray(val manager: NDManager) {
 //            input = input.concat(manager.create(list0.toLongArray()))
             input = input.concat(manager.create(list.toLongArray()))
         }
-        return input.reshape(input.size() / 3, 3)
+        return input.reshape(input.size() / TRIPLE, TRIPLE)
     }
 }

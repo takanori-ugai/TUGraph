@@ -19,8 +19,8 @@ class EmbeddingTrainer(
     val inputList = mutableListOf<List<Long>>()
 
     init {
-        (0 until numOfTriples).forEach {
-            inputList.add(triples.get(it).toLongArray().toList())
+        for (i in 0 until numOfTriples) {
+            inputList.add(triples.get(i).toLongArray().toList())
         }
     }
 
@@ -29,14 +29,6 @@ class EmbeddingTrainer(
             var epochLoss = 0f
             (0 until numOfTriples).forEach {
                 val sample = triples.get(it)
-                trainer.newGradientCollector().use { gc ->
-                    val f0 = trainer.forward(NDList(sample))
-                    val l = trainer.loss.evaluate(NDList(manager.zeros(Shape(1))), f0)
-                    epochLoss += l.toFloatArray()[0]
-                    gc.backward(l)
-                    gc.close()
-                    trainer.step()
-                }
                 val element = inputList.elementAt(it.toInt())
                 val fst = element.elementAt(0)
                 val sec = element.elementAt(1)
@@ -47,25 +39,26 @@ class EmbeddingTrainer(
                         while (ran == fst || inputList.contains(listOf(fst, sec, ran))) {
                             ran = Random.nextLong(numOfEntities)
                         }
-                        NDList(manager.create(longArrayOf(fst, sec, ran)))
+                        manager.create(longArrayOf(fst, sec, ran))
                     } else {
                         var ran = Random.nextLong(numOfEntities)
                         while (ran == trd || inputList.contains(listOf(ran, sec, trd))) {
                             ran = Random.nextLong(numOfEntities)
                         }
-                        NDList(manager.create(longArrayOf(ran, sec, trd)))
+                        manager.create(longArrayOf(ran, sec, trd))
                     }
                 trainer.newGradientCollector().use { gc ->
-                    val f0 = trainer.forward(nsample)
-                    val l = trainer.loss.evaluate(NDList(manager.ones(Shape(1))), f0)
-                    epochLoss += l.toFloatArray()[0]
+                    val f0 = trainer.forward(NDList(sample, nsample))
+                    val l = trainer.loss.evaluate(NDList(manager.ones(Shape(1))), NDList(f0[1].sub(f0[0])))
+                    epochLoss += l.sum().toFloatArray()[0]
                     gc.backward(l)
                     gc.close()
-                    trainer.step()
                 }
+                trainer.step()
             }
             if (it % (epoch / 10L) == 0L) {
-                println("Epoch $it finished. (L2Loss: ${epochLoss / numOfTriples / 2})")
+                println("Epoch $it finished. (L2Loss: ${epochLoss / numOfTriples})")
+                (trainer.model.block as TransE).normalize()
             }
             lossList.add(epochLoss)
 //        trainer.notifyListeners { listener -> listener.onEpoch(trainer) }
