@@ -39,29 +39,34 @@ class TransE(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
         training: Boolean,
         params: PairList<String, Any>?
     ): NDList {
-        val input = inputs.singletonOrThrow()
-        val device = input.device
+        val positive = inputs[0]
+        val device = positive.device
         // Since we added the parameter, we can now access it from the parameter store
-        val entitiesArr = parameterStore.getValue(entities, device, false)
-        val edgesArr = parameterStore.getValue(edges, device, false)
-        return transE(input, entitiesArr, edgesArr)
+        val entitiesArr = parameterStore.getValue(entities, device, training)
+        val edgesArr = parameterStore.getValue(edges, device, training)
+        val ret = NDList(model(positive, entitiesArr, edgesArr))
+        if (inputs.size > 1) {
+            ret.add(model(inputs[1], entitiesArr, edgesArr))
+        }
+        return ret
     }
 
     // Applies linear transformation
-    fun transE(input: NDArray, entities: NDArray, edges: NDArray): NDList {
+    fun model(input: NDArray, entities: NDArray, edges: NDArray): NDArray {
         var v = manager.zeros(Shape(0))
         val inputs = input.reshape(input.size() / 3, 3)
         for (i in 0 until input.size() / 3) {
             val line0 = inputs.get(i).toLongArray()
             v = v.concat(entities.get(line0[0]).add(edges.get(line0[1])).sub(entities.get(line0[2])))
         }
-        val ret = v.reshape(input.size() / 3, dim).pow(2).sum(intArrayOf(1)).sqrt()
-        return NDList(ret)
+//        val ret = v.reshape(input.size() / 3, dim).pow(2).sum(intArrayOf(1)).sqrt()
+        val ret = v.reshape(input.size() / 3, dim).abs().sum(intArrayOf(1)).div(dim)
+        return ret
     }
 
     @Override
     override fun getOutputShapes(inputs: Array<Shape>): Array<Shape> {
-        return arrayOf<Shape>(Shape(1, dim))
+        return arrayOf<Shape>(Shape(1), Shape(1))
     }
 
     fun getEntities(): NDArray {
@@ -74,7 +79,8 @@ class TransE(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
 
     fun normalize() {
         getParameters().forEach {
-            it.value.array.divi(it.value.array.pow(2).sum().sqrt())
+            it.value.array.norm()
+//            it.value.array.divi(it.value.array.pow(2).sum().sqrt())
         }
     }
 }

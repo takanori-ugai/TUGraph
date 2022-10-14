@@ -8,7 +8,7 @@ import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
 import ai.djl.nn.Parameter
 import ai.djl.training.DefaultTrainingConfig
-import ai.djl.training.initializer.NormalInitializer
+import ai.djl.training.initializer.UniformInitializer
 import ai.djl.training.listener.TrainingListener
 import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
@@ -18,17 +18,15 @@ import ai.djl.translate.NoopTranslator
 fun main() {
     val manager = NDManager.newBaseManager()
     val csvReader = CsvToNdarray(manager)
-
     val input = csvReader.read("data/sample.csv")
     println(input)
     val numOfTriples = input.shape[0]
-    val inputList = mutableListOf<List<Long>>()
+    val inputList = mutableListOf<LongArray>()
     (0 until numOfTriples).forEach {
-        inputList.add(input.get(it).toLongArray().toList())
+        inputList.add(input.get(it).toLongArray())
     }
-
     val transe = TransE(NUM_ENTITIES, NUM_EDGES, DIMENSION).also {
-        it.setInitializer(NormalInitializer(), Parameter.Type.WEIGHT)
+        it.setInitializer(UniformInitializer(6.0f / Math.sqrt(DIMENSION.toDouble()).toFloat()), Parameter.Type.WEIGHT)
         it.initialize(manager, DataType.FLOAT32, input.shape)
     }
     val model = Model.newInstance("transe").also {
