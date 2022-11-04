@@ -53,7 +53,7 @@ fun main() {
     }
     val csv = CsvDataset.CsvBuilder()
         .optCsvUrl("file:./data/sample.csv")
-        .setCsvFormat(CSVFormat.DEFAULT.withHeader("Col1", "Col2", "Col3"))
+        .setCsvFormat(CSVFormat.Builder.create().setHeader("Col1", "Col2", "Col3").build())
         .addNumericFeature("Col1")
         .addNumericFeature("Col2")
         .addNumericFeature("Col3")
@@ -92,7 +92,7 @@ fun main() {
             println(minibatch.data[1])
         }
     }
-    val ll = trainer.loss.evaluate(NDList(manager.create(floatArrayOf(1f)), manager.create(floatArrayOf(1f))), NDList(manager.create(1.5f)))
+    val ll = trainer.loss.evaluate(NDList(manager.create(floatArrayOf(1f))), NDList(manager.create(1.5f)))
     println(ll)
 }
 

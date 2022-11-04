@@ -40,7 +40,7 @@ dependencies {
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cu116:1.12.1:linux-x86_64")
     implementation("org.slf4j:slf4j-simple:2.0.0")
     implementation(kotlin("stdlib-jdk8"))
-    implementation("com.opencsv:opencsv:5.7.0")
+//    implementation("com.opencsv:opencsv:5.7.0")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.0")
 }
