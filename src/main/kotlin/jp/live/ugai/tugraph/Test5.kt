@@ -16,7 +16,7 @@ import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
-import com.opencsv.CSVReader
+import org.apache.commons.csv.CSVFormat
 import java.io.FileInputStream
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -29,9 +29,8 @@ fun main() {
     val arr = mutableListOf<List<Long>>()
     var istream: InputStream = FileInputStream("data/sample.csv")
     var ireader = InputStreamReader(istream, "UTF-8")
-    var reader = CSVReader(ireader)
-
-    reader.forEach {
+    val records = CSVFormat.EXCEL.parse(ireader)
+    records.forEach {
         val list = it.map { it.trim().toLong() }
         input = input.concat(manager.create(list.toLongArray()))
         println(list)
@@ -40,7 +39,7 @@ fun main() {
     println(arr.contains(listOf<Long>(0, 0, 1)))
     input = input.reshape(arr.size.toLong(), input.size() / arr.size)
 
-    val labels = manager.create(floatArrayOf(0f, 0f, 1f, 0f))
+    val labels = manager.create(floatArrayOf(0f, 0f, 1f, 0f, 1f))
     val batchSize = 1
     val dataset = ArrayDataset.Builder()
         .setData(input) // set the features
