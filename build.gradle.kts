@@ -13,7 +13,7 @@ plugins {
     id("com.github.sherter.google-java-format") version "0.9"
 //    kotlin("jupyter.api") version "0.10.1-8"
     id("com.github.jk1.dependency-license-report") version "2.1"
-    id("com.github.spotbugs") version "5.0.9"
+    id("com.github.spotbugs") version "5.0.13"
     id("org.jlleitschuh.gradle.ktlint") version "11.0.0"
     application
 }
