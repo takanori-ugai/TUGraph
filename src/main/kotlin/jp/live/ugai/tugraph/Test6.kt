@@ -55,7 +55,8 @@ fun main() {
     println(transe.getEntities())
 
     val test = manager.create(longArrayOf(1, 1, 2))
-    println(predictor.predict(NDList(test)).singletonOrThrow())
+    print("Predict (False):")
+    println(predictor.predict(NDList(test)).singletonOrThrow().toFloatArray()[0])
 
     val result = ResultEval(inputList, manager.newSubManager(), predictor)
     println("Tail")
