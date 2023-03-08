@@ -6,7 +6,6 @@ import ai.djl.ndarray.types.Shape
 import ai.djl.training.dataset.ArrayDataset
 
 fun main() {
-
     val rank = mapOf<Int, Float>(
         2 to 0.2f,
         3 to 0.7f,
