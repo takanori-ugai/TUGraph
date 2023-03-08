@@ -63,13 +63,13 @@ class TransR(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
     // Applies linear transformation
     fun model(input: NDArray, entities: NDArray, edges: NDArray, matrix: NDArray): NDArray {
         var v = manager.zeros(Shape(0))
-        val inputs = input.reshape(input.size() / 3, 3)
-        for (i in 0 until input.size() / 3) {
+        val inputs = input.reshape(input.size() / TRIPLE, TRIPLE)
+        for (i in 0 until input.size() / TRIPLE) {
             val line0 = inputs.get(i).toLongArray()
             v = v.concat(entities.get(line0[0]).add(edges.get(line0[1]).matMul(matrix)).sub(entities.get(line0[2])))
         }
 //        val ret = v.reshape(input.size() / 3, dim).pow(2).sum(intArrayOf(1)).sqrt()
-        val ret = v.reshape(input.size() / 3, dim).abs().sum(intArrayOf(1)).div(dim)
+        val ret = v.reshape(input.size() / TRIPLE, dim).abs().sum(intArrayOf(1)).div(dim)
         return ret
     }
 
