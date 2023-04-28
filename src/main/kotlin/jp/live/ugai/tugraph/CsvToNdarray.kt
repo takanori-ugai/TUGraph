@@ -11,9 +11,9 @@ class CsvToNdarray(val manager: NDManager) {
 
     fun read(path: String): NDArray {
         FileInputStream(path).use { istream ->
-            var ireader = InputStreamReader(istream, "UTF-8").use { ireader ->
+            InputStreamReader(istream, "UTF-8").use { ireader ->
 //        val records = CSVFormat.EXCEL.parse(ireader)
-                val parser = CSVFormat.TDF.parse(ireader).use { parser ->
+                CSVFormat.TDF.parse(ireader).use { parser ->
                     val array = mutableListOf<Long>()
                     parser.records.forEach { record ->
                         array.addAll(record.map { value -> value.trim().toLong() })
