@@ -20,7 +20,7 @@ plugins {
 
 group = "jp.live.ugai"
 version = "1.0-SNAPSHOT"
-val v = "0.22.0-SNAPSHOT"
+val v = "0.22.1-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -38,7 +38,7 @@ dependencies {
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cpu:1.12.1")
     //    implementation("ai.djl.pytorch:pytorch-native-cpu:1.12.1:linux-x86_64")
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cu116:1.12.1:linux-x86_64")
-    runtimeOnly("ai.djl.pytorch:pytorch-jni:1.13.1-0.21.0")
+    runtimeOnly("ai.djl.pytorch:pytorch-jni:1.13.1-0.22.1")
     runtimeOnly("ai.djl.pytorch:pytorch-native-cu117:1.13.1:win-x86_64")
     implementation("org.slf4j:slf4j-simple:2.0.5")
     implementation(kotlin("stdlib"))
