@@ -18,7 +18,7 @@ import ai.djl.translate.NoopTranslator
 fun main() {
     val manager = NDManager.newBaseManager()
     val csvReader = CsvToNdarray(manager)
-    val input = csvReader.read("data/sample.csv")
+    val input = csvReader.read("data/ex/train2id-hrt.txt")
     println(input)
     val numOfTriples = input.shape[0]
     val inputList = mutableListOf<LongArray>()

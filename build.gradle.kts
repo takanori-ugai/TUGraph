@@ -10,6 +10,7 @@ plugins {
     jacoco
     id("org.jetbrains.dokka") version "1.8.10"
     id("io.gitlab.arturbosch.detekt") version "1.22.0"
+    id("com.github.sherter.google-java-format") version "0.9"
 //    kotlin("jupyter.api") version "0.10.1-8"
     id("com.github.jk1.dependency-license-report") version "2.1"
     id("com.github.spotbugs") version "5.0.14"
@@ -20,7 +21,7 @@ plugins {
 
 group = "jp.live.ugai"
 version = "1.0-SNAPSHOT"
-val v = "0.22.0-SNAPSHOT"
+val v = "0.22.1-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -38,6 +39,8 @@ dependencies {
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cpu:1.12.1")
     //    implementation("ai.djl.pytorch:pytorch-native-cpu:1.12.1:linux-x86_64")
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cu116:1.12.1:linux-x86_64")
+    runtimeOnly("ai.djl.pytorch:pytorch-jni:1.13.1-0.22.1")
+    runtimeOnly("ai.djl.pytorch:pytorch-native-cu117:1.13.1:win-x86_64")
     implementation("org.slf4j:slf4j-simple:2.0.5")
     implementation(kotlin("stdlib"))
     implementation("com.opencsv:opencsv:5.7.1")
@@ -129,7 +132,7 @@ spotbugs {
 }
 
 jacoco {
-    toolVersion = "0.8.10"
+    toolVersion = "0.8.8"
 //    reportsDirectory.set(layout.buildDirectory.dir("customJacocoReportDir"))
 }
 
