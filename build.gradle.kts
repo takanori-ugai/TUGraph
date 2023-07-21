@@ -3,8 +3,8 @@ import io.gitlab.arturbosch.detekt.Detekt
 import org.jlleitschuh.gradle.ktlint.reporter.ReporterType
 
 plugins {
-    kotlin("jvm") version "1.8.21"
-    kotlin("plugin.serialization") version "1.8.21"
+    kotlin("jvm") version "1.8.22"
+    kotlin("plugin.serialization") version "1.8.22"
     java
     id("com.github.johnrengelman.shadow") version "8.1.1"
     jacoco
@@ -19,7 +19,7 @@ plugins {
 
 group = "jp.live.ugai"
 version = "1.0-SNAPSHOT"
-val v = "0.23.0-SNAPSHOT"
+val v = "0.24.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -33,15 +33,17 @@ dependencies {
     implementation("ai.djl:api:$v")
 //    implementation("ai.djl.mxnet:mxnet-engine:$v")
     implementation("ai.djl.pytorch:pytorch-engine:$v")
+    implementation("ai.djl.pytorch:pytorch-model-zoo:$v")
+    implementation("ai.djl.huggingface:tokenizers:$v")
 //    runtimeOnly("ai.djl.pytorch:pytorch-jni:1.12.1-$v")
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cpu:1.12.1")
     //    implementation("ai.djl.pytorch:pytorch-native-cpu:1.12.1:linux-x86_64")
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cu116:1.12.1:linux-x86_64")
 //    runtimeOnly("ai.djl.pytorch:pytorch-jni:1.13.1-0.22.1")
-    runtimeOnly("ai.djl.pytorch:pytorch-jni:2.0.0-0.22.1")
+    runtimeOnly("ai.djl.pytorch:pytorch-jni:2.0.1-0.23.0")
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cu117:1.13.1:win-x86_64")
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cu118:2.0.0:win-x86_64")
-    runtimeOnly("ai.djl.pytorch:pytorch-native-cpu:2.0.0:win-x86_64")
+    runtimeOnly("ai.djl.pytorch:pytorch-native-cpu:2.0.1:win-x86_64")
     implementation("org.slf4j:slf4j-simple:2.0.5")
     implementation(kotlin("stdlib"))
     implementation("com.opencsv:opencsv:5.7.1")

@@ -20,7 +20,10 @@ fun main() {
     println(String(a.encode("1")))
     println(a.embed(manager, arrayOf("1"))[0])
     println(a.forward(ps, NDList(manager.create(intArrayOf(0, 1))), false)[0])
-    println(a.forward(ps, NDList(manager.create(intArrayOf(0, 1))), false)[0].transpose().muli(manager.create(intArrayOf(1, -1))).sum(intArrayOf(1)))
+    println(
+        a.forward(ps, NDList(manager.create(intArrayOf(0, 1))), false)[0].transpose()
+            .muli(manager.create(intArrayOf(1, -1))).sum(intArrayOf(1))
+    )
     println(a.parameters[0].value.array)
     println(a.parameters[0].value.array)
 //    println(a.embedWord(manager, 1))
