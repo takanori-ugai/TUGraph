@@ -140,10 +140,19 @@ fun main() {
 
 class BertExample2
 
+/**
+ * A class that translates QAInput to String using the BERT model.
+ */
 class BertTranslator : Translator<QAInput, String> {
     private var tokens: MutableList<String> = mutableListOf()
     private var vocabulary: Vocabulary? = null
     private var tokenizer: BertTokenizer? = null
+
+    /**
+     * Prepare the translator for translation by initializing the vocabulary and tokenizer.
+     *
+     * @param ctx The translator context.
+     */
     override fun prepare(ctx: TranslatorContext) {
         val path = Paths.get("data/bert-base-uncased-vocab.txt")
         vocabulary = DefaultVocabulary.builder()
@@ -154,6 +163,13 @@ class BertTranslator : Translator<QAInput, String> {
         tokenizer = BertTokenizer()
     }
 
+    /**
+     * Process the input and return an NDList containing the encoded tokens.
+     *
+     * @param ctx The translator context.
+     * @param input The input to be processed.
+     * @return An NDList containing the indices, attention mask, and token types.
+     */
     override fun processInput(ctx: TranslatorContext, input: QAInput): NDList {
         val token = tokenizer!!.encode(
             input.question.lowercase(Locale.getDefault()).replace("[mask]", "[MASK]"),
@@ -182,6 +198,13 @@ class BertTranslator : Translator<QAInput, String> {
         return NDList(indicesArray, attentionMaskArray, tokenTypeArray)
     }
 
+    /**
+     * Process the output and return the predicted answer as a String.
+     *
+     * @param ctx The translator context.
+     * @param list The NDList containing the start and end logits.
+     * @return The predicted answer as a String.
+     */
     override fun processOutput(ctx: TranslatorContext, list: NDList): String {
         val startLogits = list[0]
         val endLogits = list[1]
@@ -190,5 +213,10 @@ class BertTranslator : Translator<QAInput, String> {
         return tokens.subList(startIdx, endIdx + 1).toString()
     }
 
+    /**
+     * Get the batchifier to be used.
+     *
+     * @return The Batchifier.STACK.
+     */
     override fun getBatchifier(): Batchifier = Batchifier.STACK
 }
