@@ -87,7 +87,7 @@ fun main() {
     for (batch in trainer.iterateDataset(dataset)) {
         println(batch)
         println(batch.data[2])
-        for (minibatch in batch.split(trainer.getDevices(), false)) {
+        for (minibatch in batch.split(trainer.devices, false)) {
             println(minibatch.data.size)
             println(minibatch.data[1])
         }

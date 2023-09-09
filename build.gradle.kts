@@ -35,6 +35,8 @@ dependencies {
     implementation("ai.djl:api:$v")
 //    implementation("ai.djl.mxnet:mxnet-engine:$v")
     implementation("ai.djl.pytorch:pytorch-engine:$v")
+    implementation("ai.djl.pytorch:pytorch-model-zoo:$v")
+    implementation("ai.djl.huggingface:tokenizers:$v")
 //    runtimeOnly("ai.djl.pytorch:pytorch-jni:1.12.1-$v")
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cpu:1.12.1")
     //    implementation("ai.djl.pytorch:pytorch-native-cpu:1.12.1:linux-x86_64")
@@ -133,7 +135,7 @@ spotbugs {
 }
 
 jacoco {
-    toolVersion = "0.8.8"
+    toolVersion = "0.8.10"
 //    reportsDirectory.set(layout.buildDirectory.dir("customJacocoReportDir"))
 }
 
