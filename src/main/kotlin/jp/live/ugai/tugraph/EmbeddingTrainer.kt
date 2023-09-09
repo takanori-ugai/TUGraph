@@ -57,7 +57,7 @@ class EmbeddingTrainer(
                 trainer.step()
 //                (trainer.model.block as TransE).normalize()
             }
-            if (it % (epoch / 2L) == 0L) {
+            if (it % (epoch / 500L) == 0L) {
                 println("Epoch $it finished. (L2Loss: ${epochLoss / numOfTriples})")
             }
             lossList.add(epochLoss)

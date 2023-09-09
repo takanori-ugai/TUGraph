@@ -23,11 +23,14 @@ import ai.djl.translate.NoopTranslator
 object EmbeddingExample {
     @JvmStatic
     fun main(args: Array<String>) {
+        val sentence = listOf("I", "am", "a", "dog", "am", "a", "<START>", "<END>")
+        val dic = DefaultVocabulary.builder().add(sentence).optUnknownToken().build()
+
         val manager = NDManager.newBaseManager()
         val sizeOfSentence = 8L
-        val numOfSentence = 100L
+        val numOfSentence = 3L
         val sizeOfMatrix = sizeOfSentence * numOfSentence
-        val numOfWords = 4L
+        val numOfWords = dic.size() - 3 // <START>(4) <END>(5) <Unknown>(6)
 
         val lang = manager.randomInteger(0, numOfWords, Shape(sizeOfMatrix), DataType.INT32)
         println("LANG: $lang")
@@ -41,8 +44,6 @@ object EmbeddingExample {
             manager.eye(numOfWords.toInt() + 2).get(lang2).reshape(numOfSentence, sizeOfSentence + 1, numOfWords + 2)
         println("Labels: $labels")
         val dataset = loadArray(features, labels, 2, true)
-        val sentence = listOf("I", "am", "a", "dog", "am", "a", "<START>", "<END>")
-        val dic = DefaultVocabulary.builder().add(sentence).optUnknownToken().build()
         println(dic.getIndex("<END>"))
         val emb = TrainableWordEmbedding(dic, 20)
         val net = SequentialBlock()
@@ -61,7 +62,7 @@ object EmbeddingExample {
 //        trainer.initialize(Shape(1, 2))
         val metrics = Metrics()
         trainer.metrics = metrics
-        val numEpochs = 100
+        val numEpochs = 10
         val translator = NoopTranslator()
         val predictor = model.newPredictor(translator)
         for (epoch in 1..numEpochs) {
