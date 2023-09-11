@@ -9,6 +9,13 @@ import ai.djl.nn.Parameter
 import ai.djl.training.ParameterStore
 import ai.djl.util.PairList
 
+/**
+ * A class representing the TransE model.
+ *
+ * @property numEnt The number of entities.
+ * @property numEdge The number of edges.
+ * @property dim The dimensionality of the embeddings.
+ */
 class TransE(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock() {
 
     private val entities: Parameter
@@ -32,6 +39,15 @@ class TransE(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
         )
     }
 
+    /**
+     * Computes the forward pass of the TransE model.
+     *
+     * @param parameterStore The parameter store.
+     * @param inputs The input NDList.
+     * @param training Whether the model is in training mode.
+     * @param params Additional parameters.
+     * @return The output NDList.
+     */
     @Override
     override fun forwardInternal(
         parameterStore: ParameterStore,
@@ -51,7 +67,14 @@ class TransE(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
         return ret
     }
 
-    // Applies linear transformation
+    /**
+     * Applies the linear transformation of the TransE model.
+     *
+     * @param input The input NDArray.
+     * @param entities The entities NDArray.
+     * @param edges The edges NDArray.
+     * @return The output NDArray.
+     */
     fun model(input: NDArray, entities: NDArray, edges: NDArray): NDArray {
         var v = manager.zeros(Shape(0))
         val inputs = input.reshape(input.size() / TRIPLE, TRIPLE)
@@ -69,14 +92,27 @@ class TransE(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
         return arrayOf<Shape>(Shape(1), Shape(1))
     }
 
+    /**
+     * Returns the entities NDArray.
+     *
+     * @return The entities NDArray.
+     */
     fun getEntities(): NDArray {
         return getParameters().valueAt(0).array
     }
 
+    /**
+     * Returns the edges NDArray.
+     *
+     * @return The edges NDArray.
+     */
     fun getEdges(): NDArray {
         return getParameters().valueAt(1).array
     }
 
+    /**
+     * Normalizes the embeddings.
+     */
     fun normalize() {
         getParameters().forEach {
             it.value.array.norm()

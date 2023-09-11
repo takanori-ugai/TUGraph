@@ -7,6 +7,15 @@ import ai.djl.ndarray.types.Shape
 import ai.djl.training.Trainer
 import kotlin.random.Random
 
+/**
+ * A class for training an embedding model.
+ *
+ * @property manager The NDManager instance used for creating NDArrays.
+ * @property triples The NDArray containing the training triples.
+ * @property numOfEntities The number of entities in the training data.
+ * @property trainer The Trainer instance for training the model.
+ * @property epoch The number of training epochs.
+ */
 class EmbeddingTrainer(
     private val manager: NDManager,
     private val triples: NDArray,
@@ -24,17 +33,20 @@ class EmbeddingTrainer(
         }
     }
 
+    /**
+     * Trains the embedding model.
+     */
     fun training() {
         (1..epoch).forEach {
             var epochLoss = 0f
-            (0 until numOfTriples).forEach {
-                val sample = triples.get(it)
-                val element = inputList.elementAt(it.toInt())
+            for (i in 0 until numOfTriples) {
+                val sample = triples.get(i)
+                val element = inputList.elementAt(i.toInt())
                 val fst = element.elementAt(0)
                 val sec = element.elementAt(1)
                 val trd = element.elementAt(2)
                 val nsample =
-                    if (Random.nextInt(1) == 0) {
+                    if (Random.nextBoolean()) {
                         var ran = Random.nextLong(numOfEntities)
                         while (ran == fst || inputList.contains(listOf(fst, sec, ran))) {
                             ran = Random.nextLong(numOfEntities)
@@ -52,7 +64,7 @@ class EmbeddingTrainer(
                     val l = trainer.loss.evaluate(NDList(manager.ones(Shape(1))), NDList(f0[1].sub(f0[0])))
                     epochLoss += l.sum().toFloatArray()[0]
                     gc.backward(l)
-                    gc.close()
+//                    gc.close()
                 }
                 trainer.step()
 //                (trainer.model.block as TransE).normalize()

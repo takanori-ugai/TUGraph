@@ -31,10 +31,10 @@ object BertQaInference {
 
     fun predict(): String {
         val question = "When did BBC Japan start broadcasting?"
-        val paragraph = "help"
-        //    val paragraph = ("BBC Japan was a general entertainment Channel. "
-        //            + "Which operated between December 2004 and April 2006. "
-        //            + "It ceased operations after its Japanese distributor folded.")
+        // val paragraph = "help"
+        val paragraph = ("BBC Japan was a general entertainment Channel. "
+                    + "Which operated between December 2004 and April 2006. "
+                    + "It ceased operations after its Japanese distributor folded.")
         val input = QAInput(question, paragraph)
         logger.info("Paragraph: {}", input.paragraph)
         logger.info("Question: {}", input.question)

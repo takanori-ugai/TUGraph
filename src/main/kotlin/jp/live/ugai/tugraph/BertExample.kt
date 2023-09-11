@@ -13,6 +13,9 @@ import ai.djl.training.dataset.ArrayDataset
 import ai.djl.training.dataset.Dataset
 import ai.djl.training.optimizer.Adam
 
+/**
+ * Main function to run the program.
+ */
 fun main() {
     // Create an engine.
     val engine = Engine.getInstance()
@@ -45,4 +48,7 @@ fun main() {
     //    println(result)
 }
 
+/**
+ * Example class for BERT.
+ */
 class BertExample
