@@ -64,7 +64,7 @@ fun main() {
     // Create expected output for comparison
     val expected = manager.create(
         floatArrayOf(
-            00.7615f,
+            0.7615f,
             0.7615f,
             0.7615f,
             0.7615f,
