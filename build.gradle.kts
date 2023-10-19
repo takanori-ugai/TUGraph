@@ -21,7 +21,7 @@ plugins {
 
 group = "jp.live.ugai"
 version = "1.0-SNAPSHOT"
-val v = "0.25.0-SNAPSHOT"
+val v = "0.24.0"
 
 repositories {
     mavenCentral()
@@ -41,9 +41,9 @@ dependencies {
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cpu:1.12.1")
     //    implementation("ai.djl.pytorch:pytorch-native-cpu:1.12.1:linux-x86_64")
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cu116:1.12.1:linux-x86_64")
-    runtimeOnly("ai.djl.pytorch:pytorch-jni:1.13.1-$v")
-//    runtimeOnly("ai.djl.pytorch:pytorch-native-cu118:2.0.1:win-x86_64")
-    runtimeOnly("ai.djl.pytorch:pytorch-native-cu117:1.13.1:win-x86_64")
+    runtimeOnly("ai.djl.pytorch:pytorch-jni:2.0.1-0.24.0")
+    runtimeOnly("ai.djl.pytorch:pytorch-native-cu118:2.0.1:win-x86_64")
+//    runtimeOnly("ai.djl.pytorch:pytorch-native-cu117:1.13.1:win-x86_64")
     implementation("org.slf4j:slf4j-simple:2.0.5")
 //    implementation(kotlin("stdlib"))
     implementation("com.opencsv:opencsv:5.8")
