@@ -5,8 +5,20 @@ import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
 
+/**
+ * A class for evaluating the results of a model.
+ *
+ * @property inputList The list of input triples.
+ * @property manager The NDManager instance used for creating NDArrays.
+ * @property predictor The Predictor instance for making predictions.
+ */
 class ResultEval(val inputList: List<LongArray>, val manager: NDManager, val predictor: Predictor<NDList, NDList>) {
 
+    /**
+     * Computes the evaluation metrics for tail prediction.
+     *
+     * @return A map containing the evaluation metrics.
+     */
     fun getTailResult(): Map<String, Float> {
         val res = mutableMapOf<String, Float>()
         val rankList = mutableListOf<Int>()
@@ -33,6 +45,11 @@ class ResultEval(val inputList: List<LongArray>, val manager: NDManager, val pre
         return res
     }
 
+    /**
+     * Computes the evaluation metrics for head prediction.
+     *
+     * @return A map containing the evaluation metrics.
+     */
     fun getHeadResult(): Map<String, Float> {
         val res = mutableMapOf<String, Float>()
         val rankList = mutableListOf<Int>()
@@ -53,6 +70,9 @@ class ResultEval(val inputList: List<LongArray>, val manager: NDManager, val pre
         return res
     }
 
+    /**
+     * Closes the NDManager instance.
+     */
     fun close() {
         manager.close()
     }
