@@ -54,14 +54,15 @@ fun main() {
 }
 
 private fun prepareDataset(): Dataset {
-    val sentences = arrayOf(
-        "This is a positive sentence.",
-        "I love this product.",
-        "The movie was great.",
-        "I dislike this book.",
-        "The restaurant had terrible service.",
-        "I'm happy with the results."
-    )
+    val sentences =
+        arrayOf(
+            "This is a positive sentence.",
+            "I love this product.",
+            "The movie was great.",
+            "I dislike this book.",
+            "The restaurant had terrible service.",
+            "I'm happy with the results.",
+        )
     val labels = longArrayOf(1L, 1L, 1L, 0L, 0L, 1L)
 
     return CustomDataset(sentences, labels)
@@ -74,13 +75,14 @@ private fun prepareModel(): Model {
     val feedForwardSize = 128
     val dropoutRate = 0.1f
 
-    val transformerEncoder = TransformerEncoderBlock(
-        hiddenSize,
-        numLayers,
-        numHeads,
-        dropoutRate,
-        Activation::relu
-    )
+    val transformerEncoder =
+        TransformerEncoderBlock(
+            hiddenSize,
+            numLayers,
+            numHeads,
+            dropoutRate,
+            Activation::relu,
+        )
 
     return Model.newInstance("transformer").apply {
         block = transformerEncoder
@@ -90,17 +92,17 @@ private fun prepareModel(): Model {
 private fun prepareTrainingConfig(): TrainingConfig {
     val learningRate = Tracker.fixed(0.001f)
     val loss = Loss.softmaxCrossEntropyLoss()
-    val trainerBuilder = DefaultTrainingConfig(loss)
+    val trainerBuilder =
+        DefaultTrainingConfig(loss)
 //        .setDevices(Device.getDevices(1))
-        .addEvaluator(Accuracy())
-        .addTrainingListeners(*TrainingListener.Defaults.logging())
-        .optOptimizer(Adam.builder().optLearningRateTracker(learningRate).build())
+            .addEvaluator(Accuracy())
+            .addTrainingListeners(*TrainingListener.Defaults.logging())
+            .optOptimizer(Adam.builder().optLearningRateTracker(learningRate).build())
 
     return trainerBuilder
 }
 
 private class CustomDataset(private val sentences: Array<String>, private val labels: LongArray) : Dataset {
-
     override fun prepare(progress: Progress?) {
         // No specific preparation required for this custom dataset
     }

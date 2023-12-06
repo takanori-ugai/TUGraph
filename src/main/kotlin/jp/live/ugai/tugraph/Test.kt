@@ -21,11 +21,12 @@ fun main() {
     val input = manager.create(longArrayOf(2, 0, 1, 2, 1, 3, 0, 0, 1, 0, 1, 2), Shape(4, 3))
     val labels = manager.create(floatArrayOf(0f, 0f, 1f, 0f))
     val batchSize = 1
-    val dataset = ArrayDataset.Builder()
-        .setData(input) // set the features
-        .optLabels(labels) // set the labels
-        .setSampling(batchSize, true) // set the batch size and random sampling
-        .build()
+    val dataset =
+        ArrayDataset.Builder()
+            .setData(input) // set the features
+            .optLabels(labels) // set the labels
+            .setSampling(batchSize, true) // set the batch size and random sampling
+            .build()
 
     val transe = TransE(4, 2, 100)
     transe.setInitializer(NormalInitializer(), Parameter.Type.WEIGHT)
@@ -43,10 +44,11 @@ fun main() {
     val lrt = Tracker.fixed(0.005f)
     val sgd = Optimizer.sgd().setLearningRateTracker(lrt).build()
 
-    val config = DefaultTrainingConfig(l2loss)
-        .optOptimizer(sgd) // Optimizer (loss function)
-        .optDevices(manager.engine.getDevices(1)) // single GPU
-        .addTrainingListeners(*TrainingListener.Defaults.logging()) // Logging
+    val config =
+        DefaultTrainingConfig(l2loss)
+            .optOptimizer(sgd) // Optimizer (loss function)
+            .optDevices(manager.engine.getDevices(1)) // single GPU
+            .addTrainingListeners(*TrainingListener.Defaults.logging()) // Logging
 
     val trainer = model.newTrainer(config)
     trainer.initialize(Shape(4, 3))
@@ -58,13 +60,13 @@ fun main() {
     (0..epochNum).forEach {
         var l0 = 0f
         for (batch in trainer.iterateDataset(dataset)) {
-            val X = batch.data.head()
+            val x0 = batch.data.head()
             val y = batch.labels.head()
             trainer.newGradientCollector().use { gc ->
-                val f0 = trainer.forward(NDList(X))
+                val f0 = trainer.forward(NDList(x0))
                 val l = f0.singletonOrThrow().pow(2).sqrt().sub(y).abs()
 //                print(l)
-                l0 += l.sum().toFloatArray()[0] / X.size(1)
+                l0 += l.sum().toFloatArray()[0] / x0.size(1)
 //                val l = point.pow(2).sum(intArrayOf(1)).sqrt().sub(y).abs()
 //                l0 += l.sum().toFloatArray()[0]/ X.size(1)
 //    val l : NDArray = l2loss.evaluate( NDList(NDArrays.pow(2, point).sum(intArrayOf(1)).sqrt()),

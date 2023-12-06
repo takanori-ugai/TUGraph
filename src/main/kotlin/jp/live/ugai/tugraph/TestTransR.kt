@@ -25,27 +25,31 @@ fun main() {
     (0 until numOfTriples).forEach {
         inputList.add(input.get(it).toLongArray())
     }
-    val transe = TransR(NUM_ENTITIES, NUM_EDGES, DIMENSION).also {
-        it.setInitializer(UniformInitializer(6.0f / Math.sqrt(DIMENSION.toDouble()).toFloat()), Parameter.Type.WEIGHT)
-        it.initialize(manager, DataType.FLOAT32, input.shape)
-    }
-    val model = Model.newInstance("transR").also {
-        it.block = transe
-    }
+    val transe =
+        TransR(NUM_ENTITIES, NUM_EDGES, DIMENSION).also {
+            it.setInitializer(UniformInitializer(6.0f / Math.sqrt(DIMENSION.toDouble()).toFloat()), Parameter.Type.WEIGHT)
+            it.initialize(manager, DataType.FLOAT32, input.shape)
+        }
+    val model =
+        Model.newInstance("transR").also {
+            it.block = transe
+        }
     val predictor = model.newPredictor(NoopTranslator())
 
     val lrt = Tracker.fixed(LEARNING_RATE)
     val sgd = Optimizer.sgd().setLearningRateTracker(lrt).build()
 
-    val config = DefaultTrainingConfig(Loss.l1Loss())
-        .optOptimizer(sgd) // Optimizer (loss function)
-        .optDevices(manager.engine.getDevices(1)) // single GPU
-        .addTrainingListeners(*TrainingListener.Defaults.logging()) // Logging
+    val config =
+        DefaultTrainingConfig(Loss.l1Loss())
+            .optOptimizer(sgd) // Optimizer (loss function)
+            .optDevices(manager.engine.getDevices(1)) // single GPU
+            .addTrainingListeners(*TrainingListener.Defaults.logging()) // Logging
 
-    val trainer = model.newTrainer(config).also {
-        it.initialize(Shape(NUM_ENTITIES, TRIPLE))
-        it.metrics = Metrics()
-    }
+    val trainer =
+        model.newTrainer(config).also {
+            it.initialize(Shape(NUM_ENTITIES, TRIPLE))
+            it.metrics = Metrics()
+        }
 
     val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, NUM_ENTITIES, trainer, 1000)
     eTrainer.training()

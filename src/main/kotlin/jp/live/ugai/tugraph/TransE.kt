@@ -17,26 +17,27 @@ import ai.djl.util.PairList
  * @property dim The dimensionality of the embeddings.
  */
 class TransE(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock() {
-
     private val entities: Parameter
     private val edges: Parameter
     private val manager = NDManager.newBaseManager()
 
     init {
-        entities = addParameter(
-            Parameter.builder()
-                .setName("entities")
-                .setType(Parameter.Type.WEIGHT)
-                .optShape(Shape(numEnt, dim))
-                .build()
-        )
-        edges = addParameter(
-            Parameter.builder()
-                .setName("edges")
-                .setType(Parameter.Type.WEIGHT)
-                .optShape(Shape(numEdge, dim))
-                .build()
-        )
+        entities =
+            addParameter(
+                Parameter.builder()
+                    .setName("entities")
+                    .setType(Parameter.Type.WEIGHT)
+                    .optShape(Shape(numEnt, dim))
+                    .build(),
+            )
+        edges =
+            addParameter(
+                Parameter.builder()
+                    .setName("edges")
+                    .setType(Parameter.Type.WEIGHT)
+                    .optShape(Shape(numEdge, dim))
+                    .build(),
+            )
     }
 
     /**
@@ -53,7 +54,7 @@ class TransE(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
         parameterStore: ParameterStore,
         inputs: NDList,
         training: Boolean,
-        params: PairList<String, Any>?
+        params: PairList<String, Any>?,
     ): NDList {
         val positive = inputs[0]
         val device = positive.device
@@ -75,7 +76,11 @@ class TransE(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
      * @param edges The edges NDArray.
      * @return The output NDArray.
      */
-    fun model(input: NDArray, entities: NDArray, edges: NDArray): NDArray {
+    fun model(
+        input: NDArray,
+        entities: NDArray,
+        edges: NDArray,
+    ): NDArray {
         var v = manager.zeros(Shape(0))
         val inputs = input.reshape(input.size() / TRIPLE, TRIPLE)
         for (i in 0 until input.size() / TRIPLE) {

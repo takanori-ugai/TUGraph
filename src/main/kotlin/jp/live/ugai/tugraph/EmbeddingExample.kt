@@ -37,8 +37,9 @@ object EmbeddingExample {
         val ps = ParameterStore(manager, false)
         val features = manager.full(Shape(numOfSentence, 1), 4).concat(lang.reshape(numOfSentence, sizeOfSentence), 1)
         println("Features: $features")
-        val lang2 = lang.reshape(numOfSentence, sizeOfSentence).concat(manager.full(Shape(numOfSentence, 1), 5), 1)
-            .reshape((sizeOfSentence + 1) * numOfSentence)
+        val lang2 =
+            lang.reshape(numOfSentence, sizeOfSentence).concat(manager.full(Shape(numOfSentence, 1), 5), 1)
+                .reshape((sizeOfSentence + 1) * numOfSentence)
         println(lang2)
         val labels =
             manager.eye(numOfWords.toInt() + 2).get(lang2).reshape(numOfSentence, sizeOfSentence + 1, numOfWords + 2)
@@ -55,9 +56,10 @@ object EmbeddingExample {
         val model = Model.newInstance("lin-reg")
         model.block = net
         val l = Loss.softmaxCrossEntropyLoss("SMCELOSS", 1.0F, -1, false, true)
-        val config = DefaultTrainingConfig(l)
+        val config =
+            DefaultTrainingConfig(l)
 //            .optOptimizer(sgd) // Optimizer (loss function)
-            .addTrainingListeners(*TrainingListener.Defaults.logging()) // Logging
+                .addTrainingListeners(*TrainingListener.Defaults.logging()) // Logging
         val trainer = model.newTrainer(config)
 //        trainer.initialize(Shape(1, 2))
         val metrics = Metrics()
@@ -95,7 +97,7 @@ object EmbeddingExample {
             // reset training and validation evaluators at end of epoch
             trainer.notifyListeners { listener: TrainingListener ->
                 listener.onEpoch(
-                    trainer
+                    trainer,
                 )
             }
         }
@@ -105,7 +107,12 @@ object EmbeddingExample {
         println(ppp[0])
     }
 
-    fun loadArray(features: NDArray, labels: NDArray, batchSize: Int, shuffle: Boolean): ArrayDataset {
+    fun loadArray(
+        features: NDArray,
+        labels: NDArray,
+        batchSize: Int,
+        shuffle: Boolean,
+    ): ArrayDataset {
         return ArrayDataset.Builder()
             .setData(features) // set the features
             .optLabels(labels) // set the labels

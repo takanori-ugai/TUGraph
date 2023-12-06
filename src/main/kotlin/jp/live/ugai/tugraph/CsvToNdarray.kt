@@ -13,7 +13,6 @@ import java.io.InputStreamReader
  * @property manager The NDManager instance used for creating NDArrays.
  */
 class CsvToNdarray(val manager: NDManager) {
-
     /**
      * Reads a CSV file and converts it to an NDArray.
      *

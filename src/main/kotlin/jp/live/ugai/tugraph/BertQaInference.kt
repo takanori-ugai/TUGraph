@@ -36,17 +36,18 @@ object BertQaInference {
             "BBC Japan was a general entertainment Channel. " +
                 "Which operated between December 2004 and April 2006. " +
                 "It ceased operations after its Japanese distributor folded."
-            )
+        )
         val input = QAInput(question, paragraph)
         logger.info("Paragraph: {}", input.paragraph)
         logger.info("Question: {}", input.question)
-        val criteria = Criteria.builder()
-            .optApplication(Application.NLP.QUESTION_ANSWER)
-            .setTypes(QAInput::class.java, String::class.java)
-            .optFilter("backbone", "bert")
-            .optEngine(Engine.getDefaultEngineName())
-            .optProgress(ProgressBar())
-            .build()
+        val criteria =
+            Criteria.builder()
+                .optApplication(Application.NLP.QUESTION_ANSWER)
+                .setTypes(QAInput::class.java, String::class.java)
+                .optFilter("backbone", "bert")
+                .optEngine(Engine.getDefaultEngineName())
+                .optProgress(ProgressBar())
+                .build()
         criteria.loadModel().use { model ->
             model.newPredictor().use { predictor ->
                 return predictor.predict(input)

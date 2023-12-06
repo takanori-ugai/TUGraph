@@ -22,7 +22,7 @@ fun main() {
     println(a.forward(ps, NDList(manager.create(intArrayOf(0, 1))), false)[0])
     println(
         a.forward(ps, NDList(manager.create(intArrayOf(0, 1))), false)[0].transpose()
-            .muli(manager.create(intArrayOf(1, -1))).sum(intArrayOf(1))
+            .muli(manager.create(intArrayOf(1, -1))).sum(intArrayOf(1)),
     )
     println(a.parameters[0].value.array)
     println(a.parameters[0].value.array)

@@ -21,16 +21,18 @@ fun main() {
     val manager = NDManager.newBaseManager()
     val input = manager.create(longArrayOf(2, 0, 1, 2, 1, 3, 0, 0, 1, 0, 1, 2), Shape(4, 3))
     val labels = manager.create(floatArrayOf(0f, 0f, 1f, 0f))
-    val dataset = ArrayDataset.Builder()
-        .setData(input) // set the features
-        .optLabels(labels) // set the labels
-        .setSampling(BATCH_SIZE, true) // set the batch size and random sampling
-        .build()
-    val validationSet = ArrayDataset.Builder()
-        .setData(input) // set the features
-        .optLabels(labels) // set the labels
-        .setSampling(BATCH_SIZE, false) // set the batch size and random sampling
-        .build()
+    val dataset =
+        ArrayDataset.Builder()
+            .setData(input) // set the features
+            .optLabels(labels) // set the labels
+            .setSampling(BATCH_SIZE, true) // set the batch size and random sampling
+            .build()
+    val validationSet =
+        ArrayDataset.Builder()
+            .setData(input) // set the features
+            .optLabels(labels) // set the labels
+            .setSampling(BATCH_SIZE, false) // set the batch size and random sampling
+            .build()
 
     val transe = TransE(4, 2, DIMENSION)
     transe.setInitializer(NormalInitializer(), Parameter.Type.WEIGHT)
@@ -48,10 +50,11 @@ fun main() {
     val lrt = Tracker.fixed(LEARNING_RATE)
     val sgd = Optimizer.sgd().setLearningRateTracker(lrt).build()
 
-    val config = DefaultTrainingConfig(l2loss)
-        .optOptimizer(sgd) // Optimizer (loss function)
-        .optDevices(manager.engine.getDevices(1)) // single GPU
-        .addTrainingListeners(*TrainingListener.Defaults.logging()) // Logging
+    val config =
+        DefaultTrainingConfig(l2loss)
+            .optOptimizer(sgd) // Optimizer (loss function)
+            .optDevices(manager.engine.getDevices(1)) // single GPU
+            .addTrainingListeners(*TrainingListener.Defaults.logging()) // Logging
 
     val trainer = model.newTrainer(config)
 //    trainer.initialize(input.shape)

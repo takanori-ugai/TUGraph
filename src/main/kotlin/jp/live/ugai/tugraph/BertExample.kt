@@ -28,11 +28,12 @@ fun main() {
     val block = BertMaskedLanguageModelBlock(builder, Activation::relu)
 
     // Create a dataset.
-    val dataset: Dataset = ArrayDataset.Builder()
-        .setData(manager.randomInteger(100, 128, Shape(128), DataType.INT32)) // set the features
-        .optLabels(manager.randomInteger(100, 128, Shape(128), DataType.INT32)) // set the labels
-        .setSampling(3, true) // set the batch size and random sampling
-        .build()
+    val dataset: Dataset =
+        ArrayDataset.Builder()
+            .setData(manager.randomInteger(100, 128, Shape(128), DataType.INT32)) // set the features
+            .optLabels(manager.randomInteger(100, 128, Shape(128), DataType.INT32)) // set the labels
+            .setSampling(3, true) // set the batch size and random sampling
+            .build()
 
     // Create a training configuration.
     val loss = BertMaskedLanguageModelLoss(1, 2, 1)

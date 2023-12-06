@@ -21,7 +21,7 @@ class EmbeddingTrainer(
     private val triples: NDArray,
     private val numOfEntities: Long,
     private val trainer: Trainer,
-    private val epoch: Int
+    private val epoch: Int,
 ) {
     val lossList = mutableListOf<Float>()
     private val numOfTriples = triples.shape[0]

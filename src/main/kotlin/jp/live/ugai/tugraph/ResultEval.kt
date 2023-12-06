@@ -13,7 +13,6 @@ import ai.djl.ndarray.types.DataType
  * @property predictor The Predictor instance for making predictions.
  */
 class ResultEval(val inputList: List<LongArray>, val manager: NDManager, val predictor: Predictor<NDList, NDList>) {
-
     /**
      * Computes the evaluation metrics for tail prediction.
      *
@@ -23,18 +22,20 @@ class ResultEval(val inputList: List<LongArray>, val manager: NDManager, val pre
         val res = mutableMapOf<String, Float>()
         val rankList = mutableListOf<Int>()
         inputList.forEach { triple ->
-            val predict = predictor.predict(
-                NDList(
-                    manager.create(longArrayOf(triple[0], triple[1]))
-                        .reshape(1, 2)
-                        .repeat(0, NUM_ENTITIES)
-                        .concat(manager.arange(0, NUM_ENTITIES.toInt(), 1, DataType.INT64).reshape(NUM_ENTITIES, 1), 1)
-                )
-            ).singletonOrThrow()
+            val predict =
+                predictor.predict(
+                    NDList(
+                        manager.create(longArrayOf(triple[0], triple[1]))
+                            .reshape(1, 2)
+                            .repeat(0, NUM_ENTITIES)
+                            .concat(manager.arange(0, NUM_ENTITIES.toInt(), 1, DataType.INT64).reshape(NUM_ENTITIES, 1), 1),
+                    ),
+                ).singletonOrThrow()
             val rank = predict.toFloatArray()
             predict.close()
-            val lengthOrder = rank.mapIndexed { index, fl -> Pair(index, fl) }
-                .toList().sortedBy { it.second }
+            val lengthOrder =
+                rank.mapIndexed { index, fl -> Pair(index, fl) }
+                    .toList().sortedBy { it.second }
             rankList.add(lengthOrder.indexOf(Pair(triple[2].toInt(), rank[triple[2].toInt()])) + 1)
         }
 
