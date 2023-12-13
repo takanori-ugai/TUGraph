@@ -13,18 +13,22 @@ on: [push]
 
 jobs:
   build:
+    strategy:
+        matrix:
+          java_version: [11, 17, 21]
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4.1.1
-      - name: Set up JDK 17
+      - name: Set up JDK ${{ matrix.java_version }}
         uses: actions/setup-java@v4.0.0
         with:
-          java-version: '17'
+          java-version: ${{ matrix.java_version }}
           distribution: 'temurin'
       - name: Validate Gradle wrapper
-        uses: gradle/wrapper-validation-action@ccb4328a959376b642e027874838f60f8e596de3
-      - name: Build with Gradle
+        uses: gradle/wrapper-validation-action@v1.1.0
+      - name: Build with Gradle & JDK ${{ matrix.java_version }}
         uses: gradle/gradle-build-action@v2.10.0
         with:
           arguments: build
+          
