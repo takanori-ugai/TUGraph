@@ -30,7 +30,7 @@ public class FillMaskTranslator2 implements Translator<String, Classifications> 
     this.maskToken = maskToken;
     this.topK = topK;
     this.batchifier = batchifier;
-    Encoding encoding = tokenizer.encode(maskToken, false);
+    Encoding encoding = tokenizer.encode(maskToken, false, false);
     maskTokenId = encoding.getIds()[0];
   }
 
