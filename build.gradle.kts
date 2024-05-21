@@ -21,7 +21,7 @@ plugins {
 
 group = "jp.live.ugai"
 version = "1.0-SNAPSHOT"
-val v = "0.27.0"
+val v = "0.28.0"
 
 repositories {
     mavenCentral()
@@ -135,7 +135,7 @@ spotbugs {
 }
 
 jacoco {
-    toolVersion = "0.8.10"
+    toolVersion = "0.8.12"
 //    reportsDirectory.set(layout.buildDirectory.dir("customJacocoReportDir"))
 }
 
@@ -152,7 +152,7 @@ spotless {
         removeUnusedImports()
 
         // Choose one of these formatters.
-        googleJavaFormat("1.17.0") // has its own section below
+        googleJavaFormat("1.22.0") // has its own section below
         formatAnnotations() // fixes formatting of type annotations, see below
     }
 }
