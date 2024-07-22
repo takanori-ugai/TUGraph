@@ -21,7 +21,7 @@ plugins {
 
 group = "jp.live.ugai"
 version = "1.0-SNAPSHOT"
-val v = "0.27.0"
+val v = "0.29.0"
 
 repositories {
     mavenCentral()
@@ -37,13 +37,12 @@ dependencies {
     implementation("ai.djl.pytorch:pytorch-engine:$v")
     implementation("ai.djl.pytorch:pytorch-model-zoo:$v")
     implementation("ai.djl.huggingface:tokenizers:$v")
-//    runtimeOnly("ai.djl.pytorch:pytorch-jni:1.12.1-$v")
-//    runtimeOnly("ai.djl.pytorch:pytorch-native-cpu:1.12.1")
-    //    implementation("ai.djl.pytorch:pytorch-native-cpu:1.12.1:linux-x86_64")
-//    runtimeOnly("ai.djl.pytorch:pytorch-native-cu116:1.12.1:linux-x86_64")
-    runtimeOnly("ai.djl.pytorch:pytorch-jni:2.1.1-0.27.0")
-    runtimeOnly("ai.djl.pytorch:pytorch-native-cu118:2.0.1:win-x86_64")
-//    runtimeOnly("ai.djl.pytorch:pytorch-native-cu117:1.13.1:win-x86_64")
+//    runtimeOnly("ai.djl.pytorch:pytorch-jni:2.3.1-$v")
+//    runtimeOnly("ai.djl.pytorch:pytorch-native-cpu:2.3.1")
+    //    implementation("ai.djl.pytorch:pytorch-native-cpu:2.3.1:linux-x86_64")
+//    runtimeOnly("ai.djl.pytorch:pytorch-native-cu121:2.3.1:linux-x86_64")
+    runtimeOnly("ai.djl.pytorch:pytorch-jni:2.3.1-0.29.0")
+    runtimeOnly("ai.djl.pytorch:pytorch-native-cu121:2.3.1:win-x86_64")
     implementation("org.slf4j:slf4j-simple:2.0.13")
 //    implementation(kotlin("stdlib"))
     implementation("com.opencsv:opencsv:5.9")
