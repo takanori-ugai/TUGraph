@@ -58,13 +58,6 @@ public class FillMaskTranslator2 implements Translator<String, Classifications> 
     return toClassifications(tokenizer, list, maskIndex, topK);
   }
 
-  /** {@inheritDoc} */
-  @Override
-  public FillMaskBatchTranslator2 toBatchTranslator(Batchifier batchifier) {
-    tokenizer.enableBatch();
-    return new FillMaskBatchTranslator2(tokenizer, maskToken, topK, batchifier);
-  }
-
   static int getMaskIndex(long[] indices, String maskToken, long maskTokenId)
       throws TranslateException {
     int maskIndex = -1;
