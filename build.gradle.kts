@@ -14,7 +14,7 @@ plugins {
 //    kotlin("jupyter.api") version "0.10.1-8"
     id("com.github.jk1.dependency-license-report") version "2.9"
     id("com.github.spotbugs") version "6.1.0"
-    id("com.diffplug.spotless") version "7.0.1"
+    id("com.diffplug.spotless") version "7.0.2"
     id("org.jlleitschuh.gradle.ktlint") version "12.1.2"
     application
 }
@@ -150,7 +150,7 @@ spotless {
         removeUnusedImports()
 
         // Choose one of these formatters.
-        googleJavaFormat("1.24.0") // has its own section below
+        googleJavaFormat("1.25.2") // has its own section below
         formatAnnotations() // fixes formatting of type annotations, see below
     }
 }
