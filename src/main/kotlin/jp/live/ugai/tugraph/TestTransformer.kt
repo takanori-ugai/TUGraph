@@ -34,8 +34,9 @@ fun main() {
 
     // Create softmax cross-entropy loss
     val loss = SoftmaxCrossEntropyLoss("SmCeLoss", 1.0F, -1, false, true)
-    val config = DefaultTrainingConfig(loss)
-        .optOptimizer(Optimizer.adam().build())
+    val config =
+        DefaultTrainingConfig(loss)
+            .optOptimizer(Optimizer.adam().build())
 //        .optInitializer(Initializer.ONES, Parameter.Type.WEIGHT)
 
     // Create transformer encoder block and sequential block
@@ -56,25 +57,28 @@ fun main() {
     val inputShape = Shape(1, 2, 4)
     trainer.initialize(Shape(1, 2))
     val manager = trainer.getManager()
-    val data = manager.create(floatArrayOf(1.0F, 2.0F, 3.0F, 4.0F, 5.0F, 6.0F, 7.0F, 8.0F))
-        .reshape(inputShape)
-    val labels = manager.create(floatArrayOf(1.0F, -0.5F, 0.4F, 1.0F, 1.0F, 1.0F, -1.0F, -1.0F))
-        .reshape(inputShape)
+    val data =
+        manager.create(floatArrayOf(1.0F, 2.0F, 3.0F, 4.0F, 5.0F, 6.0F, 7.0F, 8.0F))
+            .reshape(inputShape)
+    val labels =
+        manager.create(floatArrayOf(1.0F, -0.5F, 0.4F, 1.0F, 1.0F, 1.0F, -1.0F, -1.0F))
+            .reshape(inputShape)
 
     // Create expected output for comparison
-    val expected = manager.create(
-        floatArrayOf(
-            0.7615f,
-            0.7615f,
-            0.7615f,
-            0.7615f,
-            0.964f,
-            0.964f,
-            0.964f,
-            0.964f
-        ),
-        Shape(1, 2, 4)
-    )
+    val expected =
+        manager.create(
+            floatArrayOf(
+                0.7615f,
+                0.7615f,
+                0.7615f,
+                0.7615f,
+                0.964f,
+                0.964f,
+                0.964f,
+                0.964f,
+            ),
+            Shape(1, 2, 4),
+        )
     println(expected)
 
     // Training loop

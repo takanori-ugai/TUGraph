@@ -30,7 +30,7 @@ public class FillMaskTranslator2 implements Translator<String, Classifications> 
     this.maskToken = maskToken;
     this.topK = topK;
     this.batchifier = batchifier;
-    Encoding encoding = tokenizer.encode(maskToken, false);
+    Encoding encoding = tokenizer.encode(maskToken, false, false);
     maskTokenId = encoding.getIds()[0];
   }
 
@@ -56,13 +56,6 @@ public class FillMaskTranslator2 implements Translator<String, Classifications> 
     int maskIndex = (int) ctx.getAttachment("maskIndex");
     System.out.println("TopK::: " + topK);
     return toClassifications(tokenizer, list, maskIndex, topK);
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public FillMaskBatchTranslator2 toBatchTranslator(Batchifier batchifier) {
-    tokenizer.enableBatch();
-    return new FillMaskBatchTranslator2(tokenizer, maskToken, topK, batchifier);
   }
 
   static int getMaskIndex(long[] indices, String maskToken, long maskTokenId)
