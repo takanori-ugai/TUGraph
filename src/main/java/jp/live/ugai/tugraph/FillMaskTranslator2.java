@@ -47,7 +47,7 @@ public class FillMaskTranslator2 implements Translator<String, Classifications> 
     long[] indices = encoding.getIds();
     int maskIndex = getMaskIndex(indices, maskToken, maskTokenId);
     ctx.setAttachment("maskIndex", maskIndex);
-    return encoding.toNDList(ctx.getNDManager(), false);
+    return encoding.toNDList(ctx.getNDManager(), false, false);
   }
 
   /** {@inheritDoc} */
