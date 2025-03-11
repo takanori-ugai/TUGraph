@@ -40,7 +40,7 @@ public class FillMaskBatchTranslator2 implements NoBatchifyTranslator<String[], 
     for (int i = 0; i < encodings.length; ++i) {
       long[] indices = encodings[i].getIds();
       maskIndices[i] = FillMaskTranslator2.getMaskIndex(indices, maskToken, maskTokenId);
-      batch[i] = encodings[i].toNDList(manager, false);
+      batch[i] = encodings[i].toNDList(manager, false, false);
     }
     return batchifier.batchify(batch);
   }
