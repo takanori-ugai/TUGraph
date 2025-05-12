@@ -21,7 +21,7 @@ plugins {
 
 group = "jp.live.ugai"
 version = "1.0-SNAPSHOT"
-val v = "0.32.0"
+val v = "0.33.0"
 
 repositories {
     mavenCentral()
