@@ -1,5 +1,6 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import io.gitlab.arturbosch.detekt.Detekt
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jlleitschuh.gradle.ktlint.reporter.ReporterType
 
 plugins {
@@ -51,11 +52,11 @@ dependencies {
 
 tasks {
     compileKotlin {
-        kotlinOptions.jvmTarget = "1.8"
+        compilerOptions.jvmTarget.set(JvmTarget.JVM_1_8)
     }
 
     compileTestKotlin {
-        kotlinOptions.jvmTarget = "1.8"
+        compilerOptions.jvmTarget.set(JvmTarget.JVM_1_8)
     }
 
     compileJava {
@@ -150,7 +151,7 @@ spotless {
         removeUnusedImports()
 
         // Choose one of these formatters.
-        googleJavaFormat("1.26.0") // has its own section below
+        googleJavaFormat("1.27.0") // has its own section below
         formatAnnotations() // fixes formatting of type annotations, see below
     }
 }
