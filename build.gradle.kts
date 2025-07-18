@@ -4,8 +4,8 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jlleitschuh.gradle.ktlint.reporter.ReporterType
 
 plugins {
-    kotlin("jvm") version "2.1.10"
-    kotlin("plugin.serialization") version "2.1.10"
+    kotlin("jvm") version "2.2.0"
+    kotlin("plugin.serialization") version "2.2.0"
     java
     id("com.github.johnrengelman.shadow") version "8.1.1"
     jacoco
@@ -14,15 +14,15 @@ plugins {
 //    id("com.github.sherter.google-java-format") version "0.9"
 //    kotlin("jupyter.api") version "0.10.1-8"
     id("com.github.jk1.dependency-license-report") version "2.9"
-    id("com.github.spotbugs") version "6.1.7"
-    id("com.diffplug.spotless") version "7.0.2"
-    id("org.jlleitschuh.gradle.ktlint") version "12.2.0"
+    id("com.github.spotbugs") version "6.2.2"
+    id("com.diffplug.spotless") version "7.1.0"
+    id("org.jlleitschuh.gradle.ktlint") version "13.0.0"
     application
 }
 
 group = "jp.live.ugai"
 version = "1.0-SNAPSHOT"
-val v = "0.32.0"
+val v = "0.33.0"
 
 repositories {
     mavenCentral()
@@ -41,14 +41,13 @@ dependencies {
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cpu:2.4.0")
     //    implementation("ai.djl.pytorch:pytorch-native-cpu:2.4.0:linux-x86_64")
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cu124:2.4.0:linux-x86_64")
-    runtimeOnly("ai.djl.pytorch:pytorch-jni:2.5.1-0.32.0")
+    runtimeOnly("ai.djl.pytorch:pytorch-jni:2.5.1-0.33.0")
     runtimeOnly("ai.djl.pytorch:pytorch-native-cu124:2.5.1:win-x86_64")
-//    runtimeOnly("ai.djl.pytorch:pytorch-native-cpu:2.5.1:win-x86_64")
     implementation("org.slf4j:slf4j-simple:2.0.17")
 //    implementation(kotlin("stdlib"))
-    implementation("com.opencsv:opencsv:5.10")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.12.0")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.12.0")
+    implementation("com.opencsv:opencsv:5.11.2")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.13.3")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.13.3")
 }
 
 tasks {
@@ -135,7 +134,7 @@ spotbugs {
 }
 
 jacoco {
-    toolVersion = "0.8.12"
+    toolVersion = "0.8.13"
 //    reportsDirectory.set(layout.buildDirectory.dir("customJacocoReportDir"))
 }
 
@@ -152,7 +151,7 @@ spotless {
         removeUnusedImports()
 
         // Choose one of these formatters.
-        googleJavaFormat("1.25.2") // has its own section below
+        googleJavaFormat("1.27.0") // has its own section below
         formatAnnotations() // fixes formatting of type annotations, see below
     }
 }
