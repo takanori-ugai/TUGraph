@@ -1,5 +1,6 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import io.gitlab.arturbosch.detekt.Detekt
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jlleitschuh.gradle.ktlint.reporter.ReporterType
 
 plugins {
@@ -21,7 +22,7 @@ plugins {
 
 group = "jp.live.ugai"
 version = "1.0-SNAPSHOT"
-val v = "0.31.1"
+val v = "0.32.0"
 
 repositories {
     mavenCentral()
@@ -40,8 +41,9 @@ dependencies {
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cpu:2.4.0")
     //    implementation("ai.djl.pytorch:pytorch-native-cpu:2.4.0:linux-x86_64")
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cu124:2.4.0:linux-x86_64")
-    runtimeOnly("ai.djl.pytorch:pytorch-jni:2.5.1-0.31.1")
-    runtimeOnly("ai.djl.pytorch:pytorch-native-cu124:2.4.0:win-x86_64")
+    runtimeOnly("ai.djl.pytorch:pytorch-jni:2.5.1-0.32.0")
+    runtimeOnly("ai.djl.pytorch:pytorch-native-cu124:2.5.1:win-x86_64")
+//    runtimeOnly("ai.djl.pytorch:pytorch-native-cpu:2.5.1:win-x86_64")
     implementation("org.slf4j:slf4j-simple:2.0.17")
 //    implementation(kotlin("stdlib"))
     implementation("com.opencsv:opencsv:5.10")
@@ -51,23 +53,23 @@ dependencies {
 
 tasks {
     compileKotlin {
-        kotlinOptions.jvmTarget = "1.8"
+        compilerOptions.jvmTarget.set(JvmTarget.JVM_11)
     }
 
     compileTestKotlin {
-        kotlinOptions.jvmTarget = "1.8"
+        compilerOptions.jvmTarget.set(JvmTarget.JVM_11)
     }
 
     compileJava {
         options.encoding = "UTF-8"
-        sourceCompatibility = "1.8"
-        targetCompatibility = "1.8"
+        sourceCompatibility = "11"
+        targetCompatibility = "11"
     }
 
     compileTestJava {
         options.encoding = "UTF-8"
-        sourceCompatibility = "1.8"
-        targetCompatibility = "1.8"
+        sourceCompatibility = "11"
+        targetCompatibility = "11"
     }
 
     test {
@@ -77,7 +79,7 @@ tasks {
 
     withType<Detekt>().configureEach {
         // Target version of the generated JVM bytecode. It is used for type resolution.
-        jvmTarget = "1.8"
+        jvmTarget = "11"
         reports {
             // observe findings in your browser with structure and code snippets
             html.required.set(true)
