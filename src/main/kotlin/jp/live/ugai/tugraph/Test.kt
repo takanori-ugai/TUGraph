@@ -57,7 +57,7 @@ fun main() {
 
     val loss = mutableListOf<Float>()
     val epochNum = 1000
-    (0..epochNum).forEach {
+    repeat(epochNum + 1) {
         var l0 = 0f
         for (batch in trainer.iterateDataset(dataset)) {
             val x0 = batch.data.head()
@@ -66,7 +66,8 @@ fun main() {
                 val f0 = trainer.forward(NDList(x0))
                 val l = f0.singletonOrThrow().pow(2).sqrt().sub(y).abs()
 //                print(l)
-                l0 += l.sum().toFloatArray()[0] / x0.size(1)
+//                l0 += l.sum().toFloatArray()[0] / x0.size(1)
+                l0 += l.sum().getFloat() / x0.size(1)
 //                val l = point.pow(2).sum(intArrayOf(1)).sqrt().sub(y).abs()
 //                l0 += l.sum().toFloatArray()[0]/ X.size(1)
 //    val l : NDArray = l2loss.evaluate( NDList(NDArrays.pow(2, point).sum(intArrayOf(1)).sqrt()),

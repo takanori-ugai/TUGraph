@@ -93,15 +93,20 @@ class TransR(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
         edges: NDArray,
         matrix: NDArray,
     ): NDArray {
-        var v = manager.zeros(Shape(0))
-        val inputs = input.reshape(input.size() / TRIPLE, TRIPLE)
-        for (i in 0 until input.size() / TRIPLE) {
-            val line0 = inputs.get(i).toLongArray()
-            v = v.concat(entities.get(line0[0]).add(edges.get(line0[1]).matMul(matrix)).sub(entities.get(line0[2])))
-        }
-//        val ret = v.reshape(input.size() / 3, dim).pow(2).sum(intArrayOf(1)).sqrt()
-        val ret = v.reshape(input.size() / TRIPLE, dim).abs().sum(intArrayOf(1)).div(dim)
-        return ret
+        val numTriples = input.size() / TRIPLE
+        val triples = input.reshape(numTriples, TRIPLE)
+
+        // Gather embeddings for head, relation, and tail
+        val heads = entities.get(triples.get(":, 0"))
+        val relations = edges.get(triples.get(":, 1"))
+        val tails = entities.get(triples.get(":, 2"))
+
+        // Project relation embeddings using the relation-specific matrix
+        val projectedRelations = relations.matMul(matrix)
+
+        // Compute TransR score: |head + projectedRelation - tail|, then sum over embedding dimension and normalize
+        val score = heads.add(projectedRelations).sub(tails).abs().sum(intArrayOf(1)).div(dim)
+        return score
     }
 
     @Override

@@ -21,13 +21,13 @@ class CsvToNdarray(val manager: NDManager) {
      */
     fun read(path: String): NDArray {
         FileInputStream(path).use { istream ->
-            InputStreamReader(istream, "UTF-8").use { ireader ->
+            InputStreamReader(istream, Charsets.UTF_8).use { ireader ->
 //        val records = CSVFormat.EXCEL.parse(ireader) TDF
                 CSVFormat.EXCEL.parse(ireader).use { parser ->
-                    val array = mutableListOf<Long>()
-                    parser.records.forEach { record ->
-                        array.addAll(record.map { value -> value.trim().toLong() })
-                    }
+                    val array =
+                        parser.records.flatMap { record ->
+                            record.map { it.trim().toLong() }
+                        }
                     return manager.create(array.toLongArray(), Shape(array.size / TRIPLE, TRIPLE))
                 }
             }
