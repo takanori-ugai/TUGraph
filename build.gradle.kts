@@ -41,7 +41,7 @@ dependencies {
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cpu:2.4.0")
     //    implementation("ai.djl.pytorch:pytorch-native-cpu:2.4.0:linux-x86_64")
 //    runtimeOnly("ai.djl.pytorch:pytorch-native-cu124:2.4.0:linux-x86_64")
-    runtimeOnly("ai.djl.pytorch:pytorch-jni:2.5.1-0.33.0")
+    runtimeOnly("ai.djl.pytorch:pytorch-jni:2.7.1-0.34.0")
     runtimeOnly("ai.djl.pytorch:pytorch-native-cu124:2.5.1:win-x86_64")
     implementation("org.slf4j:slf4j-simple:2.0.17")
 //    implementation(kotlin("stdlib"))
