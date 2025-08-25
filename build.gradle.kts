@@ -16,7 +16,7 @@ plugins {
     id("com.github.jk1.dependency-license-report") version "2.9"
     id("com.github.spotbugs") version "6.2.4"
     id("com.diffplug.spotless") version "7.2.1"
-    id("org.jlleitschuh.gradle.ktlint") version "13.0.0"
+    id("org.jlleitschuh.gradle.ktlint") version "13.1.0"
     application
 }
 
