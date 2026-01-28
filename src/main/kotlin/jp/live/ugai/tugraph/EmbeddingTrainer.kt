@@ -3,7 +3,6 @@ package jp.live.ugai.tugraph
 import ai.djl.ndarray.NDArray
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
-import ai.djl.ndarray.types.Shape
 import ai.djl.training.Trainer
 import kotlin.random.Random
 
@@ -23,6 +22,7 @@ class EmbeddingTrainer(
     private val trainer: Trainer,
     private val epoch: Int,
 ) {
+    private val margin = 1.0f
     val lossList = mutableListOf<Float>()
     private val numOfTriples = triples.shape[0]
     val inputList = mutableListOf<List<Long>>()
@@ -61,15 +61,21 @@ class EmbeddingTrainer(
                     }
                 trainer.newGradientCollector().use { gc ->
                     val f0 = trainer.forward(NDList(sample, nsample))
-                    val l = trainer.loss.evaluate(NDList(manager.ones(Shape(1))), NDList(f0[1].sub(f0[0])))
-                    epochLoss += l.sum().toFloatArray()[0]
-                    gc.backward(l)
+                    val pos = f0[0]
+                    val neg = f0[1]
+                    val hinge = pos.sub(neg).add(margin).maximum(0f)
+                    epochLoss += hinge.sum().getFloat()
+                    gc.backward(hinge.mean())
 //                    gc.close()
                 }
                 trainer.step()
-//                (trainer.model.block as TransE).normalize()
+                when (val block = trainer.model.block) {
+                    is TransE -> block.normalize()
+                    is TransR -> block.normalize()
+                }
             }
-            if (it % (epoch / 500L) == 0L) {
+            val logEvery = maxOf(1, epoch / 500L)
+            if (it % logEvery == 0L) {
                 println("Epoch $it finished. (L2Loss: ${epochLoss / numOfTriples})")
             }
             lossList.add(epochLoss)

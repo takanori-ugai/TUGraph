@@ -2,12 +2,13 @@ package jp.live.ugai.tugraph
 
 import ai.djl.ndarray.NDArray
 import ai.djl.ndarray.NDList
-import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.Shape
 import ai.djl.nn.AbstractBlock
 import ai.djl.nn.Parameter
 import ai.djl.training.ParameterStore
+import ai.djl.training.initializer.UniformInitializer
 import ai.djl.util.PairList
+import kotlin.math.sqrt
 
 /**
  * A class representing the TransE model.
@@ -19,9 +20,10 @@ import ai.djl.util.PairList
 class TransE(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock() {
     private val entities: Parameter
     private val edges: Parameter
-    private val manager = NDManager.newBaseManager()
 
     init {
+        val bound = 6.0f / sqrt(dim.toDouble()).toFloat()
+        setInitializer(UniformInitializer(bound), Parameter.Type.WEIGHT)
         entities =
             addParameter(
                 Parameter.builder()
@@ -63,7 +65,7 @@ class TransE(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
         val edgesArr = parameterStore.getValue(edges, device, training)
         val ret = NDList(model(positive, entitiesArr, edgesArr))
         if (inputs.size > 1) {
-            ret.add(model(inputs[1], entitiesArr, edgesArr).sub(1.0).abs())
+            ret.add(model(inputs[1], entitiesArr, edgesArr))
         }
         return ret
     }
@@ -89,13 +91,32 @@ class TransE(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
         val relations = edges.get(triples.get(":, 1"))
         val tails = entities.get(triples.get(":, 2"))
 
-        // Compute TransE score: |head + relation - tail|, then sum over embedding dimension and normalize
-        return heads.add(relations).sub(tails).abs().sum(intArrayOf(1)).div(dim)
+        // TransE energy: d(h + r, t) with L1 distance
+        return heads.add(relations).sub(tails).abs().sum(intArrayOf(1))
     }
 
     @Override
     override fun getOutputShapes(inputs: Array<Shape>): Array<Shape> {
-        return arrayOf<Shape>(Shape(1), Shape(1))
+        val numTriples = inputs[0].size() / TRIPLE
+        val outShape = Shape(numTriples)
+        return if (inputs.size > 1) {
+            arrayOf(outShape, outShape)
+        } else {
+            arrayOf(outShape)
+        }
+    }
+
+    @Override
+    override fun initialize(
+        manager: ai.djl.ndarray.NDManager,
+        dataType: ai.djl.ndarray.types.DataType,
+        vararg inputShapes: Shape,
+    ) {
+        super.initialize(manager, dataType, *inputShapes)
+        val rel = getParameters().valueAt(1).array
+        val norm = rel.norm(intArrayOf(1), true)
+        val safe = norm.maximum(1.0e-12f)
+        rel.divi(safe)
     }
 
     /**
@@ -120,9 +141,9 @@ class TransE(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
      * Normalizes the embeddings.
      */
     fun normalize() {
-        getParameters().forEach {
-            it.value.array.norm()
-//            it.value.array.divi(it.value.array.pow(2).sum().sqrt())
-        }
+        val ent = getParameters().valueAt(0).array
+        val norm = ent.norm(intArrayOf(1), true)
+        val safe = norm.maximum(1.0e-12f)
+        ent.divi(safe)
     }
 }

@@ -5,10 +5,7 @@ import ai.djl.metric.Metrics
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
-import ai.djl.ndarray.types.Shape
-import ai.djl.nn.Parameter
 import ai.djl.training.DefaultTrainingConfig
-import ai.djl.training.initializer.UniformInitializer
 import ai.djl.training.listener.TrainingListener
 import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
@@ -18,16 +15,20 @@ import ai.djl.translate.NoopTranslator
 fun main() {
     val manager = NDManager.newBaseManager()
     val csvReader = CsvToNdarray(manager)
-    val input = csvReader.read("data/ex/train2id-hrt.txt")
+    val input = csvReader.read("data/sample.csv")
     println(input)
     val numOfTriples = input.shape[0]
     val inputList = mutableListOf<LongArray>()
     (0 until numOfTriples).forEach {
         inputList.add(input.get(it).toLongArray())
     }
+    val headMax = input.get(":, 0").max().toLongArray()[0]
+    val tailMax = input.get(":, 2").max().toLongArray()[0]
+    val relMax = input.get(":, 1").max().toLongArray()[0]
+    val numEntities = maxOf(headMax, tailMax) + 1
+    val numEdges = relMax + 1
     val transe =
-        TransE(NUM_ENTITIES, NUM_EDGES, DIMENSION).also {
-            it.setInitializer(UniformInitializer(6.0f / Math.sqrt(DIMENSION.toDouble()).toFloat()), Parameter.Type.WEIGHT)
+        TransE(numEntities, numEdges, DIMENSION).also {
             it.initialize(manager, DataType.FLOAT32, input.shape)
         }
     val model =
@@ -47,11 +48,11 @@ fun main() {
 
     val trainer =
         model.newTrainer(config).also {
-            it.initialize(Shape(NUM_ENTITIES, TRIPLE))
+            it.initialize(input.shape)
             it.metrics = Metrics()
         }
 
-    val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, NUM_ENTITIES, trainer, 1000)
+    val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, numEntities, trainer, 30)
     eTrainer.training()
     println(trainer.trainingResult)
 
@@ -62,7 +63,7 @@ fun main() {
     print("Predict (False):")
     println(predictor.predict(NDList(test)).singletonOrThrow().toFloatArray()[0])
 
-    val result = ResultEval(inputList, manager.newSubManager(), predictor)
+    val result = ResultEval(inputList, manager.newSubManager(), predictor, numEntities)
     println("Tail")
     result.getTailResult().forEach {
         println("${it.key} : ${it.value}")

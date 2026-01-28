@@ -11,8 +11,14 @@ import ai.djl.ndarray.types.DataType
  * @property inputList The list of input triples.
  * @property manager The NDManager instance used for creating NDArrays.
  * @property predictor The Predictor instance for making predictions.
+ * @property numEntities The number of entities in the data.
  */
-class ResultEval(val inputList: List<LongArray>, val manager: NDManager, val predictor: Predictor<NDList, NDList>) {
+class ResultEval(
+    val inputList: List<LongArray>,
+    val manager: NDManager,
+    val predictor: Predictor<NDList, NDList>,
+    val numEntities: Long,
+) {
     /**
      * Computes evaluation metrics for tail prediction.
      *
@@ -31,8 +37,8 @@ class ResultEval(val inputList: List<LongArray>, val manager: NDManager, val pre
             val repeatedInput =
                 manager.create(longArrayOf(head, relation))
                     .reshape(1, 2)
-                    .repeat(0, NUM_ENTITIES)
-            val entityRange = manager.arange(0, NUM_ENTITIES.toInt(), 1, DataType.INT64).reshape(NUM_ENTITIES, 1)
+                    .repeat(0, numEntities)
+            val entityRange = manager.arange(0, numEntities.toInt(), 1, DataType.INT64).reshape(numEntities, 1)
             val modelInput = repeatedInput.concat(entityRange, 1)
 
             // Predict scores for all possible tails
@@ -68,7 +74,7 @@ class ResultEval(val inputList: List<LongArray>, val manager: NDManager, val pre
         inputList.forEach { triple ->
             // Compute scores for all possible head entities
             val scores =
-                (0 until NUM_ENTITIES).map { head ->
+                (0 until numEntities).map { head ->
                     val input = manager.create(longArrayOf(head.toLong(), triple[1], triple[2]))
                     val score = predictor.predict(NDList(input)).singletonOrThrow().toFloatArray()[0]
                     score

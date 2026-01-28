@@ -2,12 +2,13 @@ package jp.live.ugai.tugraph
 
 import ai.djl.ndarray.NDArray
 import ai.djl.ndarray.NDList
-import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.Shape
 import ai.djl.nn.AbstractBlock
 import ai.djl.nn.Parameter
 import ai.djl.training.ParameterStore
+import ai.djl.training.initializer.UniformInitializer
 import ai.djl.util.PairList
+import kotlin.math.sqrt
 
 /**
  * A class representing the TransR model.
@@ -16,19 +17,25 @@ import ai.djl.util.PairList
  * @property numEdge The number of edges.
  * @property dim The dimensionality of the embeddings.
  */
-class TransR(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock() {
+class TransR(
+    val numEnt: Long,
+    val numEdge: Long,
+    val entDim: Long,
+    val relDim: Long = entDim,
+) : AbstractBlock() {
     private val entities: Parameter
     private val edges: Parameter
     private val matrix: Parameter
-    private val manager = NDManager.newBaseManager()
 
     init {
+        val bound = 6.0f / sqrt(entDim.toDouble()).toFloat()
+        setInitializer(UniformInitializer(bound), Parameter.Type.WEIGHT)
         entities =
             addParameter(
                 Parameter.builder()
                     .setName("entities")
                     .setType(Parameter.Type.WEIGHT)
-                    .optShape(Shape(numEnt, dim))
+                    .optShape(Shape(numEnt, entDim))
                     .build(),
             )
         edges =
@@ -36,7 +43,7 @@ class TransR(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
                 Parameter.builder()
                     .setName("edges")
                     .setType(Parameter.Type.WEIGHT)
-                    .optShape(Shape(numEdge, dim))
+                    .optShape(Shape(numEdge, relDim))
                     .build(),
             )
         matrix =
@@ -44,7 +51,7 @@ class TransR(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
                 Parameter.builder()
                     .setName("matrix")
                     .setType(Parameter.Type.WEIGHT)
-                    .optShape(Shape(dim, dim))
+                    .optShape(Shape(numEdge, relDim, entDim))
                     .build(),
             )
     }
@@ -101,17 +108,30 @@ class TransR(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
         val relations = edges.get(triples.get(":, 1"))
         val tails = entities.get(triples.get(":, 2"))
 
-        // Project relation embeddings using the relation-specific matrix
-        val projectedRelations = relations.matMul(matrix)
+        // Project entities into relation space using relation-specific matrices
+        val matrices = matrix.get(triples.get(":, 1"))
+        val headsProj =
+            matrices
+                .batchMatMul(heads.expandDims(2))
+                .reshape(Shape(numTriples, relDim))
+        val tailsProj =
+            matrices
+                .batchMatMul(tails.expandDims(2))
+                .reshape(Shape(numTriples, relDim))
 
-        // Compute TransR score: |head + projectedRelation - tail|, then sum over embedding dimension and normalize
-        val score = heads.add(projectedRelations).sub(tails).abs().sum(intArrayOf(1)).div(dim)
-        return score
+        // TransR energy: d(h_r + r, t_r) with L1 distance
+        return headsProj.add(relations).sub(tailsProj).abs().sum(intArrayOf(1))
     }
 
     @Override
     override fun getOutputShapes(inputs: Array<Shape>): Array<Shape> {
-        return arrayOf<Shape>(Shape(1), Shape(1))
+        val numTriples = inputs[0].size() / TRIPLE
+        val outShape = Shape(numTriples)
+        return if (inputs.size > 1) {
+            arrayOf(outShape, outShape)
+        } else {
+            arrayOf(outShape)
+        }
     }
 
     /**
@@ -136,9 +156,21 @@ class TransR(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
      * Normalizes the embeddings.
      */
     fun normalize() {
-        getParameters().forEach {
-            it.value.array.norm()
-//            it.value.array.divi(it.value.array.pow(2).sum().sqrt())
-        }
+        val ent = getParameters().valueAt(0).array
+        val rel = getParameters().valueAt(1).array
+        val entNorm = ent.norm(intArrayOf(1), true).maximum(1.0e-12f)
+        val relNorm = rel.norm(intArrayOf(1), true).maximum(1.0e-12f)
+        ent.divi(entNorm)
+        rel.divi(relNorm)
+    }
+
+    @Override
+    override fun initialize(
+        manager: ai.djl.ndarray.NDManager,
+        dataType: ai.djl.ndarray.types.DataType,
+        vararg inputShapes: Shape,
+    ) {
+        super.initialize(manager, dataType, *inputShapes)
+        normalize()
     }
 }

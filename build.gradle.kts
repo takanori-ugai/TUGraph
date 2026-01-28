@@ -105,6 +105,18 @@ tasks {
             attributes["Main-Class"] = "com.fujitsu.labs.virtualhome.MainKt"
         }
     }
+
+    val execute by registering(JavaExec::class) {
+        group = "application"
+        mainClass.set(
+            if (project.hasProperty("mainClass")) {
+                project.property("mainClass") as String
+            } else {
+                application.mainClass.get()
+            },
+        )
+        classpath = sourceSets.main.get().runtimeClasspath
+    }
 }
 
 ktlint {
