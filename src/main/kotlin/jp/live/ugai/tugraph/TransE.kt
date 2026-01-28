@@ -2,6 +2,7 @@ package jp.live.ugai.tugraph
 
 import ai.djl.ndarray.NDArray
 import ai.djl.ndarray.NDList
+import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.Shape
 import ai.djl.nn.AbstractBlock
 import ai.djl.nn.Parameter
@@ -27,6 +28,10 @@ class TransE(
 ) : AbstractBlock() {
     private val entities: Parameter
     private val edges: Parameter
+    private val headIndex = NDIndex(":, 0")
+    private val relationIndex = NDIndex(":, 1")
+    private val tailIndex = NDIndex(":, 2")
+    private val sumAxis = intArrayOf(1)
 
     init {
         val bound = 6.0f / sqrt(dim.toDouble()).toFloat()
@@ -94,12 +99,17 @@ class TransE(
         val triples = input.reshape(numTriples, TRIPLE)
 
         // Gather embeddings for head, relation, and tail entities
-        val heads = entities.get(triples.get(":, 0"))
-        val relations = edges.get(triples.get(":, 1"))
-        val tails = entities.get(triples.get(":, 2"))
+        val headIds = triples.get(headIndex)
+        val relationIds = triples.get(relationIndex)
+        val tailIds = triples.get(tailIndex)
+        val headsAndTails = entities.get(headIds.concat(tailIds, 0))
+        val numTriplesInt = numTriples.toInt()
+        val heads = headsAndTails.get("0:$numTriplesInt")
+        val tails = headsAndTails.get("$numTriplesInt:")
+        val relations = edges.get(relationIds)
 
         // TransE energy: d(h + r, t) with L1 distance
-        return heads.add(relations).sub(tails).abs().sum(intArrayOf(1))
+        return heads.add(relations).sub(tails).abs().sum(sumAxis)
     }
 
     @Override
@@ -134,7 +144,7 @@ class TransE(
     ) {
         super.initialize(manager, dataType, *inputShapes)
         val rel = getParameters().valueAt(1).array
-        val norm = rel.norm(intArrayOf(1), true)
+        val norm = rel.norm(sumAxis, true)
         val safe = norm.maximum(1.0e-12f)
         rel.divi(safe)
     }
@@ -162,7 +172,7 @@ class TransE(
      */
     fun normalize() {
         val ent = getParameters().valueAt(0).array
-        val norm = ent.norm(intArrayOf(1), true)
+        val norm = ent.norm(sumAxis, true)
         val safe = norm.maximum(1.0e-12f)
         ent.divi(safe)
     }

@@ -3,6 +3,9 @@ package jp.live.ugai.tugraph
 import ai.djl.ndarray.NDArray
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
+import ai.djl.ndarray.index.NDIndex
+import ai.djl.ndarray.types.DataType
+import ai.djl.ndarray.types.Shape
 import ai.djl.training.Trainer
 import kotlin.random.Random
 
@@ -30,17 +33,24 @@ class EmbeddingTrainer(
 
     /** Materialized triples used for negative sampling. */
     val inputList = mutableListOf<List<Long>>()
+    private val inputSet: Set<List<Long>>
 
     init {
         for (i in 0 until numOfTriples) {
             inputList.add(triples.get(i).toLongArray().toList())
         }
+        inputSet = inputList.toHashSet()
     }
 
     /**
      * Trains the embedding model.
      */
     fun training() {
+        val negativeSample = manager.zeros(Shape(TRIPLE), DataType.INT64)
+        val negativeIndex0 = NDIndex(0)
+        val negativeIndex1 = NDIndex(1)
+        val negativeIndex2 = NDIndex(2)
+        val checkTriplet = mutableListOf(0L, 0L, 0L)
         (1..epoch).forEach {
             var epochLoss = 0f
             for (i in 0 until numOfTriples) {
@@ -49,22 +59,33 @@ class EmbeddingTrainer(
                 val fst = element.elementAt(0)
                 val sec = element.elementAt(1)
                 val trd = element.elementAt(2)
-                val nsample =
-                    if (Random.nextBoolean()) {
-                        var ran = Random.nextLong(numOfEntities)
-                        while (ran == fst || inputList.contains(listOf(fst, sec, ran))) {
-                            ran = Random.nextLong(numOfEntities)
-                        }
-                        manager.create(longArrayOf(fst, sec, ran))
-                    } else {
-                        var ran = Random.nextLong(numOfEntities)
-                        while (ran == trd || inputList.contains(listOf(ran, sec, trd))) {
-                            ran = Random.nextLong(numOfEntities)
-                        }
-                        manager.create(longArrayOf(ran, sec, trd))
+                if (Random.nextBoolean()) {
+                    var ran = Random.nextLong(numOfEntities)
+                    checkTriplet[0] = fst
+                    checkTriplet[1] = sec
+                    checkTriplet[2] = ran
+                    while (ran == fst || inputSet.contains(checkTriplet)) {
+                        ran = Random.nextLong(numOfEntities)
+                        checkTriplet[2] = ran
                     }
+                    negativeSample.setScalar(negativeIndex0, fst)
+                    negativeSample.setScalar(negativeIndex1, sec)
+                    negativeSample.setScalar(negativeIndex2, ran)
+                } else {
+                    var ran = Random.nextLong(numOfEntities)
+                    checkTriplet[0] = ran
+                    checkTriplet[1] = sec
+                    checkTriplet[2] = trd
+                    while (ran == trd || inputSet.contains(checkTriplet)) {
+                        ran = Random.nextLong(numOfEntities)
+                        checkTriplet[0] = ran
+                    }
+                    negativeSample.setScalar(negativeIndex0, ran)
+                    negativeSample.setScalar(negativeIndex1, sec)
+                    negativeSample.setScalar(negativeIndex2, trd)
+                }
                 trainer.newGradientCollector().use { gc ->
-                    val f0 = trainer.forward(NDList(sample, nsample))
+                    val f0 = trainer.forward(NDList(sample, negativeSample))
                     val pos = f0[0]
                     val neg = f0[1]
                     val hinge = pos.sub(neg).add(margin).maximum(0f)
