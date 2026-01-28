@@ -8,6 +8,7 @@ import java.io.FileInputStream
 import java.io.InputStream
 import java.io.InputStreamReader
 
+/** Parses a CSV sample into NDArrays for inspection. */
 fun main() {
     val manager = NDManager.newBaseManager()
     var input = manager.zeros(Shape(0), DataType.INT64)
@@ -26,4 +27,5 @@ fun main() {
     println(input.reshape(arr.size.toLong(), input.size() / arr.size))
 }
 
+/** Marker class for Test4 example. */
 class Test4

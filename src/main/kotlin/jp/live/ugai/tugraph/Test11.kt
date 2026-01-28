@@ -22,9 +22,13 @@ import ai.djl.translate.TranslateException
 import ai.djl.util.Progress
 import java.io.IOException
 
+/** Embedding size used by the toy transformer example. */
 const val EMBEDDING_SIZE = 64
+
+/** Output directory for saving the transformer model. */
 const val MODEL_DIR = "build/models/transformer"
 
+/** Trains a tiny transformer encoder on a toy dataset. */
 fun main() {
     try {
         val dataset = prepareDataset()

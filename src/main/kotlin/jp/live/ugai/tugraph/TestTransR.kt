@@ -12,6 +12,7 @@ import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
+/** Runs TransR training and evaluation on a CSV dataset. */
 fun main() {
     val manager = NDManager.newBaseManager()
     val csvReader = CsvToNdarray(manager)
@@ -74,4 +75,5 @@ fun main() {
     result.close()
 }
 
+/** Marker class for TestTransR example. */
 class TestTransR

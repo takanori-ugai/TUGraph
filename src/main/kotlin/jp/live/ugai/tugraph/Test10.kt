@@ -7,6 +7,7 @@ import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
 import ai.djl.training.ParameterStore
 
+/** Runs a quick embedding lookup demonstration. */
 fun main() {
     val manager = NDManager.newBaseManager()
     val ps = ParameterStore(manager, false)
@@ -29,4 +30,5 @@ fun main() {
 //    println(a.embedWord(manager, 1))
 }
 
+/** Marker class for Test10 example. */
 class Test10

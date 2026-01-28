@@ -5,6 +5,7 @@ import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.Shape
 import ai.djl.training.dataset.ArrayDataset
 
+/** Exercises NDArray indexing and dataset assembly utilities. */
 fun main() {
     val rank =
         mapOf<Int, Float>(
@@ -39,4 +40,5 @@ fun main() {
     dataset.prepare()
 }
 
+/** Marker class for Test7 example. */
 class Test7

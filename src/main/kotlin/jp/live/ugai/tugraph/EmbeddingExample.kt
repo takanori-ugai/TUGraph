@@ -20,7 +20,9 @@ import ai.djl.training.listener.TrainingListener
 import ai.djl.training.loss.Loss
 import ai.djl.translate.NoopTranslator
 
+/** Example driver for training and evaluating a toy word embedding model. */
 object EmbeddingExample {
+    /** Runs the embedding example workflow. */
     @JvmStatic
     fun main(args: Array<String>) {
         val sentence = listOf("I", "am", "a", "dog", "am", "a", "<START>", "<END>")
@@ -107,6 +109,15 @@ object EmbeddingExample {
         println(ppp[0])
     }
 
+    /**
+     * Builds an ArrayDataset from feature and label NDArrays.
+     *
+     * @param features Input features.
+     * @param labels Target labels.
+     * @param batchSize Batch size for sampling.
+     * @param shuffle Whether to shuffle the dataset.
+     * @return Configured ArrayDataset instance.
+     */
     fun loadArray(
         features: NDArray,
         labels: NDArray,

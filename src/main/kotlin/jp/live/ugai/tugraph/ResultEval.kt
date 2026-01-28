@@ -14,9 +14,13 @@ import ai.djl.ndarray.types.DataType
  * @property numEntities The number of entities in the data.
  */
 class ResultEval(
+    /** Input triples used for evaluation. */
     val inputList: List<LongArray>,
+    /** NDManager used to create NDArrays for evaluation. */
     val manager: NDManager,
+    /** Predictor used to score candidate triples. */
     val predictor: Predictor<NDList, NDList>,
+    /** Total number of entities in the knowledge graph. */
     val numEntities: Long,
 ) {
     /**

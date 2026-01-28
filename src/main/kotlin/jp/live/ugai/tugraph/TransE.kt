@@ -17,7 +17,14 @@ import kotlin.math.sqrt
  * @property numEdge The number of edges.
  * @property dim The dimensionality of the embeddings.
  */
-class TransE(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock() {
+class TransE(
+    /** Number of entities in the graph. */
+    val numEnt: Long,
+    /** Number of relations in the graph. */
+    val numEdge: Long,
+    /** Embedding dimensionality. */
+    val dim: Long,
+) : AbstractBlock() {
     private val entities: Parameter
     private val edges: Parameter
 
@@ -96,6 +103,12 @@ class TransE(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
     }
 
     @Override
+    /**
+     * Computes output shapes for the provided input shapes.
+     *
+     * @param inputs Input shapes for the block.
+     * @return Output shapes for the block.
+     */
     override fun getOutputShapes(inputs: Array<Shape>): Array<Shape> {
         val numTriples = inputs[0].size() / TRIPLE
         val outShape = Shape(numTriples)
@@ -107,6 +120,13 @@ class TransE(val numEnt: Long, val numEdge: Long, val dim: Long) : AbstractBlock
     }
 
     @Override
+    /**
+     * Initializes parameters and normalizes relation embeddings.
+     *
+     * @param manager NDManager used for initialization.
+     * @param dataType Data type for parameters.
+     * @param inputShapes Input shapes for initialization.
+     */
     override fun initialize(
         manager: ai.djl.ndarray.NDManager,
         dataType: ai.djl.ndarray.types.DataType,

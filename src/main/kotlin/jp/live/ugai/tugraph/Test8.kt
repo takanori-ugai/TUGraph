@@ -11,6 +11,7 @@ import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
+/** Runs a short TransE training example against CSV data. */
 fun main() {
     val manager = NDManager.newBaseManager()
     val csvReader = CsvToNdarray(manager)
@@ -57,4 +58,5 @@ fun main() {
     println(predictor.predict(ai.djl.ndarray.NDList(test)).singletonOrThrow().toFloatArray()[0])
 }
 
+/** Marker class for Test8 example. */
 class Test8

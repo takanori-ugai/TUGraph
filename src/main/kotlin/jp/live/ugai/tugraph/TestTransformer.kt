@@ -19,6 +19,7 @@ import ai.djl.training.loss.SoftmaxCrossEntropyLoss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.util.PairList
 
+/** Trains and evaluates a tiny causal transformer language model. */
 fun main() {
     val manager = NDManager.newBaseManager()
 
@@ -115,6 +116,7 @@ fun main() {
     println("Accuracy: ${correct.toFloat() / total}")
 }
 
+/** A minimal causal language model block built from DJL transformer components. */
 class CausalTransformerLMBlock(
     private val vocab: DefaultVocabulary,
     private val embedDim: Int,
@@ -127,10 +129,20 @@ class CausalTransformerLMBlock(
 
     init {
         embedding = addChildBlock("embedding", TrainableWordEmbedding(vocab, embedDim)) as TrainableWordEmbedding
-        encoder = addChildBlock("encoder", TransformerEncoderBlock(embedDim, numHeads, ffnDim, 0.1F, Activation::relu)) as TransformerEncoderBlock
+        encoder =
+            addChildBlock("encoder", TransformerEncoderBlock(embedDim, numHeads, ffnDim, 0.1F, Activation::relu)) as TransformerEncoderBlock
         projection = addChildBlock("projection", Linear.builder().setUnits(vocab.size()).build()) as Linear
     }
 
+    /**
+     * Runs the forward pass with a causal attention mask.
+     *
+     * @param parameterStore Parameter store for the block.
+     * @param inputs Input token IDs.
+     * @param training Whether the block is in training mode.
+     * @param params Additional parameters.
+     * @return Output logits NDList.
+     */
     override fun forwardInternal(
         parameterStore: ParameterStore,
         inputs: NDList,
@@ -148,20 +160,41 @@ class CausalTransformerLMBlock(
         return NDList(logits)
     }
 
+    /**
+     * Computes output shapes for the given input shapes.
+     *
+     * @param inputShapes Input shapes for the block.
+     * @return Output shapes for the block.
+     */
     override fun getOutputShapes(inputShapes: Array<Shape>): Array<Shape> {
         val batch = inputShapes[0].get(0)
         val seqLen = inputShapes[0].get(1)
         return arrayOf(Shape(batch, seqLen, vocab.size().toLong()))
     }
 
-    override fun initializeChildBlocks(manager: NDManager, dataType: DataType, vararg inputShapes: Shape) {
+    /**
+     * Initializes child blocks with derived embedding shapes.
+     *
+     * @param manager NDManager used for initialization.
+     * @param dataType Data type for parameters.
+     * @param inputShapes Input shapes for initialization.
+     */
+    override fun initializeChildBlocks(
+        manager: NDManager,
+        dataType: DataType,
+        vararg inputShapes: Shape,
+    ) {
         embedding.initialize(manager, dataType, *inputShapes)
         val embedShape = Shape(inputShapes[0].get(0), inputShapes[0].get(1), embedDim.toLong())
         encoder.initialize(manager, dataType, embedShape)
         projection.initialize(manager, dataType, embedShape)
     }
 
-    private fun causalMask(manager: NDManager, batch: Long, seqLen: Long): NDArray {
+    private fun causalMask(
+        manager: NDManager,
+        batch: Long,
+        seqLen: Long,
+    ): NDArray {
         val idx = manager.arange(seqLen.toInt())
         val i = idx.reshape(Shape(seqLen, 1))
         val j = idx.reshape(Shape(1, seqLen))
@@ -170,4 +203,5 @@ class CausalTransformerLMBlock(
     }
 }
 
+/** Marker class for TestTransformer example. */
 class TestTransformer

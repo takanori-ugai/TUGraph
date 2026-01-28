@@ -23,12 +23,18 @@ import org.slf4j.LoggerFactory
 object BertQaInference {
     private val logger = LoggerFactory.getLogger(BertQaInference::class.java)
 
+    /** Runs a simple question-answering inference demo. */
     @JvmStatic
     fun main(args: Array<String>) {
         val answer = predict()
         logger.info("Answer: {}", answer)
     }
 
+    /**
+     * Performs a QA prediction with a fixed question and paragraph.
+     *
+     * @return The predicted answer string.
+     */
     fun predict(): String {
         val question = "When did BBC Japan start broadcasting?"
         // val paragraph = "help"

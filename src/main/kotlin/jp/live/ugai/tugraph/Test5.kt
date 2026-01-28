@@ -22,6 +22,7 @@ import java.io.InputStream
 import java.io.InputStreamReader
 import kotlin.random.Random
 
+/** Runs a TransE training example with CSV input and negative sampling. */
 fun main() {
     val manager = NDManager.newBaseManager()
     var input = manager.zeros(Shape(0), DataType.INT64)
@@ -108,4 +109,5 @@ fun main() {
     println(predictor.predict(NDList(test)).singletonOrThrow())
 }
 
+/** Marker class for Test5 example. */
 class Test5

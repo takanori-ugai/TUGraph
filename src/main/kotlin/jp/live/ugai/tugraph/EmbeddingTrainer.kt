@@ -23,8 +23,12 @@ class EmbeddingTrainer(
     private val epoch: Int,
 ) {
     private val margin = 1.0f
+
+    /** Per-epoch loss values collected during training. */
     val lossList = mutableListOf<Float>()
     private val numOfTriples = triples.shape[0]
+
+    /** Materialized triples used for negative sampling. */
     val inputList = mutableListOf<List<Long>>()
 
     init {

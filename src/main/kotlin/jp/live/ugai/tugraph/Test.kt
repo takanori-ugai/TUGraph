@@ -11,6 +11,7 @@ import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 
+/** Runs a basic TransE training smoke test. */
 fun main() {
     val manager = NDManager.newBaseManager()
     val input = manager.create(longArrayOf(2, 0, 1, 2, 1, 3, 0, 0, 1, 0, 1, 2), Shape(4, 3))
@@ -42,4 +43,5 @@ fun main() {
     println(transe.getEntities())
 }
 
+/** Marker class for Test example. */
 class Test

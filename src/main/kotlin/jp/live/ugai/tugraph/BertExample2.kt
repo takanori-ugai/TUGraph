@@ -2,12 +2,13 @@ package jp.live.ugai.tugraph
 
 import ai.djl.Application
 import ai.djl.engine.Engine
+import ai.djl.huggingface.translator.FillMaskTranslatorFactory
 import ai.djl.modality.Classifications
 import ai.djl.repository.zoo.Criteria
 import ai.djl.repository.zoo.ZooModel
 import ai.djl.training.util.ProgressBar
-import ai.djl.huggingface.translator.FillMaskTranslatorFactory
 
+/** Runs a fill-mask example using a HuggingFace model. */
 fun main() {
     val sentence = "I have watched this [MASK] and it was awesome."
 
@@ -28,4 +29,5 @@ fun main() {
     }
 }
 
+/** Marker class for the fill-mask example. */
 class BertExample2
