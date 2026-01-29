@@ -83,12 +83,12 @@ class TransE(
     }
 
     /**
-     * Applies the linear transformation of the TransE model.
+     * Computes TransE energy scores d(h + r, t) using L1 distance for the provided triples.
      *
-     * @param input The input NDArray.
-     * @param entities The entities NDArray.
-     * @param edges The edges NDArray.
-     * @return The output NDArray.
+     * @param input A 1-D or 2-D NDArray of triple indices (flattened or shaped) where each triple is (head, relation, tail).
+     * @param entities Entity embedding matrix with shape [numEnt, dim].
+     * @param edges Relation embedding matrix with shape [numEdge, dim].
+     * @return An NDArray of shape [numTriples] containing the L1 energy for each triple.
      */
     fun model(
         input: NDArray,
@@ -136,6 +136,12 @@ class TransE(
         }
     }
 
+    /**
+     * Computes the block's output shapes from the given input shapes.
+     *
+     * @param inputs Input shapes; inputs[0].size() is interpreted as TRIPLE * numTriples and must be divisible by TRIPLE.
+     * @return An array containing one Shape equal to [numTriples], or two identical Shapes when a second input is provided.
+     */
     @Override
     /**
      * Computes output shapes for the provided input shapes.
@@ -153,6 +159,14 @@ class TransE(
         }
     }
 
+    /**
+     * Initializes model parameters and normalizes relation embeddings to unit L2 norm per embedding,
+     * stabilizing the division with a minimum norm of 1e-12.
+     *
+     * @param manager NDManager used for initialization.
+     * @param dataType Data type for parameters.
+     * @param inputShapes Input shapes for initialization.
+     */
     @Override
     /**
      * Initializes parameters and normalizes relation embeddings.
@@ -197,7 +211,9 @@ class TransE(
     }
 
     /**
-     * Normalizes the embeddings.
+     * Normalize entity embeddings in-place so each embedding has L2 norm equal to 1 along the embedding axis.
+     *
+     * Norms smaller than 1e-12 are clamped to 1e-12 to avoid division by zero.
      */
     fun normalize() {
         val ent = getParameters().valueAt(0).array

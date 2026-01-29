@@ -24,6 +24,11 @@ import ai.djl.translate.NoopTranslator
  * loop that accumulates per-epoch loss for a fixed number of epochs, and prints the trained model's edges,
  * entities, and example predictions.
  */
+/**
+ * Runs a short TransE training loop on a small synthetic dataset and prints the model's edges, entities, and predictions.
+ *
+ * Trains a TransE block for a fixed number of epochs using L2 loss and SGD on a toy dataset, then evaluates the predictor on the training inputs and a small test input.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val input = manager.create(longArrayOf(2, 0, 1, 2, 1, 3, 0, 0, 1, 0, 1, 2), Shape(4, 3))

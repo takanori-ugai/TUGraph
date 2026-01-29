@@ -16,6 +16,14 @@ import java.io.InputStreamReader
  * After processing, prints whether the list [0, 0, 1] is present and prints the NDArray reshaped to
  * (number of rows, columns).
  */
+/**
+ * Application entry point that loads numeric CSV data and prints processing results.
+ *
+ * Reads "data/sample.csv" using UTF-8 and Excel CSV format, parses each record into a
+ * list of Long values, appends rows into a DJL NDArray, and prints each parsed row.
+ * After reading all records it prints whether the sequence [0, 0, 1] is present and
+ * prints the NDArray reshaped to (rowCount, columnCount).
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         var input = manager.zeros(Shape(0), DataType.INT64)
