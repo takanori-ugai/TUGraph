@@ -140,12 +140,20 @@ class TransR(
             matrices = matrix.get(relationIds)
             headsExp = heads.expandDims(2)
             tailsExp = tails.expandDims(2)
-            headsProj = matrices.batchMatMul(headsExp).reshape(Shape(numTriples, relDim))
-            tailsProj = matrices.batchMatMul(tailsExp).reshape(Shape(numTriples, relDim))
+            val headsProjLocal =
+                matrices.batchMatMul(headsExp).use { tmp ->
+                    tmp.reshape(Shape(numTriples, relDim))
+                }
+            headsProj = headsProjLocal
+            val tailsProjLocal =
+                matrices.batchMatMul(tailsExp).use { tmp ->
+                    tmp.reshape(Shape(numTriples, relDim))
+                }
+            tailsProj = tailsProjLocal
 
             // TransR energy: d(h_r + r, t_r) with L1 distance
-            sum = headsProj.add(relations)
-            diff = sum.sub(tailsProj)
+            sum = headsProjLocal.add(requireNotNull(relations))
+            diff = sum.sub(tailsProjLocal)
             abs = diff.abs()
             return abs.sum(intArrayOf(1))
         } finally {

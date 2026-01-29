@@ -8,6 +8,7 @@ import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
 import ai.djl.training.DefaultTrainingConfig
+import ai.djl.training.Trainer
 import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
@@ -25,6 +26,7 @@ class GpuMemoryRegressionTest {
         val device = Device.gpu(0)
         val manager = NDManager.newBaseManager(device)
         var model: Model? = null
+        var trainer: Trainer? = null
         try {
             val numEnt = 128L
             val numRel = 16L
@@ -46,7 +48,7 @@ class GpuMemoryRegressionTest {
                             .build(),
                     )
                     .optDevices(arrayOf(device))
-            val trainer =
+            trainer =
                 model.newTrainer(config).also {
                     it.initialize(triples.shape)
                     it.metrics = Metrics()
@@ -107,8 +109,8 @@ class GpuMemoryRegressionTest {
                 delta <= maxGrowth,
                 "GPU memory grew by ${delta / (1024 * 1024)} MiB (limit: ${maxGrowth / (1024 * 1024)} MiB)",
             )
-            trainer.close()
         } finally {
+            trainer?.close()
             model?.close()
             manager.close()
         }

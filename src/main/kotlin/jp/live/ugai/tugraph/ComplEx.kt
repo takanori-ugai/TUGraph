@@ -110,10 +110,14 @@ class ComplEx(
         var rIm: NDArray? = null
         var tRe: NDArray? = null
         var tIm: NDArray? = null
+        var term1Mul: NDArray? = null
         var term1: NDArray? = null
+        var term2Mul: NDArray? = null
         var term2: NDArray? = null
         var term1b: NDArray? = null
         var term2b: NDArray? = null
+        var sum1: NDArray? = null
+        var sum2: NDArray? = null
         var sum: NDArray? = null
         try {
             triples = input.reshape(numTriples, TRIPLE)
@@ -133,20 +137,26 @@ class ComplEx(
             tIm = tails.get(imagIndex)
 
             // ComplEx: Re(<h, r, conj(t)>)
-            term1 = hRe.mul(rRe)
+            term1Mul = hRe.mul(rRe)
             term1b = hIm.mul(rIm)
-            term1 = term1.sub(term1b)
-            term2 = hRe.mul(rIm)
+            term1 = term1Mul.sub(term1b)
+            term2Mul = hRe.mul(rIm)
             term2b = hIm.mul(rRe)
-            term2 = term2.add(term2b)
-            sum = term1.mul(tRe).add(term2.mul(tIm))
+            term2 = term2Mul.add(term2b)
+            sum1 = term1.mul(tRe)
+            sum2 = term2.mul(tIm)
+            sum = sum1.add(sum2)
             return sum.sum(sumAxis)
         } finally {
             sum?.close()
+            sum2?.close()
+            sum1?.close()
             term2b?.close()
             term2?.close()
+            term2Mul?.close()
             term1b?.close()
             term1?.close()
+            term1Mul?.close()
             tIm?.close()
             tRe?.close()
             rIm?.close()
