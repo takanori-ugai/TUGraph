@@ -148,6 +148,7 @@ class EmbeddingTrainer(
         input: NDArray,
         numEntities: Long,
     ): NDArray {
+        require(numEntities > 1L) { "numEntities must be > 1 for negative sampling, was $numEntities." }
         val numTriples = input.size() / TRIPLE
         val triples = input.reshape(numTriples, TRIPLE)
         val manager = triples.manager
@@ -172,8 +173,66 @@ class EmbeddingTrainer(
         val newHeads = heads.mul(keepMask).add(randHead.mul(replaceMask))
         val newTails = tails.mul(replaceMask).add(randTail.mul(keepMask))
 
-        return newHeads.expandDims(1)
+        val negatives =
+            newHeads.expandDims(1)
             .concat(relations.expandDims(1), 1)
             .concat(newTails.expandDims(1), 1)
+
+        // Filter out accidental positives by resampling per-row if needed.
+        val batchCount = numTriples.toInt()
+        val maxResample = NEGATIVE_RESAMPLE_CAP
+        for (i in 0 until batchCount) {
+            val current = negatives.get(i.toLong()).toLongArray().toList()
+            if (inputSet.contains(current)) {
+                val fst = heads.get(i.toLong()).getLong()
+                val sec = relations.get(i.toLong()).getLong()
+                val trd = tails.get(i.toLong()).getLong()
+                var replaceHeadFlag = kotlin.random.Random.nextBoolean()
+                var ran: Long = 0L
+                val checkTriplet = mutableListOf(0L, 0L, 0L)
+                var attempts = 0
+                var found = false
+                while (attempts < maxResample) {
+                    ran = kotlin.random.Random.nextLong(numEntities)
+                    if (replaceHeadFlag) {
+                        if (ran == fst) {
+                            attempts += 1
+                            continue
+                        }
+                        checkTriplet[0] = ran
+                        checkTriplet[1] = sec
+                        checkTriplet[2] = trd
+                    } else {
+                        if (ran == trd) {
+                            attempts += 1
+                            continue
+                        }
+                        checkTriplet[0] = fst
+                        checkTriplet[1] = sec
+                        checkTriplet[2] = ran
+                    }
+                    if (!inputSet.contains(checkTriplet)) {
+                        found = true
+                        break
+                    }
+                    replaceHeadFlag = !replaceHeadFlag
+                    attempts += 1
+                }
+                if (found) {
+                    if (replaceHeadFlag) {
+                        negatives.setScalar(NDIndex(i.toLong(), 0), ran)
+                    } else {
+                        negatives.setScalar(NDIndex(i.toLong(), 2), ran)
+                    }
+                } else {
+                    logger.warn(
+                        "Negative resample cap hit ({} attempts) for batch row {}.",
+                        maxResample,
+                        i,
+                    )
+                }
+            }
+        }
+        return negatives
     }
 }
