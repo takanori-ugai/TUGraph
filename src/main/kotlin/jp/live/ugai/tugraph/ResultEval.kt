@@ -3,7 +3,9 @@ package jp.live.ugai.tugraph
 import ai.djl.inference.Predictor
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
+import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.DataType
+import ai.djl.ndarray.types.Shape
 
 /**
  * A class for evaluating the results of a model.
@@ -23,6 +25,8 @@ class ResultEval(
     /** Total number of entities in the knowledge graph. */
     val numEntities: Long,
 ) {
+    private val col0Index = NDIndex(":, 0")
+    private val col1Index = NDIndex(":, 1")
     /**
      * Computes evaluation metrics for tail prediction.
      *
@@ -31,29 +35,57 @@ class ResultEval(
     fun getTailResult(): Map<String, Float> {
         val result = mutableMapOf<String, Float>()
         val ranks = mutableListOf<Int>()
+        val entityRange = manager.arange(0, numEntities.toInt(), 1, DataType.INT64).reshape(numEntities, 1)
+        val evalBatchSize = maxOf(1, RESULT_EVAL_BATCH_SIZE)
 
-        inputList.forEach { triple ->
-            // Prepare input for prediction
-            val head = triple[0]
-            val relation = triple[1]
-            val tail = triple[2].toInt()
-
-            val repeatedInput =
-                manager.create(longArrayOf(head, relation))
-                    .reshape(1, 2)
-                    .repeat(0, numEntities)
-            val entityRange = manager.arange(0, numEntities.toInt(), 1, DataType.INT64).reshape(numEntities, 1)
-            val modelInput = repeatedInput.concat(entityRange, 1)
-
-            // Predict scores for all possible tails
-            val prediction = predictor.predict(NDList(modelInput)).singletonOrThrow()
-            val scores = prediction.toFloatArray()
-            prediction.close()
-
-            // Rank the true tail among all candidates
-            val sortedIndices = scores.withIndex().sortedBy { it.value }.map { it.index }
-            val rank = sortedIndices.indexOf(tail) + 1
-            ranks.add(rank)
+        var start = 0
+        while (start < inputList.size) {
+            val end = minOf(start + evalBatchSize, inputList.size)
+            val batchSize = end - start
+            val headArr = LongArray(batchSize)
+            val relArr = LongArray(batchSize)
+            val tailIds = IntArray(batchSize)
+            for (i in 0 until batchSize) {
+                val triple = inputList[start + i]
+                headArr[i] = triple[0]
+                relArr[i] = triple[1]
+                tailIds[i] = triple[2].toInt()
+            }
+            val headRel = manager.zeros(Shape(batchSize.toLong(), 2), DataType.INT64)
+            val headCol = manager.create(headArr)
+            val relCol = manager.create(relArr)
+            headRel.set(col0Index, headCol)
+            headRel.set(col1Index, relCol)
+            val repeatedHeadRel =
+                headRel.expandDims(1).repeat(1, numEntities).reshape(batchSize.toLong() * numEntities, 2)
+            val entityRangeRepeated = entityRange.repeat(0, batchSize.toLong())
+            val modelInput = repeatedHeadRel.concat(entityRangeRepeated, 1)
+            try {
+                val prediction = predictor.predict(NDList(modelInput)).singletonOrThrow()
+                val scores = prediction.toFloatArray()
+                prediction.close()
+                for (i in 0 until batchSize) {
+                    val base = i * numEntities.toInt()
+                    val trueTail = tailIds[i]
+                    val trueScore = scores[base + trueTail]
+                    var rank = 1
+                    val endIdx = base + numEntities.toInt()
+                    for (j in base until endIdx) {
+                        if (scores[j] < trueScore) {
+                            rank += 1
+                        }
+                    }
+                    ranks.add(rank)
+                }
+            } finally {
+                modelInput.close()
+                entityRangeRepeated.close()
+                repeatedHeadRel.close()
+                headRel.close()
+                headCol.close()
+                relCol.close()
+            }
+            start = end
         }
 
         // Compute metrics
@@ -63,6 +95,7 @@ class ResultEval(
         result["HIT@100"] = ranks.count { it <= 100 } / total
         result["MRR"] = ranks.sumOf { 1.0 / it }.toFloat() / total
 
+        entityRange.close()
         return result
     }
 
@@ -74,21 +107,57 @@ class ResultEval(
     fun getHeadResult(): Map<String, Float> {
         val result = mutableMapOf<String, Float>()
         val ranks = mutableListOf<Int>()
+        val entityRange = manager.arange(0, numEntities.toInt(), 1, DataType.INT64).reshape(numEntities, 1)
+        val evalBatchSize = maxOf(1, RESULT_EVAL_BATCH_SIZE)
 
-        inputList.forEach { triple ->
-            // Compute scores for all possible head entities
-            val scores =
-                (0 until numEntities).map { head ->
-                    val input = manager.create(longArrayOf(head, triple[1], triple[2]))
-                    val score = predictor.predict(NDList(input)).singletonOrThrow().toFloatArray()[0]
-                    score
+        var start = 0
+        while (start < inputList.size) {
+            val end = minOf(start + evalBatchSize, inputList.size)
+            val batchSize = end - start
+            val relArr = LongArray(batchSize)
+            val tailArr = LongArray(batchSize)
+            val headIds = IntArray(batchSize)
+            for (i in 0 until batchSize) {
+                val triple = inputList[start + i]
+                relArr[i] = triple[1]
+                tailArr[i] = triple[2]
+                headIds[i] = triple[0].toInt()
+            }
+            val relTail = manager.zeros(Shape(batchSize.toLong(), 2), DataType.INT64)
+            val relCol = manager.create(relArr)
+            val tailCol = manager.create(tailArr)
+            relTail.set(col0Index, relCol)
+            relTail.set(col1Index, tailCol)
+            val repeatedRelTail =
+                relTail.expandDims(1).repeat(1, numEntities).reshape(batchSize.toLong() * numEntities, 2)
+            val entityRangeRepeated = entityRange.repeat(0, batchSize.toLong())
+            val modelInput = entityRangeRepeated.concat(repeatedRelTail, 1)
+            try {
+                val prediction = predictor.predict(NDList(modelInput)).singletonOrThrow()
+                val scores = prediction.toFloatArray()
+                prediction.close()
+                for (i in 0 until batchSize) {
+                    val base = i * numEntities.toInt()
+                    val trueHead = headIds[i]
+                    val trueScore = scores[base + trueHead]
+                    var rank = 1
+                    val endIdx = base + numEntities.toInt()
+                    for (j in base until endIdx) {
+                        if (scores[j] < trueScore) {
+                            rank += 1
+                        }
+                    }
+                    ranks.add(rank)
                 }
-
-            // Rank the true head among all candidates
-            val sortedIndices = scores.withIndex().sortedBy { it.value }.map { it.index }
-            val trueHead = triple[0].toInt()
-            val rank = sortedIndices.indexOf(trueHead) + 1
-            ranks.add(rank)
+            } finally {
+                modelInput.close()
+                entityRangeRepeated.close()
+                repeatedRelTail.close()
+                relTail.close()
+                relCol.close()
+                tailCol.close()
+            }
+            start = end
         }
 
         // Compute metrics
@@ -98,6 +167,7 @@ class ResultEval(
         result["HIT@100"] = ranks.count { it <= 100 } / total
         result["MRR"] = ranks.sumOf { 1.0 / it }.toFloat() / total
 
+        entityRange.close()
         return result
     }
 
