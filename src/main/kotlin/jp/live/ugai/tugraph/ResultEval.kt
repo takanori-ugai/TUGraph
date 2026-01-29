@@ -87,6 +87,7 @@ class ResultEval(
         }
         return ranks
     }
+
     /**
      * Computes evaluation metrics for tail prediction.
      *
