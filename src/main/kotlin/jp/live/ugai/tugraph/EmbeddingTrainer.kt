@@ -8,7 +8,6 @@ import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
 import ai.djl.training.Trainer
 import kotlin.math.min
-import kotlin.random.Random
 
 /**
  * A class for training an embedding model.
@@ -145,7 +144,10 @@ class EmbeddingTrainer(
      * in a vectorized manner. The sampled entity is guaranteed to differ from the
      * original head/tail for the replaced position.
      */
-    private fun sampleNegatives(input: NDArray, numEntities: Long): NDArray {
+    private fun sampleNegatives(
+        input: NDArray,
+        numEntities: Long,
+    ): NDArray {
         val numTriples = input.size() / TRIPLE
         val triples = input.reshape(numTriples, TRIPLE)
         val manager = triples.manager

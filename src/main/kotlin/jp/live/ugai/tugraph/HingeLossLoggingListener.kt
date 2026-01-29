@@ -23,7 +23,10 @@ class HingeLossLoggingListener : EvaluatorTrainingListener() {
         logger.debug("Epoch {} hinge loss: train={}, validate={}", epoch, train, validate)
     }
 
-    fun updateEvaluations(train: Float, validate: Float) {
+    fun updateEvaluations(
+        train: Float,
+        validate: Float,
+    ) {
         latest["train_L1Loss"] = train
         latest["validate_L1Loss"] = validate
     }
