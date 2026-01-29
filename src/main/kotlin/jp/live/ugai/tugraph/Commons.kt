@@ -17,6 +17,9 @@ const val BATCH_SIZE = 3
 /** Max attempts to resample a negative before falling back. */
 const val NEGATIVE_RESAMPLE_CAP = 10
 
+/** Batch size for ResultEval scoring. */
+const val RESULT_EVAL_BATCH_SIZE = 32
+
 /** Number of values in a knowledge graph triple. */
 const val TRIPLE = 3L
 
