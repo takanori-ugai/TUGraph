@@ -64,7 +64,13 @@ class EmbeddingTrainer(
     }
 
     /**
-     * Trains the embedding model.
+     * Trains the embedding model using the configured trainer and the provided triples.
+     *
+     * Runs epoch-based batch training with vectorized negative sampling, computes either a
+     * similarity-style or hinge-style loss (optionally using self-adversarial weighting),
+     * applies L2 regularization when enabled, updates trainer metrics and listeners, normalizes
+     * translation-style model blocks after each update, and closes the trainer and NDManager
+     * when finished.
      */
     fun training() {
         val batchSize = maxOf(1, BATCH_SIZE)
@@ -199,6 +205,24 @@ class EmbeddingTrainer(
         manager.close()
     }
 
+    /**
+     * Computes the average training loss over the given triples using the current model and negative sampling settings.
+     *
+     * Evaluates loss in batches, generating `numNegatives` negatives per triple with optional Bernoulli sampling,
+     * and using either similarity-based loss (with optional self-adversarial weighting) or hinge loss. Applies
+     * L2 regularization to model block parameters when `regWeight` > 0.
+     *
+     * @param data NDArray of triples to evaluate (shape: [totalTriples, 3]).
+     * @param totalTriples Total number of triples contained in `data`.
+     * @param batchSize Number of triples processed per evaluation batch.
+     * @param numEntities Total number of entities available for negative sampling.
+     * @param numNegatives Number of negative samples generated per positive triple.
+     * @param useBernoulli If true, use relation-specific Bernoulli probabilities when deciding whether to corrupt head or tail.
+     * @param useSimilarityLoss If true, compute similarity-based loss; otherwise compute hinge (margin) loss.
+     * @param useSelfAdversarial If true and using similarity loss, weight negatives by self-adversarial softmax.
+     * @param regWeight L2 regularization weight applied to the model block parameters (0 disables regularization).
+     * @return The average loss per triple across `data`.
+     */
     private fun evaluateEpochLoss(
         data: NDArray,
         totalTriples: Int,
@@ -254,11 +278,19 @@ class EmbeddingTrainer(
     }
 
     /**
-     * Generates vectorized negative samples for the given triples.
+     * Create negative triples by replacing either the head or tail of each input triple.
      *
-     * This replaces either the head or tail for each triple using a random entity
-     * in a vectorized manner. The sampled entity is guaranteed to differ from the
-     * original head/tail for the replaced position.
+     * For each input triple this generates `numNegatives` candidate negatives using Bernoulli
+     * sampling when `useBernoulli` is true; sampled negatives avoid the original replaced
+     * entity and existing positive triples when possible.
+     *
+     * @param input NDArray of shape (batchSize, 3) containing triples as (head, relation, tail).
+     * @param numEntities Total number of entities to sample from; must be greater than 1.
+     * @param numNegatives Number of negative samples to generate per input triple.
+     * @param useBernoulli If true, use precomputed per-relation Bernoulli probabilities to bias
+     *                     whether to replace the head versus the tail.
+     * @return An NDArray of shape (batchSize * numNegatives, 3) (INT64) containing generated negative triples.
+     * @throws IllegalArgumentException if `numEntities <= 1` or if the batch size exceeds Int indexing capacity.
      */
     private fun sampleNegatives(
         input: NDArray,

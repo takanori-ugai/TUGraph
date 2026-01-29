@@ -13,6 +13,14 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /** Runs TransR training and evaluation on a CSV dataset. */
+/**
+ * Runs a complete TransR embedding example: loads triples from CSV, trains the TransR model,
+ * performs a test prediction, and prints evaluation results.
+ *
+ * The function loads input triples, constructs and initializes a TransR model and trainer,
+ * runs embedding training, prints training results as well as learned edges and entities,
+ * performs a single example prediction, and prints tail/head evaluation summaries.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)

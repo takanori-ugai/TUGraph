@@ -148,18 +148,18 @@ class TransE(
     }
 
     /**
-     * Returns the entities NDArray.
+     * Accesses the tensor of entity embeddings.
      *
-     * @return The entities NDArray.
+     * @return The NDArray containing entity embeddings (shape: [numEnt, dim]).
      */
     fun getEntities(): NDArray {
         return getParameters().get("entities").array
     }
 
     /**
-     * Returns the edges NDArray.
+     * The relation (edge) embedding array used by the model.
      *
-     * @return The edges NDArray.
+     * @return The NDArray containing relation/edge embeddings (shape: [numEdge, dim]).
      */
     fun getEdges(): NDArray {
         return getParameters().get("edges").array

@@ -42,6 +42,17 @@ class ResultEval(
         }
     }
 
+    /**
+     * Computes rank positions of the true entity for each input triple across batches.
+     *
+     * The rank for an item is 1 plus the number of candidate entities whose score is strictly
+     * better than the true entity's score. "Strictly better" means greater than the true score
+     * when `higherIsBetter` is true, or less than the true score when `higherIsBetter` is false.
+     *
+     * @param evalBatchSize Maximum number of input triples processed per batch.
+     * @param buildBatch Function that builds an EvalBatch for the half-open range [start, end).
+     * @return A list of ranks (one per input triple in inputList order).
+     */
     private fun computeRanks(
         evalBatchSize: Int,
         buildBatch: (start: Int, end: Int) -> EvalBatch,

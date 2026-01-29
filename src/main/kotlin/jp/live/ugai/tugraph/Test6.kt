@@ -13,6 +13,14 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /** Runs TransE training and evaluation on a CSV dataset. */
+/**
+ * Runs the end-to-end embedding training and evaluation pipeline using DJL within a managed NDManager scope.
+ *
+ * Loads triples from "data/sample.csv", constructs and initializes a TransE model, configures training
+ * (optimizer, devices, and listeners), and performs training with EmbeddingTrainer. After training, prints
+ * training results, model edges and entities, performs a sample prediction, and computes head/tail evaluation
+ * results; all DJL resources are created and released inside the managed NDManager scope.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)
