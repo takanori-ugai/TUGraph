@@ -76,13 +76,12 @@ class EmbeddingTrainer(
     }
 
     /**
-     * Trains the embedding model using the configured trainer and the provided triples.
+     * Train the embedding model for the configured number of epochs using the provided triples and trainer.
      *
-     * Runs epoch-based batch training with vectorized negative sampling, computes either a
-     * similarity-style or hinge-style loss (optionally using self-adversarial weighting),
-     * applies L2 regularization when enabled, updates trainer metrics and listeners, normalizes
-     * translation-style model blocks after each update, and closes the trainer and NDManager
-     * when finished.
+     * Performs epoch-based, batch training with vectorized negative sampling; computes either a
+     * similarity-style or hinge-style loss (optionally using self-adversarial weighting); applies
+     * L2 regularization when enabled; updates trainer metrics and notifies listeners each epoch;
+     * normalizes translation-style model blocks after parameter updates; and closes the trainer when finished.
      */
     fun training() {
         val batchSize = maxOf(1, BATCH_SIZE)
@@ -244,6 +243,11 @@ class EmbeddingTrainer(
         trainer.close()
     }
 
+    /**
+     * Releases resources held by this trainer by closing the underlying NDManager.
+     *
+     * After calling this method the trainer's manager and any NDArrays attached to it become invalid and should not be used.
+     */
     fun close() {
         manager.close()
     }
@@ -341,18 +345,18 @@ class EmbeddingTrainer(
     }
 
     /**
-     * Create negative triples by replacing either the head or tail of each input triple.
+     * Generate negative triples by replacing either the head or tail of each input triple.
      *
-     * For each input triple this generates `numNegatives` candidate negatives using Bernoulli
-     * sampling when `useBernoulli` is true; sampled negatives avoid the original replaced
-     * entity and existing positive triples when possible.
+     * For each input triple this produces `numNegatives` candidate negatives; when `useBernoulli`
+     * is true, per-relation Bernoulli probabilities bias whether the head or tail is replaced.
+     * Sampled negatives avoid the original replaced entity and any existing positive triple when possible;
+     * if a valid negative cannot be found within the resample cap, the original triple is returned for that slot.
      *
      * @param input NDArray of shape (batchSize, 3) containing triples as (head, relation, tail).
      * @param numEntities Total number of entities to sample from; must be greater than 1.
      * @param numNegatives Number of negative samples to generate per input triple.
-     * @param useBernoulli If true, use precomputed per-relation Bernoulli probabilities to bias
-     *                     whether to replace the head versus the tail.
-     * @return An NDArray of shape (batchSize * numNegatives, 3) (INT64) containing generated negative triples.
+     * @param useBernoulli If true, use precomputed per-relation Bernoulli probabilities to bias replacement choice.
+     * @return An NDArray of shape (batchSize * numNegatives, 3) with dtype INT64 containing generated negative triples.
      * @throws IllegalArgumentException if `numEntities <= 1` or if the batch size exceeds Int indexing capacity.
      */
     private fun sampleNegatives(

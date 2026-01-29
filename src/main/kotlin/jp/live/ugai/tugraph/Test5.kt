@@ -29,6 +29,16 @@ import kotlin.random.Random
  * and trains a TransE model for a fixed number of epochs, and prints model edges, entities,
  * and predictions for the training input and a sample test tensor.
  */
+/**
+ * Runs a TransE training example that reads triples from data/sample.csv, trains a TransE block, and prints training diagnostics and predictions.
+ *
+ * The function:
+ * - Loads CSV rows into an input NDArray and tracks the rows as lists of longs.
+ * - Builds a small ArrayDataset with fixed labels and batch size 1.
+ * - Initializes a TransE block, wraps it in a DJL Model, and creates a predictor.
+ * - Configures a trainer with L2 loss and SGD, runs a single epoch of training, and accumulates per-batch loss.
+ * - Prints the learned edges and entities from the TransE block and predictions for the dataset and a test example.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         var input = manager.zeros(Shape(0), DataType.INT64)
