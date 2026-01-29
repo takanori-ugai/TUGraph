@@ -138,20 +138,20 @@ class ComplEx(
     }
 
     /**
-     * Returns the entities NDArray.
+     * Retrieve the entities embeddings array.
      *
-     * @return The entities NDArray.
+     * @return The entities embeddings NDArray with shape (numEnt, dim * 2).
      */
     fun getEntities(): NDArray {
-        return getParameters().valueAt(0).array
+        return getParameters().get("entities").array
     }
 
     /**
-     * Returns the edges NDArray.
+     * Retrieve the relation (edge) embeddings.
      *
-     * @return The edges NDArray.
+     * @return The edges NDArray containing embeddings for each relation. 
      */
     fun getEdges(): NDArray {
-        return getParameters().valueAt(1).array
+        return getParameters().get("edges").array
     }
 }

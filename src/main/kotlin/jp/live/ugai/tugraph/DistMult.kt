@@ -12,13 +12,13 @@ import ai.djl.util.PairList
 import kotlin.math.sqrt
 
 /**
- * A class representing the TransE model.
+ * A class representing the DistMult model.
  *
  * @property numEnt The number of entities.
  * @property numEdge The number of edges.
  * @property dim The dimensionality of the embeddings.
  */
-class TransE(
+class DistMult(
     /** Number of entities in the graph. */
     val numEnt: Long,
     /** Number of relations in the graph. */
@@ -55,13 +55,13 @@ class TransE(
     }
 
     /**
-     * Computes the forward pass of the TransE model.
+     * Performs the DistMult forward pass, computing scores for input triples.
      *
-     * @param parameterStore The parameter store.
-     * @param inputs The input NDList.
-     * @param training Whether the model is in training mode.
-     * @param params Additional parameters.
-     * @return The output NDList.
+     * Computes scores for the first NDList element (positive triples) and, if present, for the second element (negative triples),
+     * returning an NDList with one or two NDArrays of per-triple scores.
+     *
+     * @param inputs NDList where inputs[0] contains triples as rows of (head, relation, tail) and inputs[1] (optional) contains additional triples to score.
+     * @return NDList containing one NDArray of scores for each provided input (one or two elements).
      */
     @Override
     override fun forwardInternal(
@@ -72,7 +72,6 @@ class TransE(
     ): NDList {
         val positive = inputs[0]
         val device = positive.device
-        // Since we added the parameter, we can now access it from the parameter store
         val entitiesArr = parameterStore.getValue(entities, device, training)
         val edgesArr = parameterStore.getValue(edges, device, training)
         val ret = NDList(model(positive, entitiesArr, edgesArr))
@@ -83,12 +82,17 @@ class TransE(
     }
 
     /**
-     * Applies the linear transformation of the TransE model.
+     * Compute DistMult scores for a batch of triples.
      *
-     * @param input The input NDArray.
-     * @param entities The entities NDArray.
-     * @param edges The edges NDArray.
-     * @return The output NDArray.
+     * The input must contain triples of indices in the order [head, relation, tail] for each triple;
+     * it may be shaped (numTriples, 3) or flattened as a multiple of 3. Each returned value is the
+     * scalar DistMult score for the corresponding triple.
+     *
+     * @param input NDArray containing triple indices (head, relation, tail) as described above.
+     * @param entities Entity embedding matrix with shape (numEnt, dim); rows map entity IDs to embeddings.
+     * @param edges Relation embedding matrix with shape (numEdge, dim); rows map relation IDs to embeddings.
+     * @return An NDArray of shape (numTriples) where each entry is the sum over the elementwise product
+     *         of the head, relation, and tail embeddings for that triple.
      */
     fun model(
         input: NDArray,
@@ -98,18 +102,24 @@ class TransE(
         val numTriples = input.size() / TRIPLE
         val triples = input.reshape(numTriples, TRIPLE)
 
-        // Gather embeddings for head, relation, and tail entities
         val headIds = triples.get(headIndex)
         val relationIds = triples.get(relationIndex)
         val tailIds = triples.get(tailIndex)
-        val heads = entities.get(headIds)
-        val tails = entities.get(tailIds)
-        val relations = edges.get(relationIds)
 
-        // TransE energy: d(h + r, t) with L1 distance
-        return heads.add(relations).sub(tails).abs().sum(sumAxis)
+        val heads = entities.get(headIds)
+        val relations = edges.get(relationIds)
+        val tails = entities.get(tailIds)
+
+        // DistMult: <h, r, t>
+        return heads.mul(relations).mul(tails).sum(sumAxis)
     }
 
+    /**
+     * Compute the block's output shape(s) from the provided input shape(s) by counting triples in the first input.
+     *
+     * @param inputs Array of input shapes; the number of triples is computed as inputs[0].size() / 3.
+     * @return An array containing a single Shape(numTriples), or two identical Shape(numTriples) entries when two inputs are provided.
+     */
     @Override
     /**
      * Computes output shapes for the provided input shapes.
@@ -127,51 +137,21 @@ class TransE(
         }
     }
 
-    @Override
     /**
-     * Initializes parameters and normalizes relation embeddings.
+     * Retrieves the entity embedding matrix.
      *
-     * @param manager NDManager used for initialization.
-     * @param dataType Data type for parameters.
-     * @param inputShapes Input shapes for initialization.
-     */
-    override fun initialize(
-        manager: ai.djl.ndarray.NDManager,
-        dataType: ai.djl.ndarray.types.DataType,
-        vararg inputShapes: Shape,
-    ) {
-        super.initialize(manager, dataType, *inputShapes)
-        val rel = getParameters().valueAt(1).array
-        val norm = rel.norm(sumAxis, true)
-        val safe = norm.maximum(1.0e-12f)
-        rel.divi(safe)
-    }
-
-    /**
-     * Accesses the tensor of entity embeddings.
-     *
-     * @return The NDArray containing entity embeddings (shape: [numEnt, dim]).
+     * @return The entity embeddings as an NDArray with shape (numEnt, dim).
      */
     fun getEntities(): NDArray {
         return getParameters().get("entities").array
     }
 
     /**
-     * The relation (edge) embedding array used by the model.
+     * Accesses the NDArray that stores relation (edge) embeddings.
      *
-     * @return The NDArray containing relation/edge embeddings (shape: [numEdge, dim]).
+     * @return The relation embeddings NDArray with shape (numEdge, dim).
      */
     fun getEdges(): NDArray {
         return getParameters().get("edges").array
-    }
-
-    /**
-     * Normalizes the embeddings.
-     */
-    fun normalize() {
-        val ent = getParameters().valueAt(0).array
-        val norm = ent.norm(sumAxis, true)
-        val safe = norm.maximum(1.0e-12f)
-        ent.divi(safe)
     }
 }

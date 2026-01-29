@@ -18,61 +18,70 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /** Runs a TransE training example with training and validation datasets. */
+/**
+ * Entry point that constructs a small TransE example, trains it on a toy dataset, and prints metrics and predictions.
+ *
+ * The function creates feature and label tensors, builds training and validation datasets, initializes a TransE
+ * model, configures training (L2 loss, SGD optimizer, devices, and logging), runs training for `NEPOCH` epochs,
+ * and prints the training result, metric names, a specific L2 loss metric value, the model's edges and entities,
+ * and predictions for the training inputs and a small test input.
+ */
 fun main() {
-    val manager = NDManager.newBaseManager()
-    val input = manager.create(longArrayOf(2, 0, 1, 2, 1, 3, 0, 0, 1, 0, 1, 2), Shape(4, 3))
-    val labels = manager.create(floatArrayOf(0f, 0f, 1f, 0f))
-    val dataset =
-        ArrayDataset.Builder()
-            .setData(input) // set the features
-            .optLabels(labels) // set the labels
-            .setSampling(BATCH_SIZE, true) // set the batch size and random sampling
-            .build()
-    val validationSet =
-        ArrayDataset.Builder()
-            .setData(input) // set the features
-            .optLabels(labels) // set the labels
-            .setSampling(BATCH_SIZE, false) // set the batch size and random sampling
-            .build()
+    NDManager.newBaseManager().use { manager ->
+        val input = manager.create(longArrayOf(2, 0, 1, 2, 1, 3, 0, 0, 1, 0, 1, 2), Shape(4, 3))
+        val labels = manager.create(floatArrayOf(0f, 0f, 1f, 0f))
+        val dataset =
+            ArrayDataset.Builder()
+                .setData(input) // set the features
+                .optLabels(labels) // set the labels
+                .setSampling(BATCH_SIZE, true) // set the batch size and random sampling
+                .build()
+        val validationSet =
+            ArrayDataset.Builder()
+                .setData(input) // set the features
+                .optLabels(labels) // set the labels
+                .setSampling(BATCH_SIZE, false) // set the batch size and random sampling
+                .build()
 
-    val transe = TransE(4, 2, DIMENSION)
-    transe.setInitializer(NormalInitializer(), Parameter.Type.WEIGHT)
-    transe.initialize(manager, DataType.FLOAT32, input.shape)
+        val transe = TransE(4, 2, DIMENSION)
+        transe.setInitializer(NormalInitializer(), Parameter.Type.WEIGHT)
+        transe.initialize(manager, DataType.FLOAT32, input.shape)
 
-    val model = Model.newInstance("transe")
-    model.block = transe
+        val model = Model.newInstance("transe")
+        model.block = transe
 
-    val predictor = model.newPredictor(NoopTranslator())
+        val predictor = model.newPredictor(NoopTranslator())
 //    println(predictor.predict(NDList(input)).singletonOrThrow())
 //    println(transe.getEdges())
 //    println(transe.getEntities())
 
-    val l2loss = Loss.l2Loss()
-    val lrt = Tracker.fixed(LEARNING_RATE)
-    val sgd = Optimizer.sgd().setLearningRateTracker(lrt).build()
+        val l2loss = Loss.l2Loss()
+        val lrt = Tracker.fixed(LEARNING_RATE)
+        val sgd = Optimizer.sgd().setLearningRateTracker(lrt).build()
 
-    val config =
-        DefaultTrainingConfig(l2loss)
-            .optOptimizer(sgd) // Optimizer (loss function)
-            .optDevices(manager.engine.getDevices(1)) // single GPU
-            .apply { TrainingListener.Defaults.logging().forEach { addTrainingListeners(it) } } // Logging
+        val config =
+            DefaultTrainingConfig(l2loss)
+                .optOptimizer(sgd) // Optimizer (loss function)
+                .optDevices(manager.engine.getDevices(1)) // single GPU
+                .apply { TrainingListener.Defaults.logging().forEach { addTrainingListeners(it) } } // Logging
 
-    val trainer = model.newTrainer(config)
+        val trainer = model.newTrainer(config)
 //    trainer.initialize(input.shape)
-    val metrics = Metrics()
-    trainer.metrics = metrics
+        val metrics = Metrics()
+        trainer.metrics = metrics
 
-    EasyTrain.fit(trainer, NEPOCH, dataset, validationSet)
-    println(trainer.trainingResult)
-    println(trainer.metrics.metricNames)
-    println(metrics.getMetric("train_epoch_L2Loss")[5].value)
+        EasyTrain.fit(trainer, NEPOCH, dataset, validationSet)
+        println(trainer.trainingResult)
+        println(trainer.metrics.metricNames)
+        println(metrics.getMetric("train_epoch_L2Loss")[5].value)
 
-    println(transe.getEdges())
-    println(transe.getEntities())
+        println(transe.getEdges())
+        println(transe.getEntities())
 //    println(loss)
-    println(predictor.predict(NDList(input)).singletonOrThrow())
-    val test = manager.create(longArrayOf(1, 1, 2))
-    println(predictor.predict(NDList(test)).singletonOrThrow())
+        println(predictor.predict(NDList(input)).singletonOrThrow())
+        val test = manager.create(longArrayOf(1, 1, 2))
+        println(predictor.predict(NDList(test)).singletonOrThrow())
+    }
 }
 
 /** Marker class for Test3 example. */

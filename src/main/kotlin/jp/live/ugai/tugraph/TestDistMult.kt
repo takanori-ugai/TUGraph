@@ -12,14 +12,12 @@ import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
-/** Runs TransR training and evaluation on a CSV dataset. */
+/** Runs DistMult training and evaluation on a CSV dataset. */
 /**
- * Runs a complete TransR embedding example: loads triples from CSV, trains the TransR model,
- * performs a test prediction, and prints evaluation results.
+ * Trains and evaluates a DistMult knowledge-graph embedding model using triples loaded from "data/sample.csv".
  *
- * The function loads input triples, constructs and initializes a TransR model and trainer,
- * runs embedding training, prints training results as well as learned edges and entities,
- * performs a single example prediction, and prints tail/head evaluation summaries.
+ * Reads triples from the CSV, constructs and initializes a DistMult model and trainer, runs embedding training,
+ * prints training results and learned parameters, runs a sample prediction, and evaluates head/tail predictions.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->
@@ -36,13 +34,13 @@ fun main() {
         val relMax = input.get(":, 1").max().toLongArray()[0]
         val numEntities = maxOf(headMax, tailMax) + 1
         val numEdges = relMax + 1
-        val transr =
-            TransR(numEntities, numEdges, DIMENSION).also {
+        val distMult =
+            DistMult(numEntities, numEdges, DIMENSION).also {
                 it.initialize(manager, DataType.FLOAT32, input.shape)
             }
         val model =
-            Model.newInstance("transR").also {
-                it.block = transr
+            Model.newInstance("distmult").also {
+                it.block = distMult
             }
         val predictor = model.newPredictor(NoopTranslator())
 
@@ -51,7 +49,7 @@ fun main() {
 
         val config =
             DefaultTrainingConfig(Loss.l1Loss()) // Placeholder loss; EmbeddingTrainer computes its own.
-                .optOptimizer(sgd) // Optimizer (loss function)
+                .optOptimizer(sgd) // Optimizer
                 .optDevices(manager.engine.getDevices(1)) // single GPU
                 .addTrainingListeners(EpochTrainingListener(), HingeLossLoggingListener()) // Hinge loss logging
 
@@ -65,13 +63,15 @@ fun main() {
         eTrainer.training()
         println(trainer.trainingResult)
 
-        println(transr.getEdges())
-        println(transr.getEntities())
+        println(distMult.getEdges())
+        println(distMult.getEntities())
 
         val test = manager.create(longArrayOf(1, 1, 2))
-        println(predictor.predict(NDList(test)).singletonOrThrow())
+        test.use {
+            println(predictor.predict(NDList(it)).singletonOrThrow())
+        }
 
-        val result = ResultEval(inputList, manager.newSubManager(), predictor, numEntities)
+        val result = ResultEval(inputList, manager.newSubManager(), predictor, numEntities, higherIsBetter = true)
         println("Tail")
         result.getTailResult().forEach {
             println("${it.key} : ${it.value}")
@@ -81,8 +81,10 @@ fun main() {
             println("${it.key} : ${it.value}")
         }
         result.close()
+        predictor.close()
+        model.close()
     }
 }
 
-/** Marker class for TestTransR example. */
-class TestTransR
+/** Marker class for TestDistMult example. */
+class TestDistMult

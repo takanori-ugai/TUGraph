@@ -20,100 +20,107 @@ import ai.djl.training.optimizer.Optimizer
 import ai.djl.util.PairList
 
 /** Trains and evaluates a tiny causal transformer language model. */
+/**
+ * Runs a self-contained example that trains and evaluates a tiny causal transformer language model.
+ *
+ * Trains a toy model on two short token sequences using DJL utilities, prints epoch loss every 20 epochs,
+ * and prints final token-level accuracy after training.
+ */
 fun main() {
-    val manager = NDManager.newBaseManager()
+    NDManager.newBaseManager().use { manager ->
 
-    // Tiny LM vocabulary
-    val vocab =
-        DefaultVocabulary.builder()
-            .add(listOf("<BOS>", "<EOS>", "i", "am", "a", "dog", "cat"))
-            .optUnknownToken()
-            .build()
+        // Tiny LM vocabulary
+        val vocab =
+            DefaultVocabulary.builder()
+                .add(listOf("<BOS>", "<EOS>", "i", "am", "a", "dog", "cat"))
+                .optUnknownToken()
+                .build()
 
-    // Next-token prediction (causal LM)
-    val loss = SoftmaxCrossEntropyLoss("SmCeLoss", 1.0F, -1, true, true)
-    val config =
-        DefaultTrainingConfig(loss)
-            .optOptimizer(Optimizer.adam().build())
+        // Next-token prediction (causal LM)
+        val loss = SoftmaxCrossEntropyLoss("SmCeLoss", 1.0F, -1, true, true)
+        val config =
+            DefaultTrainingConfig(loss)
+                .optOptimizer(Optimizer.adam().build())
 
-    val block = CausalTransformerLMBlock(vocab, 8, 2, 16)
-    val model = Model.newInstance("toy-transformer")
-    model.setBlock(block)
+        val block = CausalTransformerLMBlock(vocab, 8, 2, 16)
+        val model = Model.newInstance("toy-transformer")
+        model.setBlock(block)
 
-    val trainer = model.newTrainer(config)
-    trainer.initialize(Shape(1, 4))
-    val vocabSize = vocab.size()
+        val trainer = model.newTrainer(config)
+        trainer.initialize(Shape(1, 4))
+        val vocabSize = vocab.size()
 
-    val sequences =
-        listOf(
-            listOf("<BOS>", "i", "am", "a", "dog", "<EOS>"),
-            listOf("<BOS>", "i", "am", "a", "cat", "<EOS>"),
-        )
-    val seqLen = 4
-    val inputs = mutableListOf<IntArray>()
-    val targets = mutableListOf<IntArray>()
-    for (sentence in sequences) {
-        val ids = sentence.map { vocab.getIndex(it).toInt() }
-        for (i in 0..(ids.size - seqLen - 1)) {
-            inputs.add(ids.subList(i, i + seqLen).toIntArray())
-            targets.add(ids.subList(i + 1, i + seqLen + 1).toIntArray())
+        val sequences =
+            listOf(
+                listOf("<BOS>", "i", "am", "a", "dog", "<EOS>"),
+                listOf("<BOS>", "i", "am", "a", "cat", "<EOS>"),
+            )
+        val seqLen = 4
+        val inputs = mutableListOf<IntArray>()
+        val targets = mutableListOf<IntArray>()
+        for (sentence in sequences) {
+            val ids = sentence.map { vocab.getIndex(it).toInt() }
+            for (i in 0..(ids.size - seqLen - 1)) {
+                inputs.add(ids.subList(i, i + seqLen).toIntArray())
+                targets.add(ids.subList(i + 1, i + seqLen + 1).toIntArray())
+            }
         }
-    }
-    val dataArr = IntArray(inputs.size * seqLen)
-    val labelArr = IntArray(targets.size * seqLen)
-    inputs.forEachIndexed { row, arr ->
-        System.arraycopy(arr, 0, dataArr, row * seqLen, seqLen)
-    }
-    targets.forEachIndexed { row, arr ->
-        System.arraycopy(arr, 0, labelArr, row * seqLen, seqLen)
-    }
-    val data = manager.create(dataArr, Shape(inputs.size.toLong(), seqLen.toLong()))
-    val labels = manager.create(labelArr, Shape(targets.size.toLong(), seqLen.toLong()))
+        val dataArr = IntArray(inputs.size * seqLen)
+        val labelArr = IntArray(targets.size * seqLen)
+        inputs.forEachIndexed { row, arr ->
+            System.arraycopy(arr, 0, dataArr, row * seqLen, seqLen)
+        }
+        targets.forEachIndexed { row, arr ->
+            System.arraycopy(arr, 0, labelArr, row * seqLen, seqLen)
+        }
+        val data = manager.create(dataArr, Shape(inputs.size.toLong(), seqLen.toLong()))
+        val labels = manager.create(labelArr, Shape(targets.size.toLong(), seqLen.toLong()))
 
-    val dataset =
-        ArrayDataset.Builder()
-            .setData(data)
-            .optLabels(labels)
-            .setSampling(2, true)
-            .build()
+        val dataset =
+            ArrayDataset.Builder()
+                .setData(data)
+                .optLabels(labels)
+                .setSampling(2, true)
+                .build()
 
-    for (epoch in 1..100) {
-        var epochLoss = 0f
+        for (epoch in 1..100) {
+            var epochLoss = 0f
+            for (batch in trainer.iterateDataset(dataset)) {
+                val x = batch.data.head()
+                val y = batch.labels.head()
+                trainer.newGradientCollector().use { gc ->
+                    val logits = trainer.forward(NDList(x)).head()
+                    val logits2 = logits.reshape(Shape(-1, vocabSize))
+                    val y2 = y.reshape(Shape(-1))
+                    val lossValue = loss.evaluate(NDList(y2), NDList(logits2))
+                    epochLoss += lossValue.getFloat()
+                    gc.backward(lossValue)
+                }
+                trainer.step()
+            }
+            if (epoch % 20 == 0) {
+                println("Epoch $epoch loss=$epochLoss")
+            }
+        }
+
+        var correct = 0
+        var total = 0
         for (batch in trainer.iterateDataset(dataset)) {
             val x = batch.data.head()
             val y = batch.labels.head()
-            trainer.newGradientCollector().use { gc ->
-                val logits = trainer.forward(NDList(x)).head()
-                val logits2 = logits.reshape(Shape(-1, vocabSize))
-                val y2 = y.reshape(Shape(-1))
-                val lossValue = loss.evaluate(NDList(y2), NDList(logits2))
-                epochLoss += lossValue.getFloat()
-                gc.backward(lossValue)
+            val logits = trainer.forward(NDList(x)).head()
+            val pred = logits.argMax(2)
+            val yArr = y.toIntArray()
+            val pArr = pred.toType(DataType.INT32, false).toIntArray()
+            for (i in yArr.indices) {
+                if (yArr[i] == pArr[i]) {
+                    correct++
+                }
+                total++
             }
-            trainer.step()
         }
-        if (epoch % 20 == 0) {
-            println("Epoch $epoch loss=$epochLoss")
-        }
+        println("Accuracy: ${correct.toFloat() / total}")
     }
-
-    var correct = 0
-    var total = 0
-    for (batch in trainer.iterateDataset(dataset)) {
-        val x = batch.data.head()
-        val y = batch.labels.head()
-        val logits = trainer.forward(NDList(x)).head()
-        val pred = logits.argMax(2)
-        val yArr = y.toIntArray()
-        val pArr = pred.toType(DataType.INT32, false).toIntArray()
-        for (i in yArr.indices) {
-            if (yArr[i] == pArr[i]) {
-                correct++
-            }
-            total++
-        }
-    }
-    println("Accuracy: ${correct.toFloat() / total}")
 }
 
 /** A minimal causal language model block built from DJL transformer components. */

@@ -35,16 +35,42 @@ class EmbeddingTrainer(
     /** Materialized triples used for negative sampling. */
     val inputList = mutableListOf<List<Long>>()
     private val inputSet: Set<List<Long>>
+    private val bernoulliProb: Map<Long, Float>
 
     init {
         for (i in 0 until numOfTriples) {
             inputList.add(triples.get(i).toLongArray().toList())
         }
         inputSet = inputList.toHashSet()
+        val relCounts = mutableMapOf<Long, Int>()
+        val headSets = mutableMapOf<Long, MutableSet<Long>>()
+        val tailSets = mutableMapOf<Long, MutableSet<Long>>()
+        for (triple in inputList) {
+            val head = triple[0]
+            val rel = triple[1]
+            val tail = triple[2]
+            relCounts[rel] = (relCounts[rel] ?: 0) + 1
+            headSets.getOrPut(rel) { mutableSetOf() }.add(head)
+            tailSets.getOrPut(rel) { mutableSetOf() }.add(tail)
+        }
+        bernoulliProb =
+            relCounts.mapValues { (rel, count) ->
+                val heads = headSets[rel]?.size ?: 1
+                val tails = tailSets[rel]?.size ?: 1
+                val tph = count.toFloat() / heads
+                val hpt = count.toFloat() / tails
+                tph / (tph + hpt)
+            }
     }
 
     /**
-     * Trains the embedding model.
+     * Trains the embedding model using the configured trainer and the provided triples.
+     *
+     * Runs epoch-based batch training with vectorized negative sampling, computes either a
+     * similarity-style or hinge-style loss (optionally using self-adversarial weighting),
+     * applies L2 regularization when enabled, updates trainer metrics and listeners, normalizes
+     * translation-style model blocks after each update, and closes the trainer and NDManager
+     * when finished.
      */
     fun training() {
         val batchSize = maxOf(1, BATCH_SIZE)
@@ -54,42 +80,88 @@ class EmbeddingTrainer(
         val numTriplesInt = numOfTriples.toInt()
         require(numTriplesInt > 0) { "No triples available for training (numOfTriples=0)." }
         var firstNanReported = false
+        val block = trainer.model.block
+        val useSimilarityLoss =
+            when (block) {
+                is ComplEx, is DistMult -> true
+                else -> false
+            }
+        val useSelfAdversarial =
+            when (block) {
+                is ComplEx, is DistMult -> true
+                else -> false
+            }
+        val useBernoulli =
+            when (block) {
+                is TransE, is TransR -> true
+                else -> false
+            }
+        val regWeight =
+            when (block) {
+                is ComplEx -> COMPLEX_L2
+                is DistMult -> DISTMULT_L2
+                else -> 0.0f
+            }
+        val numNegatives = maxOf(1, NEGATIVE_SAMPLES)
         for (epochIndex in 1..epoch) {
             var epochLoss = 0f
             var start = 0
             while (start < numTriplesInt) {
                 val end = min(start + batchSize, numTriplesInt)
                 val sample = triples.get(NDIndex("$start:$end"))
-                val negativeSample = sampleNegatives(sample, numOfEntities)
+                val negativeSample = sampleNegatives(sample, numOfEntities, numNegatives, useBernoulli)
                 try {
                     trainer.newGradientCollector().use { gc ->
                         val f0 = trainer.forward(NDList(sample, negativeSample))
                         val pos = f0[0]
-                        val neg = f0[1]
-                        val hinge = pos.sub(neg).add(margin).maximum(0f)
+                        val neg = f0[1].reshape(pos.shape[0], numNegatives.toLong())
+                        var lossValue =
+                            if (useSimilarityLoss) {
+                                // softplus(-pos) + softplus(neg)
+                                val posLoss = pos.neg().exp().add(1f).log()
+                                val negLoss = neg.exp().add(1f).log()
+                                val negAgg =
+                                    if (useSelfAdversarial) {
+                                        val weights = neg.mul(SELF_ADVERSARIAL_TEMP).softmax(1)
+                                        weights.mul(negLoss).sum(intArrayOf(1))
+                                    } else {
+                                        negLoss.mean(intArrayOf(1))
+                                    }
+                                posLoss.add(negAgg)
+                            } else {
+                                val hinge = pos.expandDims(1).sub(neg).add(margin).maximum(0f)
+                                hinge.mean(intArrayOf(1))
+                            }
+                        if (regWeight > 0.0f) {
+                            val reg =
+                                block.parameters.valueAt(0).array.pow(2).sum()
+                                    .add(block.parameters.valueAt(1).array.pow(2).sum())
+                                    .mul(regWeight)
+                            lossValue = lossValue.add(reg)
+                        }
                         if (!firstNanReported && logger.isWarnEnabled) {
                             val posNaN = pos.isNaN().any().getBoolean()
                             val negNaN = neg.isNaN().any().getBoolean()
-                            val hingeNaN = hinge.isNaN().any().getBoolean()
-                            if (posNaN || negNaN || hingeNaN) {
+                            val lossNaN = lossValue.isNaN().any().getBoolean()
+                            if (posNaN || negNaN || lossNaN) {
                                 logger.warn(
-                                    "NaN detected in batch {}:{} (pos={}, neg={}, hinge={})",
+                                    "NaN detected in batch {}:{} (pos={}, neg={}, loss={})",
                                     start,
                                     end,
                                     posNaN,
                                     negNaN,
-                                    hingeNaN,
+                                    lossNaN,
                                 )
                                 logger.warn("Sample: {}", sample)
                                 logger.warn("Negative sample: {}", negativeSample)
                                 firstNanReported = true
                             }
                         }
-                        val batchLoss = hinge.mean().getFloat()
-                        epochLoss += hinge.sum().getFloat()
+                        val batchLoss = lossValue.mean().getFloat()
+                        epochLoss += lossValue.sum().getFloat()
                         trainer.metrics?.addMetric("train_loss", batchLoss)
                         trainer.metrics?.addMetric("train_L1Loss", batchLoss)
-                        gc.backward(hinge.mean())
+                        gc.backward(lossValue.mean())
                     }
                 } finally {
                     negativeSample.close()
@@ -103,7 +175,18 @@ class EmbeddingTrainer(
                 start = end
             }
             val trainAvg = epochLoss / numOfTriples
-            val validateAvg = evaluateEpochLoss(triples, numTriplesInt, batchSize, numOfEntities)
+            val validateAvg =
+                evaluateEpochLoss(
+                    triples,
+                    numTriplesInt,
+                    batchSize,
+                    numOfEntities,
+                    numNegatives,
+                    useBernoulli,
+                    useSimilarityLoss,
+                    useSelfAdversarial,
+                    regWeight,
+                )
             val logEvery = maxOf(1, epoch / 500L)
             if (epochIndex % logEvery == 0L) {
                 logger.debug("Epoch {} finished. (L2Loss: {})", epochIndex, trainAvg)
@@ -122,24 +205,69 @@ class EmbeddingTrainer(
         manager.close()
     }
 
+    /**
+     * Computes the average training loss over the given triples using the current model and negative sampling settings.
+     *
+     * Evaluates loss in batches, generating `numNegatives` negatives per triple with optional Bernoulli sampling,
+     * and using either similarity-based loss (with optional self-adversarial weighting) or hinge loss. Applies
+     * L2 regularization to model block parameters when `regWeight` > 0.
+     *
+     * @param data NDArray of triples to evaluate (shape: [totalTriples, 3]).
+     * @param totalTriples Total number of triples contained in `data`.
+     * @param batchSize Number of triples processed per evaluation batch.
+     * @param numEntities Total number of entities available for negative sampling.
+     * @param numNegatives Number of negative samples generated per positive triple.
+     * @param useBernoulli If true, use relation-specific Bernoulli probabilities when deciding whether to corrupt head or tail.
+     * @param useSimilarityLoss If true, compute similarity-based loss; otherwise compute hinge (margin) loss.
+     * @param useSelfAdversarial If true and using similarity loss, weight negatives by self-adversarial softmax.
+     * @param regWeight L2 regularization weight applied to the model block parameters (0 disables regularization).
+     * @return The average loss per triple across `data`.
+     */
     private fun evaluateEpochLoss(
         data: NDArray,
         totalTriples: Int,
         batchSize: Int,
         numEntities: Long,
+        numNegatives: Int,
+        useBernoulli: Boolean,
+        useSimilarityLoss: Boolean,
+        useSelfAdversarial: Boolean,
+        regWeight: Float,
     ): Float {
         var lossSum = 0f
         var start = 0
         while (start < totalTriples) {
             val end = min(start + batchSize, totalTriples)
             val sample = data.get(NDIndex("$start:$end"))
-            val negativeSample = sampleNegatives(sample, numEntities)
+            val negativeSample = sampleNegatives(sample, numEntities, numNegatives, useBernoulli)
             try {
                 val f0 = trainer.forward(NDList(sample, negativeSample))
                 val pos = f0[0]
-                val neg = f0[1]
-                val hinge = pos.sub(neg).add(margin).maximum(0f)
-                lossSum += hinge.sum().getFloat()
+                val neg = f0[1].reshape(pos.shape[0], numNegatives.toLong())
+                var lossValue =
+                    if (useSimilarityLoss) {
+                        val posLoss = pos.neg().exp().add(1f).log()
+                        val negLoss = neg.exp().add(1f).log()
+                        val negAgg =
+                            if (useSelfAdversarial) {
+                                val weights = neg.mul(SELF_ADVERSARIAL_TEMP).softmax(1)
+                                weights.mul(negLoss).sum(intArrayOf(1))
+                            } else {
+                                negLoss.mean(intArrayOf(1))
+                            }
+                        posLoss.add(negAgg)
+                    } else {
+                        val hinge = pos.expandDims(1).sub(neg).add(margin).maximum(0f)
+                        hinge.mean(intArrayOf(1))
+                    }
+                if (regWeight > 0.0f) {
+                    val reg =
+                        trainer.model.block.parameters.valueAt(0).array.pow(2).sum()
+                            .add(trainer.model.block.parameters.valueAt(1).array.pow(2).sum())
+                            .mul(regWeight)
+                    lossValue = lossValue.add(reg)
+                }
+                lossSum += lossValue.sum().getFloat()
             } finally {
                 negativeSample.close()
                 sample.close()
@@ -150,67 +278,46 @@ class EmbeddingTrainer(
     }
 
     /**
-     * Generates vectorized negative samples for the given triples.
+     * Create negative triples by replacing either the head or tail of each input triple.
      *
-     * This replaces either the head or tail for each triple using a random entity
-     * in a vectorized manner. The sampled entity is guaranteed to differ from the
-     * original head/tail for the replaced position.
+     * For each input triple this generates `numNegatives` candidate negatives using Bernoulli
+     * sampling when `useBernoulli` is true; sampled negatives avoid the original replaced
+     * entity and existing positive triples when possible.
+     *
+     * @param input NDArray of shape (batchSize, 3) containing triples as (head, relation, tail).
+     * @param numEntities Total number of entities to sample from; must be greater than 1.
+     * @param numNegatives Number of negative samples to generate per input triple.
+     * @param useBernoulli If true, use precomputed per-relation Bernoulli probabilities to bias
+     *                     whether to replace the head versus the tail.
+     * @return An NDArray of shape (batchSize * numNegatives, 3) (INT64) containing generated negative triples.
+     * @throws IllegalArgumentException if `numEntities <= 1` or if the batch size exceeds Int indexing capacity.
      */
     private fun sampleNegatives(
         input: NDArray,
         numEntities: Long,
+        numNegatives: Int,
+        useBernoulli: Boolean,
     ): NDArray {
         require(numEntities > 1L) { "numEntities must be > 1 for negative sampling, was $numEntities." }
         val numTriples = input.size() / TRIPLE
         val triples = input.reshape(numTriples, TRIPLE)
-        val manager = triples.manager
-
-        val heads = triples.get(NDIndex(":, 0"))
-        val relations = triples.get(NDIndex(":, 1"))
-        val tails = triples.get(NDIndex(":, 2"))
-
-        val offsetHead = manager.randomInteger(1, numEntities, Shape(numTriples), DataType.INT64)
-        val offsetTail = manager.randomInteger(1, numEntities, Shape(numTriples), DataType.INT64)
-        val headSum = heads.add(offsetHead)
-        val tailSum = tails.add(offsetTail)
-        val headWrap = headSum.gte(numEntities).toType(DataType.INT64, false)
-        val tailWrap = tailSum.gte(numEntities).toType(DataType.INT64, false)
-        val randHead = headSum.sub(headWrap.mul(numEntities))
-        val randTail = tailSum.sub(tailWrap.mul(numEntities))
-
-        val replaceHead = manager.randomInteger(0, 2, Shape(numTriples), DataType.INT64)
-        val replaceMask = replaceHead.toType(DataType.INT64, false)
-        val keepMask = replaceMask.eq(0).toType(DataType.INT64, false)
-
-        val newHeads = heads.mul(keepMask).add(randHead.mul(replaceMask))
-        val newTails = tails.mul(replaceMask).add(randTail.mul(keepMask))
-
-        val negatives =
-            newHeads.expandDims(1)
-                .concat(relations.expandDims(1), 1)
-                .concat(newTails.expandDims(1), 1)
-
-        // Filter out accidental positives by resampling per-row if needed.
         require(numTriples <= Int.MAX_VALUE.toLong()) {
             "Batch exceeds Int indexing capacity (numTriples=$numTriples)."
         }
         val batchCount = numTriples.toInt()
+        val totalNegatives = batchCount.toLong() * numNegatives.toLong()
+        val negatives = input.manager.zeros(Shape(totalNegatives, TRIPLE), DataType.INT64)
         val maxResample = NEGATIVE_RESAMPLE_CAP
         for (i in 0 until batchCount) {
-            val currentView = negatives.get(i.toLong())
-            val current = currentView.toLongArray().toList()
-            currentView.close()
-            if (inputSet.contains(current)) {
-                val headView = heads.get(i.toLong())
-                val relView = relations.get(i.toLong())
-                val tailView = tails.get(i.toLong())
-                val fst = headView.getLong()
-                val sec = relView.getLong()
-                val trd = tailView.getLong()
-                headView.close()
-                relView.close()
-                tailView.close()
-                var replaceHeadFlag = kotlin.random.Random.nextBoolean()
+            val row = triples.get(i.toLong())
+            val triple = row.toLongArray()
+            row.close()
+            val fst = triple[0]
+            val sec = triple[1]
+            val trd = triple[2]
+            val headProb = if (useBernoulli) bernoulliProb[sec] ?: 0.5f else 0.5f
+            for (n in 0 until numNegatives) {
+                var replaceHeadFlag = kotlin.random.Random.nextFloat() < headProb
                 var ran: Long = 0L
                 val checkTriplet = mutableListOf(0L, 0L, 0L)
                 var attempts = 0
@@ -241,10 +348,15 @@ class EmbeddingTrainer(
                     replaceHeadFlag = !replaceHeadFlag
                     attempts += 1
                 }
+                val negIndex = i * numNegatives + n
                 if (found) {
-                    negatives.setScalar(NDIndex(i.toLong(), 0), checkTriplet[0])
-                    negatives.setScalar(NDIndex(i.toLong(), 2), checkTriplet[2])
+                    negatives.setScalar(NDIndex(negIndex.toLong(), 0), checkTriplet[0])
+                    negatives.setScalar(NDIndex(negIndex.toLong(), 1), checkTriplet[1])
+                    negatives.setScalar(NDIndex(negIndex.toLong(), 2), checkTriplet[2])
                 } else {
+                    negatives.setScalar(NDIndex(negIndex.toLong(), 0), fst)
+                    negatives.setScalar(NDIndex(negIndex.toLong(), 1), sec)
+                    negatives.setScalar(NDIndex(negIndex.toLong(), 2), trd)
                     logger.warn(
                         "Negative resample cap hit ({} attempts) for batch row {}.",
                         maxResample,
@@ -253,19 +365,6 @@ class EmbeddingTrainer(
                 }
             }
         }
-        offsetHead.close()
-        offsetTail.close()
-        headSum.close()
-        tailSum.close()
-        headWrap.close()
-        tailWrap.close()
-        randHead.close()
-        randTail.close()
-        replaceHead.close()
-        replaceMask.close()
-        keepMask.close()
-        newHeads.close()
-        newTails.close()
         return negatives
     }
 }

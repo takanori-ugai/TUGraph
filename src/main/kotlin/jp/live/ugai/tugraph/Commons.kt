@@ -20,6 +20,18 @@ const val NEGATIVE_RESAMPLE_CAP = 10
 /** Batch size for ResultEval scoring. */
 const val RESULT_EVAL_BATCH_SIZE = 32
 
+/** L2 regularization weight for DistMult embeddings. */
+const val DISTMULT_L2 = 1.0e-4f
+
+/** L2 regularization weight for ComplEx embeddings. */
+const val COMPLEX_L2 = 1.0e-4f
+
+/** Number of negative samples per positive triple. */
+const val NEGATIVE_SAMPLES = 1
+
+/** Self-adversarial temperature for similarity-based models. */
+const val SELF_ADVERSARIAL_TEMP = 1.0f
+
 /** Number of values in a knowledge graph triple. */
 const val TRIPLE = 3L
 

@@ -150,21 +150,21 @@ class TransR(
     }
 
     /**
-     * Returns the entities NDArray.
+     * Retrieve the entity embedding array registered under the "entities" parameter.
      *
-     * @return The entities NDArray.
+     * @return The NDArray of entity embeddings with shape (numEnt, entDim).
      */
     fun getEntities(): NDArray {
-        return getParameters().valueAt(0).array
+        return getParameters().get("entities").array
     }
 
     /**
-     * Returns the edges NDArray.
+     * Returns the relation embedding parameter (edges).
      *
-     * @return The edges NDArray.
+     * @return The relation embeddings as an NDArray with shape (numEdge, relDim).
      */
     fun getEdges(): NDArray {
-        return getParameters().valueAt(1).array
+        return getParameters().get("edges").array
     }
 
     /**
