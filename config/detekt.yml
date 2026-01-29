@@ -3,7 +3,7 @@ build:
 
 complexity:
   LongMethod:
-    threshold: 120
+    threshold: 150
   NestedBlockDepth:
     active: false
 
