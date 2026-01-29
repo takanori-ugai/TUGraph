@@ -4,7 +4,6 @@ import ai.djl.ndarray.NDArray
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.index.NDIndex
-import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
 import ai.djl.training.Trainer
 import kotlin.math.min
@@ -85,6 +84,7 @@ class EmbeddingTrainer(
      */
     fun training() {
         val batchSize = maxOf(1, BATCH_SIZE)
+        val evalEvery = maxOf(1, EVAL_EVERY)
         require(numOfTriples <= Int.MAX_VALUE.toLong()) {
             "Dataset exceeds Int.MAX_VALUE triples; Long indexing required (numOfTriples=$numOfTriples)."
         }
@@ -115,6 +115,7 @@ class EmbeddingTrainer(
                 else -> 0.0f
             }
         val numNegatives = maxOf(1, NEGATIVE_SAMPLES)
+        var lastValidate = Float.NaN
         for (epochIndex in 1..epoch) {
             var epochLoss = 0f
             var start = 0
@@ -214,28 +215,32 @@ class EmbeddingTrainer(
                 start = end
             }
             val trainAvg = epochLoss / numOfTriples
-            val validateAvg =
-                evaluateEpochLoss(
-                    triples,
-                    numTriplesInt,
-                    batchSize,
-                    numOfEntities,
-                    numNegatives,
-                    useBernoulli,
-                    useSimilarityLoss,
-                    useSelfAdversarial,
-                    regWeight,
-                )
+            if (epochIndex % evalEvery == 0 || epochIndex == epoch) {
+                lastValidate =
+                    evaluateEpochLoss(
+                        triples,
+                        numTriplesInt,
+                        batchSize,
+                        numOfEntities,
+                        numNegatives,
+                        useBernoulli,
+                        useSimilarityLoss,
+                        useSelfAdversarial,
+                        regWeight,
+                    )
+            }
             val logEvery = maxOf(1, epoch / 500L)
             if (epochIndex % logEvery == 0L) {
                 logger.debug("Epoch {} finished. (L2Loss: {})", epochIndex, trainAvg)
             }
             lossList.add(epochLoss)
-            trainer.metrics?.addMetric("validate_loss", validateAvg)
-            trainer.metrics?.addMetric("validate_L1Loss", validateAvg)
+            if (!lastValidate.isNaN()) {
+                trainer.metrics?.addMetric("validate_loss", lastValidate)
+                trainer.metrics?.addMetric("validate_L1Loss", lastValidate)
+            }
             trainer.notifyListeners { listener ->
                 if (listener is HingeLossLoggingListener) {
-                    listener.updateEvaluations(trainAvg, validateAvg)
+                    listener.updateEvaluations(trainAvg, lastValidate)
                 }
             }
             trainer.notifyListeners { listener -> listener.onEpoch(trainer) }
@@ -369,21 +374,19 @@ class EmbeddingTrainer(
     ): NDArray {
         require(numEntities > 1L) { "numEntities must be > 1 for negative sampling, was $numEntities." }
         val numTriples = input.size() / TRIPLE
-        val triples = input.reshape(numTriples, TRIPLE)
         require(numTriples <= Int.MAX_VALUE.toLong()) {
             "Batch exceeds Int indexing capacity (numTriples=$numTriples)."
         }
         val batchCount = numTriples.toInt()
         val totalNegatives = batchCount.toLong() * numNegatives.toLong()
-        val negatives = manager.zeros(Shape(totalNegatives, TRIPLE), DataType.INT64)
+        val negatives = LongArray((totalNegatives * TRIPLE).toInt())
         val maxResample = NEGATIVE_RESAMPLE_CAP
+        val flat = input.toLongArray()
         for (i in 0 until batchCount) {
-            val row = triples.get(i.toLong())
-            val triple = row.toLongArray()
-            row.close()
-            val fst = triple[0]
-            val sec = triple[1]
-            val trd = triple[2]
+            val base = i * TRIPLE.toInt()
+            val fst = flat[base]
+            val sec = flat[base + 1]
+            val trd = flat[base + 2]
             val headProb = if (useBernoulli) bernoulliProb[sec] ?: 0.5f else 0.5f
             for (n in 0 until numNegatives) {
                 var replaceHeadFlag = kotlin.random.Random.nextFloat() < headProb
@@ -414,14 +417,15 @@ class EmbeddingTrainer(
                     attempts += 1
                 }
                 val negIndex = i * numNegatives + n
+                val negBase = negIndex * TRIPLE.toInt()
                 if (found) {
-                    negatives.setScalar(NDIndex(negIndex.toLong(), 0), checkTriplet.head)
-                    negatives.setScalar(NDIndex(negIndex.toLong(), 1), checkTriplet.rel)
-                    negatives.setScalar(NDIndex(negIndex.toLong(), 2), checkTriplet.tail)
+                    negatives[negBase] = checkTriplet.head
+                    negatives[negBase + 1] = checkTriplet.rel
+                    negatives[negBase + 2] = checkTriplet.tail
                 } else {
-                    negatives.setScalar(NDIndex(negIndex.toLong(), 0), fst)
-                    negatives.setScalar(NDIndex(negIndex.toLong(), 1), sec)
-                    negatives.setScalar(NDIndex(negIndex.toLong(), 2), trd)
+                    negatives[negBase] = fst
+                    negatives[negBase + 1] = sec
+                    negatives[negBase + 2] = trd
                     logger.warn(
                         "Negative resample cap hit ({} attempts) for batch row {}.",
                         maxResample,
@@ -430,6 +434,6 @@ class EmbeddingTrainer(
                 }
             }
         }
-        return negatives
+        return manager.create(negatives, Shape(totalNegatives, TRIPLE))
     }
 }
