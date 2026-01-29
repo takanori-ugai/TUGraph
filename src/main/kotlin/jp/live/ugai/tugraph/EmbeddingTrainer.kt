@@ -58,11 +58,7 @@ class EmbeddingTrainer(
             while (start < numTriplesInt) {
                 val end = min(start + batchSize, numTriplesInt)
                 val sample = triples.get(NDIndex("$start:$end"))
-                val negativeSample =
-                    when (val block = trainer.model.block) {
-                        is TransR -> block.sampleNegatives(sample)
-                        else -> sampleNegatives(sample, numOfEntities)
-                    }
+                val negativeSample = sampleNegatives(sample, numOfEntities)
                 trainer.newGradientCollector().use { gc ->
                     val f0 = trainer.forward(NDList(sample, negativeSample))
                     val pos = f0[0]
@@ -175,8 +171,8 @@ class EmbeddingTrainer(
 
         val negatives =
             newHeads.expandDims(1)
-            .concat(relations.expandDims(1), 1)
-            .concat(newTails.expandDims(1), 1)
+                .concat(relations.expandDims(1), 1)
+                .concat(newTails.expandDims(1), 1)
 
         // Filter out accidental positives by resampling per-row if needed.
         val batchCount = numTriples.toInt()

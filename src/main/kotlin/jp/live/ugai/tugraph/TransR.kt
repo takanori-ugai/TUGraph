@@ -132,46 +132,6 @@ class TransR(
         return headsProj.add(relations).sub(tailsProj).abs().sum(intArrayOf(1))
     }
 
-    /**
-     * Generates vectorized negative samples for the given triples.
-     *
-     * This replaces either the head or tail for each triple using a random entity
-     * in a vectorized manner. The sampled entity is guaranteed to differ from the
-     * original head/tail for the replaced position.
-     *
-     * @param input Triples NDArray (shape: [batch, 3] or [batch * 3]).
-     * @return Negative-sampled triples with the same shape as the reshaped input.
-     */
-    fun sampleNegatives(input: NDArray): NDArray {
-        val numTriples = input.size() / TRIPLE
-        val triples = input.reshape(numTriples, TRIPLE)
-        val manager = triples.manager
-
-        val heads = triples.get(headIndex)
-        val relations = triples.get(relationIndex)
-        val tails = triples.get(tailIndex)
-
-        val offsetHead = manager.randomInteger(1, numEnt, Shape(numTriples), DataType.INT64)
-        val offsetTail = manager.randomInteger(1, numEnt, Shape(numTriples), DataType.INT64)
-        val headSum = heads.add(offsetHead)
-        val tailSum = tails.add(offsetTail)
-        val headWrap = headSum.gte(numEnt).toType(DataType.INT64, false)
-        val tailWrap = tailSum.gte(numEnt).toType(DataType.INT64, false)
-        val randHead = headSum.sub(headWrap.mul(numEnt))
-        val randTail = tailSum.sub(tailWrap.mul(numEnt))
-
-        val replaceHead = manager.randomInteger(0, 2, Shape(numTriples), DataType.INT64)
-        val replaceMask = replaceHead.toType(DataType.INT64, false)
-        val keepMask = replaceMask.eq(0).toType(DataType.INT64, false)
-
-        val newHeads = heads.mul(keepMask).add(randHead.mul(replaceMask))
-        val newTails = tails.mul(replaceMask).add(randTail.mul(keepMask))
-
-        return newHeads.expandDims(1)
-            .concat(relations.expandDims(1), 1)
-            .concat(newTails.expandDims(1), 1)
-    }
-
     @Override
     /**
      * Computes output shapes for the provided input shapes.
