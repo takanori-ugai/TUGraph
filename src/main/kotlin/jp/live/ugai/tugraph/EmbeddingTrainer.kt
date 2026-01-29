@@ -37,6 +37,7 @@ class EmbeddingTrainer(
     private val inputSet: Set<TripleKey>
 
     private data class TripleKey(val head: Long, val rel: Long, val tail: Long)
+
     private val bernoulliProb: Map<Long, Float>
 
     init {
@@ -101,7 +102,8 @@ class EmbeddingTrainer(
             when (block) {
                 is ComplEx, is DistMult -> true
                 else -> false
-            } && SELF_ADVERSARIAL_TEMP > 0.0f
+            } &&
+                SELF_ADVERSARIAL_TEMP > 0.0f
         val useBernoulli =
             when (block) {
                 is TransE, is TransR -> true
@@ -248,7 +250,6 @@ class EmbeddingTrainer(
         manager.close()
     }
 
-
     /**
      * Computes the average training loss over the given triples using the current model and negative sampling settings.
      *
@@ -261,7 +262,8 @@ class EmbeddingTrainer(
      * @param batchSize Number of triples processed per evaluation batch.
      * @param numEntities Total number of entities available for negative sampling.
      * @param numNegatives Number of negative samples generated per positive triple.
-     * @param useBernoulli If true, use relation-specific Bernoulli probabilities when deciding whether to corrupt head or tail.
+     * @param useBernoulli If true, use relation-specific Bernoulli probabilities when deciding whether to corrupt
+     *        head or tail.
      * @param useSimilarityLoss If true, compute similarity-based loss; otherwise compute hinge (margin) loss.
      * @param useSelfAdversarial If true and using similarity loss, weight negatives by self-adversarial softmax.
      * @param regWeight L2 regularization weight applied to the model block parameters (0 disables regularization).

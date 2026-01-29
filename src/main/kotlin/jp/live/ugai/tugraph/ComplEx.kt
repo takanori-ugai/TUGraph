@@ -192,7 +192,7 @@ class ComplEx(
     /**
      * Retrieve the relation (edge) embeddings.
      *
-     * @return The edges NDArray containing embeddings for each relation. 
+     * @return The edges NDArray containing embeddings for each relation.
      */
     fun getEdges(): NDArray {
         return getParameters().get("edges").array

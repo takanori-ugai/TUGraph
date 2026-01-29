@@ -12,7 +12,6 @@ import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
-/** Runs TransR training and evaluation on a CSV dataset. */
 /**
  * Runs a complete TransR embedding example: loads triples from CSV, trains the TransR model,
  * performs a test prediction, and prints evaluation results.

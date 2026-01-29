@@ -17,7 +17,6 @@ import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
-/** Runs a small TransE training loop with manual loss tracking. */
 /**
  * Runs a self-contained example that trains a TransE embedding model on a small synthetic dataset.
  *

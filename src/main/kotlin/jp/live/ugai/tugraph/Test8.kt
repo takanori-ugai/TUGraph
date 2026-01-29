@@ -11,7 +11,6 @@ import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
-/** Runs a short TransE training example against CSV data. */
 /**
  * Loads triplet data from CSV, constructs and trains a TransE embedding model, and runs a single prediction.
  *

@@ -57,10 +57,11 @@ class DistMult(
     /**
      * Performs the DistMult forward pass, computing scores for input triples.
      *
-     * Computes scores for the first NDList element (positive triples) and, if present, for the second element (negative triples),
-     * returning an NDList with one or two NDArrays of per-triple scores.
+     * Computes scores for the first NDList element (positive triples) and, if present, for the second element
+     * (negative triples), returning an NDList with one or two NDArrays of per-triple scores.
      *
-     * @param inputs NDList where inputs[0] contains triples as rows of (head, relation, tail) and inputs[1] (optional) contains additional triples to score.
+     * @param inputs NDList where inputs[0] contains triples as rows of (head, relation, tail) and inputs[1]
+     *        (optional) contains additional triples to score.
      * @return NDList containing one NDArray of scores for each provided input (one or two elements).
      */
     @Override
@@ -140,7 +141,8 @@ class DistMult(
      * Compute the block's output shape(s) from the provided input shape(s) by counting triples in the first input.
      *
      * @param inputs Array of input shapes; the number of triples is computed as inputs[0].size() / 3.
-     * @return An array containing a single Shape(numTriples), or two identical Shape(numTriples) entries when two inputs are provided.
+     * @return An array containing a single Shape(numTriples), or two identical Shape(numTriples) entries when
+     *         two inputs are provided.
      */
     @Override
     /**

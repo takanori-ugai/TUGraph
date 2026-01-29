@@ -5,7 +5,6 @@ import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.Shape
 import ai.djl.training.dataset.ArrayDataset
 
-/** Exercises NDArray indexing and dataset assembly utilities. */
 /**
  * Demonstrates NDArray creation, indexing, basic tensor operations, and ArrayDataset assembly using NDManager.
  *

@@ -12,7 +12,6 @@ import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
-/** Runs TransE training and evaluation on a CSV dataset. */
 /**
  * Runs the end-to-end embedding training and evaluation pipeline using DJL within a managed NDManager scope.
  *

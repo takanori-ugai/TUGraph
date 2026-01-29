@@ -27,7 +27,10 @@ class TsvToNdarray(
      * @param skipCountHeader Skip first line if it contains a single value.
      * @return The NDArray containing the data from the file.
      */
-    fun read(path: String, skipCountHeader: Boolean = true): NDArray {
+    fun read(
+        path: String,
+        skipCountHeader: Boolean = true,
+    ): NDArray {
         FileInputStream(path).use { istream ->
             InputStreamReader(istream, Charsets.UTF_8).use { ireader ->
                 BufferedReader(ireader).use { reader ->

@@ -12,7 +12,6 @@ import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
-/** Runs DistMult training and evaluation on a CSV dataset. */
 /**
  * Trains and evaluates a DistMult knowledge-graph embedding model using triples loaded from "data/sample.csv".
  *

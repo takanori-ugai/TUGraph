@@ -27,18 +27,18 @@ fun main() {
             inputList.add(longArrayOf(flat[idx], flat[idx + 1], flat[idx + 2]))
             idx += 3
         }
-	println("End Loading")
+        println("End Loading")
         val headMax = input.get(":, 0").max().toLongArray()[0]
         val tailMax = input.get(":, 2").max().toLongArray()[0]
         val relMax = input.get(":, 1").max().toLongArray()[0]
         val numEntities = maxOf(headMax, tailMax) + 1
         val numEdges = relMax + 1
-	println("End Loading2")
+        println("End Loading2")
         val transe =
             TransE(numEntities, numEdges, DIMENSION).also {
                 it.initialize(manager, DataType.FLOAT16, input.shape)
             }
-	println("End Loading3")
+        println("End Loading3")
         val model =
             Model.newInstance("transe").also {
                 it.block = transe
@@ -53,7 +53,7 @@ fun main() {
                 .optOptimizer(sgd) // Optimizer
                 .optDevices(manager.engine.getDevices(1)) // single GPU
                 .addTrainingListeners(EpochTrainingListener(), HingeLossLoggingListener()) // Hinge loss logging
-	println("End Loading4")
+        println("End Loading4")
 
         val trainer =
             model.newTrainer(config).also {
@@ -61,7 +61,7 @@ fun main() {
                 it.metrics = Metrics()
             }
 
-	println("End Loading5")
+        println("End Loading5")
         val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, numEntities, trainer, NEPOCH)
         println("Training Start")
         eTrainer.training()
