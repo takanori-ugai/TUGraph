@@ -33,26 +33,37 @@ class EmbeddingTrainer(
     private val numOfTriples = triples.shape[0]
 
     /** Materialized triples used for negative sampling. */
-    val inputList = mutableListOf<List<Long>>()
-    private val inputSet: Set<List<Long>>
+    val inputList = mutableListOf<LongArray>()
+    private val inputSet: Set<TripleKey>
+
+    private data class TripleKey(val head: Long, val rel: Long, val tail: Long)
     private val bernoulliProb: Map<Long, Float>
 
     init {
-        for (i in 0 until numOfTriples) {
-            inputList.add(triples.get(i).toLongArray().toList())
+        require(numOfTriples <= Int.MAX_VALUE.toLong()) {
+            "Dataset exceeds Int.MAX_VALUE triples; Long indexing required (numOfTriples=$numOfTriples)."
         }
-        inputSet = inputList.toHashSet()
+        val totalTriples = numOfTriples.toInt()
+        val flat = triples.toLongArray()
         val relCounts = mutableMapOf<Long, Int>()
         val headSets = mutableMapOf<Long, MutableSet<Long>>()
         val tailSets = mutableMapOf<Long, MutableSet<Long>>()
-        for (triple in inputList) {
-            val head = triple[0]
-            val rel = triple[1]
-            val tail = triple[2]
+        val inputSetMutable = HashSet<TripleKey>(totalTriples * 2)
+
+        var idx = 0
+        repeat(totalTriples) {
+            val head = flat[idx]
+            val rel = flat[idx + 1]
+            val tail = flat[idx + 2]
+            idx += 3
+            val triple = longArrayOf(head, rel, tail)
+            inputList.add(triple)
+            inputSetMutable.add(TripleKey(head, rel, tail))
             relCounts[rel] = (relCounts[rel] ?: 0) + 1
             headSets.getOrPut(rel) { mutableSetOf() }.add(head)
             tailSets.getOrPut(rel) { mutableSetOf() }.add(tail)
         }
+        inputSet = inputSetMutable
         bernoulliProb =
             relCounts.mapValues { (rel, count) ->
                 val heads = headSets[rel]?.size ?: 1
@@ -90,7 +101,7 @@ class EmbeddingTrainer(
             when (block) {
                 is ComplEx, is DistMult -> true
                 else -> false
-            }
+            } && SELF_ADVERSARIAL_TEMP > 0.0f
         val useBernoulli =
             when (block) {
                 is TransE, is TransR -> true
@@ -319,7 +330,7 @@ class EmbeddingTrainer(
             for (n in 0 until numNegatives) {
                 var replaceHeadFlag = kotlin.random.Random.nextFloat() < headProb
                 var ran: Long = 0L
-                val checkTriplet = mutableListOf(0L, 0L, 0L)
+                var checkTriplet = TripleKey(0L, 0L, 0L)
                 var attempts = 0
                 var found = false
                 while (attempts < maxResample) {
@@ -329,17 +340,13 @@ class EmbeddingTrainer(
                             attempts += 1
                             continue
                         }
-                        checkTriplet[0] = ran
-                        checkTriplet[1] = sec
-                        checkTriplet[2] = trd
+                        checkTriplet = TripleKey(ran, sec, trd)
                     } else {
                         if (ran == trd) {
                             attempts += 1
                             continue
                         }
-                        checkTriplet[0] = fst
-                        checkTriplet[1] = sec
-                        checkTriplet[2] = ran
+                        checkTriplet = TripleKey(fst, sec, ran)
                     }
                     if (!inputSet.contains(checkTriplet)) {
                         found = true
@@ -350,9 +357,9 @@ class EmbeddingTrainer(
                 }
                 val negIndex = i * numNegatives + n
                 if (found) {
-                    negatives.setScalar(NDIndex(negIndex.toLong(), 0), checkTriplet[0])
-                    negatives.setScalar(NDIndex(negIndex.toLong(), 1), checkTriplet[1])
-                    negatives.setScalar(NDIndex(negIndex.toLong(), 2), checkTriplet[2])
+                    negatives.setScalar(NDIndex(negIndex.toLong(), 0), checkTriplet.head)
+                    negatives.setScalar(NDIndex(negIndex.toLong(), 1), checkTriplet.rel)
+                    negatives.setScalar(NDIndex(negIndex.toLong(), 2), checkTriplet.tail)
                 } else {
                     negatives.setScalar(NDIndex(negIndex.toLong(), 0), fst)
                     negatives.setScalar(NDIndex(negIndex.toLong(), 1), sec)
