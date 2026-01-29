@@ -27,84 +27,85 @@ object EmbeddingExample {
         val sentence = listOf("I", "am", "a", "dog", "am", "a", "<START>", "<END>")
         val dic = DefaultVocabulary.builder().add(sentence).optUnknownToken().build()
 
-        val manager = NDManager.newBaseManager()
-        val sizeOfSentence = 8L
-        val numOfSentence = 3L
-        val sizeOfMatrix = sizeOfSentence * numOfSentence
-        val numOfWords = dic.size() - 3 // <START>(4) <END>(5) <Unknown>(6)
+        NDManager.newBaseManager().use { manager ->
+            val sizeOfSentence = 8L
+            val numOfSentence = 3L
+            val sizeOfMatrix = sizeOfSentence * numOfSentence
+            val numOfWords = dic.size() - 3 // <START>(4) <END>(5) <Unknown>(6)
 
-        val lang = manager.randomInteger(0, numOfWords, Shape(sizeOfMatrix), DataType.INT32)
-        println("LANG: $lang")
-        val features = manager.full(Shape(numOfSentence, 1), 4).concat(lang.reshape(numOfSentence, sizeOfSentence), 1)
-        println("Features: $features")
-        val lang2 =
-            lang.reshape(numOfSentence, sizeOfSentence).concat(manager.full(Shape(numOfSentence, 1), 5), 1)
-                .reshape((sizeOfSentence + 1) * numOfSentence)
-        println(lang2)
-        val labels =
-            manager.eye(numOfWords.toInt() + 2).get(lang2).reshape(numOfSentence, sizeOfSentence + 1, numOfWords + 2)
-        println("Labels: $labels")
-        val dataset = loadArray(features, labels, 2, true)
-        println(dic.getIndex("<END>"))
-        val emb = TrainableWordEmbedding(dic, 20)
-        val net = SequentialBlock()
-        val linearBlock = Linear.builder().optBias(true).setUnits(numOfWords + 2).build()
-        val trans = TransformerEncoderBlock(20, 2, 6, 0.5F, Activation::relu)
-        net.add(emb)
-        net.add(trans)
-        net.add(linearBlock)
-        val model = Model.newInstance("lin-reg")
-        model.block = net
-        val l = Loss.softmaxCrossEntropyLoss("SMCELOSS", 1.0F, -1, false, true)
-        val config =
-            DefaultTrainingConfig(l)
+            val lang = manager.randomInteger(0, numOfWords, Shape(sizeOfMatrix), DataType.INT32)
+            println("LANG: $lang")
+            val features = manager.full(Shape(numOfSentence, 1), 4).concat(lang.reshape(numOfSentence, sizeOfSentence), 1)
+            println("Features: $features")
+            val lang2 =
+                lang.reshape(numOfSentence, sizeOfSentence).concat(manager.full(Shape(numOfSentence, 1), 5), 1)
+                    .reshape((sizeOfSentence + 1) * numOfSentence)
+            println(lang2)
+            val labels =
+                manager.eye(numOfWords.toInt() + 2).get(lang2).reshape(numOfSentence, sizeOfSentence + 1, numOfWords + 2)
+            println("Labels: $labels")
+            val dataset = loadArray(features, labels, 2, true)
+            println(dic.getIndex("<END>"))
+            val emb = TrainableWordEmbedding(dic, 20)
+            val net = SequentialBlock()
+            val linearBlock = Linear.builder().optBias(true).setUnits(numOfWords + 2).build()
+            val trans = TransformerEncoderBlock(20, 2, 6, 0.5F, Activation::relu)
+            net.add(emb)
+            net.add(trans)
+            net.add(linearBlock)
+            val model = Model.newInstance("lin-reg")
+            model.block = net
+            val l = Loss.softmaxCrossEntropyLoss("SMCELOSS", 1.0F, -1, false, true)
+            val config =
+                DefaultTrainingConfig(l)
 //            .optOptimizer(sgd) // Optimizer (loss function)
-                .apply { TrainingListener.Defaults.logging().forEach { addTrainingListeners(it) } } // Logging
-        val trainer = model.newTrainer(config)
+                    .apply { TrainingListener.Defaults.logging().forEach { addTrainingListeners(it) } } // Logging
+            val trainer = model.newTrainer(config)
 //        trainer.initialize(Shape(1, 2))
-        val metrics = Metrics()
-        trainer.metrics = metrics
-        val numEpochs = 10
-        val translator = NoopTranslator()
-        val predictor = model.newPredictor(translator)
-        for (epoch in 1..numEpochs) {
-            println("Epoch $epoch")
-            // Iterate over dataset
-            var lossV = 0.0F
-            for (batch in trainer.iterateDataset(dataset)) {
-                // Update loss and evaulator
-                trainer.newGradientCollector().use { collector ->
+            val metrics = Metrics()
+            trainer.metrics = metrics
+            val numEpochs = 10
+            val translator = NoopTranslator()
+            val predictor = model.newPredictor(translator)
+            for (epoch in 1..numEpochs) {
+                println("Epoch $epoch")
+                // Iterate over dataset
+                var lossV = 0.0F
+                for (batch in trainer.iterateDataset(dataset)) {
+                    // Update loss and evaulator
+                    trainer.newGradientCollector().use { collector ->
 //                    println(batch.data[0])
 //                    println(batch.data.size)
-                    val preds = trainer.forward(batch.data)
+                        val preds = trainer.forward(batch.data)
 //                    println(preds[0])
 //                    println(batch.labels[0])
-                    var time = System.nanoTime()
-                    val lossValue = trainer.loss.evaluate(batch.labels, preds)
-                    lossV += lossValue.getFloat()
+                        var time = System.nanoTime()
+                        val lossValue = trainer.loss.evaluate(batch.labels, preds)
+                        lossV += lossValue.getFloat()
 //                    println("LossValue: $lossValue")
-                    collector.backward(lossValue)
-                    trainer.addMetric("backward", time)
-                    time = System.nanoTime()
-                    trainer.addMetric("training-metrics", time)
-                }
+                        collector.backward(lossValue)
+                        trainer.addMetric("backward", time)
+                        time = System.nanoTime()
+                        trainer.addMetric("training-metrics", time)
+                    }
 
-                // Update parameters
-                trainer.step()
-                batch.close()
+                    // Update parameters
+                    trainer.step()
+                    batch.close()
+                }
+                println("LOSS VALUE : $lossV")
+                // reset training and validation evaluators at end of epoch
+                trainer.notifyListeners { listener: TrainingListener ->
+                    listener.onEpoch(
+                        trainer,
+                    )
+                }
             }
-            println("LOSS VALUE : $lossV")
-            // reset training and validation evaluators at end of epoch
-            trainer.notifyListeners { listener: TrainingListener ->
-                listener.onEpoch(
-                    trainer,
-                )
-            }
+            println("HELLO")
+            val ppp = (predictor.predict(NDList(manager.create(intArrayOf(1, 0, 2), Shape(1, 3)))) as NDList)
+            println(ppp[0].argMax(2))
+            println(ppp[0])
         }
-        println("HELLO")
-        val ppp = (predictor.predict(NDList(manager.create(intArrayOf(1, 0, 2), Shape(1, 3)))) as NDList)
-        println(ppp[0].argMax(2))
-        println(ppp[0])
     }
 
     /**

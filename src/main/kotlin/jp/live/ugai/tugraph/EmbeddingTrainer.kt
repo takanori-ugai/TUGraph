@@ -116,9 +116,7 @@ class EmbeddingTrainer(
                                 val negLoss = neg.exp().add(1f).log()
                                 val negAgg =
                                     if (useSelfAdversarial) {
-                                        val scaled = neg.mul(SELF_ADVERSARIAL_TEMP)
-                                        val exp = scaled.exp()
-                                        val weights = exp.div(exp.sum(intArrayOf(1), true))
+                                        val weights = neg.mul(SELF_ADVERSARIAL_TEMP).softmax(1)
                                         weights.mul(negLoss).sum(intArrayOf(1))
                                     } else {
                                         negLoss.mean(intArrayOf(1))
@@ -228,9 +226,7 @@ class EmbeddingTrainer(
                         val negLoss = neg.exp().add(1f).log()
                         val negAgg =
                             if (useSelfAdversarial) {
-                                val scaled = neg.mul(SELF_ADVERSARIAL_TEMP)
-                                val exp = scaled.exp()
-                                val weights = exp.div(exp.sum(intArrayOf(1), true))
+                                val weights = neg.mul(SELF_ADVERSARIAL_TEMP).softmax(1)
                                 weights.mul(negLoss).sum(intArrayOf(1))
                             } else {
                                 negLoss.mean(intArrayOf(1))
@@ -277,8 +273,8 @@ class EmbeddingTrainer(
             "Batch exceeds Int indexing capacity (numTriples=$numTriples)."
         }
         val batchCount = numTriples.toInt()
-        val totalNegatives = batchCount * numNegatives
-        val negatives = input.manager.zeros(Shape(totalNegatives.toLong(), TRIPLE), DataType.INT64)
+        val totalNegatives = batchCount.toLong() * numNegatives.toLong()
+        val negatives = input.manager.zeros(Shape(totalNegatives, TRIPLE), DataType.INT64)
         val maxResample = NEGATIVE_RESAMPLE_CAP
         for (i in 0 until batchCount) {
             val row = triples.get(i.toLong())

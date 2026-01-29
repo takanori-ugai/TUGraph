@@ -155,7 +155,7 @@ class TransR(
      * @return The entities NDArray.
      */
     fun getEntities(): NDArray {
-        return getParameters().valueAt(0).array
+        return getParameters().get("entities").array
     }
 
     /**
@@ -164,7 +164,7 @@ class TransR(
      * @return The edges NDArray.
      */
     fun getEdges(): NDArray {
-        return getParameters().valueAt(1).array
+        return getParameters().get("edges").array
     }
 
     /**
