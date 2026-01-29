@@ -79,7 +79,7 @@ class ResultEval(
             // Compute scores for all possible head entities
             val scores =
                 (0 until numEntities).map { head ->
-                    val input = manager.create(longArrayOf(head.toLong(), triple[1], triple[2]))
+                    val input = manager.create(longArrayOf(head, triple[1], triple[2]))
                     val score = predictor.predict(NDList(input)).singletonOrThrow().toFloatArray()[0]
                     score
                 }

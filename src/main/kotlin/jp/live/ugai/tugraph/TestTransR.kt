@@ -6,7 +6,7 @@ import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
 import ai.djl.training.DefaultTrainingConfig
-import ai.djl.training.listener.TrainingListener
+import ai.djl.training.listener.EpochTrainingListener
 import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
@@ -20,21 +20,21 @@ fun main() {
     println(input)
     val numOfTriples = input.shape[0]
     val inputList = mutableListOf<LongArray>()
-    (0 until numOfTriples).forEach {
-        inputList.add(input.get(it).toLongArray())
+    for (i in 0 until numOfTriples) {
+        inputList.add(input.get(i).toLongArray())
     }
     val headMax = input.get(":, 0").max().toLongArray()[0]
     val tailMax = input.get(":, 2").max().toLongArray()[0]
     val relMax = input.get(":, 1").max().toLongArray()[0]
     val numEntities = maxOf(headMax, tailMax) + 1
     val numEdges = relMax + 1
-    val transe =
+    val transr =
         TransR(numEntities, numEdges, DIMENSION).also {
             it.initialize(manager, DataType.FLOAT32, input.shape)
         }
     val model =
         Model.newInstance("transR").also {
-            it.block = transe
+            it.block = transr
         }
     val predictor = model.newPredictor(NoopTranslator())
 
@@ -45,7 +45,7 @@ fun main() {
         DefaultTrainingConfig(Loss.l1Loss())
             .optOptimizer(sgd) // Optimizer (loss function)
             .optDevices(manager.engine.getDevices(1)) // single GPU
-            .addTrainingListeners(*TrainingListener.Defaults.logging()) // Logging
+            .addTrainingListeners(EpochTrainingListener(), HingeLossLoggingListener()) // Hinge loss logging
 
     val trainer =
         model.newTrainer(config).also {
@@ -53,12 +53,12 @@ fun main() {
             it.metrics = Metrics()
         }
 
-    val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, numEntities, trainer, 1000)
+    val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, numEntities, trainer, NEPOCH)
     eTrainer.training()
     println(trainer.trainingResult)
 
-    println(transe.getEdges())
-    println(transe.getEntities())
+    println(transr.getEdges())
+    println(transr.getEntities())
 
     val test = manager.create(longArrayOf(1, 1, 2))
     println(predictor.predict(NDList(test)).singletonOrThrow())

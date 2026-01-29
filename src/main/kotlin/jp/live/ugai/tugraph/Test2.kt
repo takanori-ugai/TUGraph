@@ -50,7 +50,7 @@ fun main() {
         DefaultTrainingConfig(l2loss)
             .optOptimizer(sgd) // Optimizer (loss function)
             .optDevices(manager.engine.getDevices(1)) // single GPU
-            .addTrainingListeners(*TrainingListener.Defaults.logging()) // Logging
+            .apply { TrainingListener.Defaults.logging().forEach { addTrainingListeners(it) } } // Logging
 
     val trainer = model.newTrainer(config)
     trainer.initialize(Shape(4, 3))
@@ -59,7 +59,7 @@ fun main() {
 
     val loss = mutableListOf<Float>()
     val epochNum = 1000
-    (0..epochNum).forEach {
+    repeat(epochNum + 1) {
         var l0 = 0f
         for (batch in trainer.iterateDataset(dataset)) {
             val x = batch.data.head()

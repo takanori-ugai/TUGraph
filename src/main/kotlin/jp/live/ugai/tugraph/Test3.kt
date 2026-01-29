@@ -55,7 +55,7 @@ fun main() {
         DefaultTrainingConfig(l2loss)
             .optOptimizer(sgd) // Optimizer (loss function)
             .optDevices(manager.engine.getDevices(1)) // single GPU
-            .addTrainingListeners(*TrainingListener.Defaults.logging()) // Logging
+            .apply { TrainingListener.Defaults.logging().forEach { addTrainingListeners(it) } } // Logging
 
     val trainer = model.newTrainer(config)
 //    trainer.initialize(input.shape)
