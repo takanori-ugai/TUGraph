@@ -30,6 +30,7 @@ const val MODEL_DIR = "build/models/transformer"
 
 /** Trains a tiny transformer encoder on a toy dataset. */
 fun main() {
+    val logger = org.slf4j.LoggerFactory.getLogger("Test11")
     try {
         val dataset = prepareDataset()
         println("AAAA")
@@ -39,21 +40,18 @@ fun main() {
         println("CCCC")
         val trainer = model.newTrainer(trainingConfig)
         println("DDDD")
-        val manager = NDManager.newBaseManager()
-        val trainingSet = dataset.getData(manager).iterator()
         println("EEEE")
 //        trainer.initialize(Shape(1L, EMBEDDING_SIZE.toLong()))
-        val accuracy = Accuracy()
         println("FFFF")
 
         EasyTrain.fit(trainer, 10, dataset, dataset)
 //        model.save(Paths.get(MODEL_DIR), "transformer")
     } catch (e: IOException) {
-        e.printStackTrace()
+        logger.error("Failed to run transformer example.", e)
     } catch (e: ModelException) {
-        e.printStackTrace()
+        logger.error("Failed to run transformer example.", e)
     } catch (e: TranslateException) {
-        e.printStackTrace()
+        logger.error("Failed to run transformer example.", e)
     }
 }
 
@@ -76,7 +74,6 @@ private fun prepareModel(): Model {
     val hiddenSize = 64
     val numHeads = 2
     val numLayers = 2
-    val feedForwardSize = 128
     val dropoutRate = 0.1f
 
     val transformerEncoder =
@@ -100,8 +97,8 @@ private fun prepareTrainingConfig(): TrainingConfig {
         DefaultTrainingConfig(loss)
 //        .setDevices(Device.getDevices(1))
             .addEvaluator(Accuracy())
-            .addTrainingListeners(*TrainingListener.Defaults.logging())
             .optOptimizer(Adam.builder().optLearningRateTracker(learningRate).build())
+            .apply { TrainingListener.Defaults.logging().forEach { addTrainingListeners(it) } }
 
     return trainerBuilder
 }
@@ -122,7 +119,7 @@ private class CustomDataset(private val sentences: Array<String>, private val la
             records.add(record)
         }
         val batchSize = 3
-        val numBatches = (6 / batchSize).toInt()
+        val numBatches = 6 / batchSize
         val batches = mutableListOf<Batch>()
 
         for (i in 0 until numBatches) {

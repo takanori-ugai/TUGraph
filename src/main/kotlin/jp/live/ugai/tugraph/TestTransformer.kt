@@ -42,7 +42,7 @@ fun main() {
 
     val trainer = model.newTrainer(config)
     trainer.initialize(Shape(1, 4))
-    val vocabSize = vocab.size().toLong()
+    val vocabSize = vocab.size()
 
     val sequences =
         listOf(
@@ -129,8 +129,8 @@ class CausalTransformerLMBlock(
 
     init {
         embedding = addChildBlock("embedding", TrainableWordEmbedding(vocab, embedDim)) as TrainableWordEmbedding
-        encoder =
-            addChildBlock("encoder", TransformerEncoderBlock(embedDim, numHeads, ffnDim, 0.1F, Activation::relu)) as TransformerEncoderBlock
+        val encoderBlock = TransformerEncoderBlock(embedDim, numHeads, ffnDim, 0.1F, Activation::relu)
+        encoder = addChildBlock("encoder", encoderBlock) as TransformerEncoderBlock
         projection = addChildBlock("projection", Linear.builder().setUnits(vocab.size()).build()) as Linear
     }
 
@@ -169,7 +169,7 @@ class CausalTransformerLMBlock(
     override fun getOutputShapes(inputShapes: Array<Shape>): Array<Shape> {
         val batch = inputShapes[0].get(0)
         val seqLen = inputShapes[0].get(1)
-        return arrayOf(Shape(batch, seqLen, vocab.size().toLong()))
+        return arrayOf(Shape(batch, seqLen, vocab.size()))
     }
 
     /**

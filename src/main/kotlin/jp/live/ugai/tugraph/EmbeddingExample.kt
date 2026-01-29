@@ -14,7 +14,6 @@ import ai.djl.nn.SequentialBlock
 import ai.djl.nn.core.Linear
 import ai.djl.nn.transformer.TransformerEncoderBlock
 import ai.djl.training.DefaultTrainingConfig
-import ai.djl.training.ParameterStore
 import ai.djl.training.dataset.ArrayDataset
 import ai.djl.training.listener.TrainingListener
 import ai.djl.training.loss.Loss
@@ -36,7 +35,6 @@ object EmbeddingExample {
 
         val lang = manager.randomInteger(0, numOfWords, Shape(sizeOfMatrix), DataType.INT32)
         println("LANG: $lang")
-        val ps = ParameterStore(manager, false)
         val features = manager.full(Shape(numOfSentence, 1), 4).concat(lang.reshape(numOfSentence, sizeOfSentence), 1)
         println("Features: $features")
         val lang2 =
@@ -61,7 +59,7 @@ object EmbeddingExample {
         val config =
             DefaultTrainingConfig(l)
 //            .optOptimizer(sgd) // Optimizer (loss function)
-                .addTrainingListeners(*TrainingListener.Defaults.logging()) // Logging
+                .apply { TrainingListener.Defaults.logging().forEach { addTrainingListeners(it) } } // Logging
         val trainer = model.newTrainer(config)
 //        trainer.initialize(Shape(1, 2))
         val metrics = Metrics()

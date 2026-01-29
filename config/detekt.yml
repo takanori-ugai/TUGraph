@@ -1,2 +1,14 @@
 build:
   maxIssues: 200
+
+complexity:
+  LongMethod:
+    threshold: 120
+  NestedBlockDepth:
+    active: false
+
+style:
+  MagicNumber:
+    active: false
+  LoopWithTooManyJumpStatements:
+    active: false

@@ -11,7 +11,6 @@ import ai.djl.training.ParameterStore
 fun main() {
     val manager = NDManager.newBaseManager()
     val ps = ParameterStore(manager, false)
-    val arr = manager.arange(10)
     val voList = listOf("2", "1", "4", "3")
     val voc = DefaultVocabulary(voList)
     val a = TrainableWordEmbedding.builder().setVocabulary(voc).optNumEmbeddings(4).setEmbeddingSize(10).build()

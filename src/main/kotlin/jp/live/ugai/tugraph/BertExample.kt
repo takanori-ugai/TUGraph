@@ -38,6 +38,10 @@ fun main() {
     // Create a training configuration.
     val loss = BertMaskedLanguageModelLoss(1, 2, 1)
     val config = DefaultTrainingConfig(loss).optOptimizer(Adam.adam().build())
+
+    requireNotNull(block)
+    requireNotNull(dataset)
+    requireNotNull(config)
 //        config.setOptimizer(engine.getOptimizer("adam"))
 //        config.setLearningRate(0.001)
 //        config..setMetric(Accuracy())

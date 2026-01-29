@@ -20,8 +20,8 @@ fun main() {
     println(input)
     val numOfTriples = input.shape[0]
     val inputList = mutableListOf<LongArray>()
-    (0 until numOfTriples).forEach {
-        inputList.add(input.get(it).toLongArray())
+    for (i in 0 until numOfTriples) {
+        inputList.add(input.get(i).toLongArray())
     }
     val headMax = input.get(":, 0").max().toLongArray()[0]
     val tailMax = input.get(":, 2").max().toLongArray()[0]
