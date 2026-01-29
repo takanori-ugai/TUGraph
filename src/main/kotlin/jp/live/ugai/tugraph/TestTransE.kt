@@ -5,6 +5,7 @@ import ai.djl.metric.Metrics
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
+import ai.djl.ndarray.types.Shape
 import ai.djl.training.DefaultTrainingConfig
 import ai.djl.training.listener.EpochTrainingListener
 import ai.djl.training.loss.Loss
@@ -35,7 +36,7 @@ fun main() {
 	println("End Loading2")
         val transe =
             TransE(numEntities, numEdges, DIMENSION).also {
-                it.initialize(manager, DataType.FLOAT32, input.shape)
+                it.initialize(manager, DataType.FLOAT16, input.shape)
             }
 	println("End Loading3")
         val model =
@@ -56,7 +57,7 @@ fun main() {
 
         val trainer =
             model.newTrainer(config).also {
-                it.initialize(input.shape)
+                it.initialize(Shape(BATCH_SIZE.toLong(), TRIPLE))
                 it.metrics = Metrics()
             }
 
@@ -64,6 +65,7 @@ fun main() {
         val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, numEntities, trainer, NEPOCH)
         println("Training Start")
         eTrainer.training()
+        eTrainer.close()
         println("Training Result")
         println(trainer.trainingResult)
 

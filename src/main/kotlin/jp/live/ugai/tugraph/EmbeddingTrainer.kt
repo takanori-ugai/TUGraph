@@ -119,41 +119,65 @@ class EmbeddingTrainer(
             var start = 0
             while (start < numTriplesInt) {
                 val end = min(start + batchSize, numTriplesInt)
-                val sample = triples.get(NDIndex("$start:$end"))
-                val negativeSample = sampleNegatives(sample, numOfEntities, numNegatives, useBernoulli)
+                val batchManager = manager.newSubManager()
+                val sample =
+                    triples.get(NDIndex("$start:$end")).also {
+                        it.attach(batchManager)
+                    }
+                val negativeSample =
+                    sampleNegatives(
+                        batchManager,
+                        sample,
+                        numOfEntities,
+                        numNegatives,
+                        useBernoulli,
+                    )
+                var f0: NDList? = null
+                val temps = ArrayList<NDArray>(12)
                 try {
                     trainer.newGradientCollector().use { gc ->
-                        val f0 = trainer.forward(NDList(sample, negativeSample))
-                        val pos = f0[0]
-                        val neg = f0[1].reshape(pos.shape[0], numNegatives.toLong())
+                        f0 = trainer.forward(NDList(sample, negativeSample))
+                        f0?.forEach { it.attach(batchManager) }
+                        val pos = f0[0].also { temps.add(it) }
+                        val neg = f0[1].reshape(pos.shape[0], numNegatives.toLong()).also { temps.add(it) }
                         var lossValue =
                             if (useSimilarityLoss) {
                                 // softplus(-pos) + softplus(neg)
-                                val posLoss = pos.neg().exp().add(1f).log()
-                                val negLoss = neg.exp().add(1f).log()
+                                val posLoss = pos.neg().exp().add(1f).log().also { temps.add(it) }
+                                val negLoss = neg.exp().add(1f).log().also { temps.add(it) }
                                 val negAgg =
                                     if (useSelfAdversarial) {
-                                        val weights = neg.mul(SELF_ADVERSARIAL_TEMP).softmax(1)
-                                        weights.mul(negLoss).sum(intArrayOf(1))
+                                        val weights =
+                                            neg.mul(SELF_ADVERSARIAL_TEMP).softmax(1).also { temps.add(it) }
+                                        weights.mul(negLoss).sum(intArrayOf(1)).also { temps.add(it) }
                                     } else {
-                                        negLoss.mean(intArrayOf(1))
+                                        negLoss.mean(intArrayOf(1)).also { temps.add(it) }
                                     }
-                                posLoss.add(negAgg)
+                                posLoss.add(negAgg).also { temps.add(it) }
                             } else {
-                                val hinge = pos.expandDims(1).sub(neg).add(margin).maximum(0f)
-                                hinge.mean(intArrayOf(1))
+                                val hinge =
+                                    pos.expandDims(1).sub(neg).add(margin).maximum(0f).also { temps.add(it) }
+                                hinge.mean(intArrayOf(1)).also { temps.add(it) }
                             }
                         if (regWeight > 0.0f) {
                             val reg =
                                 block.parameters.valueAt(0).array.pow(2).sum()
                                     .add(block.parameters.valueAt(1).array.pow(2).sum())
                                     .mul(regWeight)
+                                    .also { temps.add(it) }
                             lossValue = lossValue.add(reg)
                         }
+                        temps.add(lossValue)
                         if (!firstNanReported && logger.isWarnEnabled) {
-                            val posNaN = pos.isNaN().any().getBoolean()
-                            val negNaN = neg.isNaN().any().getBoolean()
-                            val lossNaN = lossValue.isNaN().any().getBoolean()
+                            val posNaNArr = pos.isNaN().any()
+                            val negNaNArr = neg.isNaN().any()
+                            val lossNaNArr = lossValue.isNaN().any()
+                            val posNaN = posNaNArr.getBoolean()
+                            val negNaN = negNaNArr.getBoolean()
+                            val lossNaN = lossNaNArr.getBoolean()
+                            posNaNArr.close()
+                            negNaNArr.close()
+                            lossNaNArr.close()
                             if (posNaN || negNaN || lossNaN) {
                                 logger.warn(
                                     "NaN detected in batch {}:{} (pos={}, neg={}, loss={})",
@@ -168,15 +192,20 @@ class EmbeddingTrainer(
                                 firstNanReported = true
                             }
                         }
-                        val batchLoss = lossValue.mean().getFloat()
-                        epochLoss += lossValue.sum().getFloat()
+                        val meanLoss = lossValue.mean().also { temps.add(it) }
+                        val batchLoss = meanLoss.getFloat()
+                        val lossSum = lossValue.sum().also { temps.add(it) }
+                        epochLoss += lossSum.getFloat()
                         trainer.metrics?.addMetric("train_loss", batchLoss)
                         trainer.metrics?.addMetric("train_L1Loss", batchLoss)
-                        gc.backward(lossValue.mean())
+                        gc.backward(meanLoss)
                     }
                 } finally {
+                    temps.forEach { it.close() }
+                    f0?.close()
                     negativeSample.close()
                     sample.close()
+                    batchManager.close()
                 }
                 trainer.step()
                 when (val block = trainer.model.block) {
@@ -213,8 +242,12 @@ class EmbeddingTrainer(
             trainer.notifyListeners { listener -> listener.onEpoch(trainer) }
         }
         trainer.close()
+    }
+
+    fun close() {
         manager.close()
     }
+
 
     /**
      * Computes the average training loss over the given triples using the current model and negative sampling settings.
@@ -249,39 +282,61 @@ class EmbeddingTrainer(
         var start = 0
         while (start < totalTriples) {
             val end = min(start + batchSize, totalTriples)
-            val sample = data.get(NDIndex("$start:$end"))
-            val negativeSample = sampleNegatives(sample, numEntities, numNegatives, useBernoulli)
+            val batchManager = manager.newSubManager()
+            val sample =
+                data.get(NDIndex("$start:$end")).also {
+                    it.attach(batchManager)
+                }
+            val negativeSample =
+                sampleNegatives(
+                    batchManager,
+                    sample,
+                    numEntities,
+                    numNegatives,
+                    useBernoulli,
+                )
+            var f0: NDList? = null
+            val temps = ArrayList<NDArray>(12)
             try {
-                val f0 = trainer.forward(NDList(sample, negativeSample))
-                val pos = f0[0]
-                val neg = f0[1].reshape(pos.shape[0], numNegatives.toLong())
+                f0 = trainer.evaluate(NDList(sample, negativeSample))
+                f0?.forEach { it.attach(batchManager) }
+                val pos = f0[0].also { temps.add(it) }
+                val neg = f0[1].reshape(pos.shape[0], numNegatives.toLong()).also { temps.add(it) }
                 var lossValue =
                     if (useSimilarityLoss) {
-                        val posLoss = pos.neg().exp().add(1f).log()
-                        val negLoss = neg.exp().add(1f).log()
+                        val posLoss = pos.neg().exp().add(1f).log().also { temps.add(it) }
+                        val negLoss = neg.exp().add(1f).log().also { temps.add(it) }
                         val negAgg =
                             if (useSelfAdversarial) {
-                                val weights = neg.mul(SELF_ADVERSARIAL_TEMP).softmax(1)
-                                weights.mul(negLoss).sum(intArrayOf(1))
+                                val weights =
+                                    neg.mul(SELF_ADVERSARIAL_TEMP).softmax(1).also { temps.add(it) }
+                                weights.mul(negLoss).sum(intArrayOf(1)).also { temps.add(it) }
                             } else {
-                                negLoss.mean(intArrayOf(1))
+                                negLoss.mean(intArrayOf(1)).also { temps.add(it) }
                             }
-                        posLoss.add(negAgg)
+                        posLoss.add(negAgg).also { temps.add(it) }
                     } else {
-                        val hinge = pos.expandDims(1).sub(neg).add(margin).maximum(0f)
-                        hinge.mean(intArrayOf(1))
+                        val hinge =
+                            pos.expandDims(1).sub(neg).add(margin).maximum(0f).also { temps.add(it) }
+                        hinge.mean(intArrayOf(1)).also { temps.add(it) }
                     }
                 if (regWeight > 0.0f) {
                     val reg =
                         trainer.model.block.parameters.valueAt(0).array.pow(2).sum()
                             .add(trainer.model.block.parameters.valueAt(1).array.pow(2).sum())
                             .mul(regWeight)
+                            .also { temps.add(it) }
                     lossValue = lossValue.add(reg)
                 }
-                lossSum += lossValue.sum().getFloat()
+                temps.add(lossValue)
+                val lossSumNd = lossValue.sum().also { temps.add(it) }
+                lossSum += lossSumNd.getFloat()
             } finally {
+                temps.forEach { it.close() }
+                f0?.close()
                 negativeSample.close()
                 sample.close()
+                batchManager.close()
             }
             start = end
         }
@@ -304,6 +359,7 @@ class EmbeddingTrainer(
      * @throws IllegalArgumentException if `numEntities <= 1` or if the batch size exceeds Int indexing capacity.
      */
     private fun sampleNegatives(
+        manager: NDManager,
         input: NDArray,
         numEntities: Long,
         numNegatives: Int,
@@ -317,7 +373,7 @@ class EmbeddingTrainer(
         }
         val batchCount = numTriples.toInt()
         val totalNegatives = batchCount.toLong() * numNegatives.toLong()
-        val negatives = input.manager.zeros(Shape(totalNegatives, TRIPLE), DataType.INT64)
+        val negatives = manager.zeros(Shape(totalNegatives, TRIPLE), DataType.INT64)
         val maxResample = NEGATIVE_RESAMPLE_CAP
         for (i in 0 until batchCount) {
             val row = triples.get(i.toLong())

@@ -110,26 +110,61 @@ class TransR(
         matrix: NDArray,
     ): NDArray {
         val numTriples = input.size() / TRIPLE
-        val triples = input.reshape(numTriples, TRIPLE)
+        var triples: NDArray? = null
+        var headIds: NDArray? = null
+        var relationIds: NDArray? = null
+        var tailIds: NDArray? = null
+        var heads: NDArray? = null
+        var relations: NDArray? = null
+        var tails: NDArray? = null
+        var matrices: NDArray? = null
+        var headsExp: NDArray? = null
+        var tailsExp: NDArray? = null
+        var headsProj: NDArray? = null
+        var tailsProj: NDArray? = null
+        var sum: NDArray? = null
+        var diff: NDArray? = null
+        var abs: NDArray? = null
+        try {
+            triples = input.reshape(numTriples, TRIPLE)
+            headIds = triples.get(headIndex)
+            relationIds = triples.get(relationIndex)
+            tailIds = triples.get(tailIndex)
 
-        // Gather embeddings for head, relation, and tail
-        val heads = entities.get(triples.get(headIndex))
-        val relations = edges.get(triples.get(relationIndex))
-        val tails = entities.get(triples.get(tailIndex))
+            // Gather embeddings for head, relation, and tail
+            heads = entities.get(headIds)
+            relations = edges.get(relationIds)
+            tails = entities.get(tailIds)
 
-        // Project entities into relation space using relation-specific matrices
-        val matrices = matrix.get(triples.get(relationIndex))
-        val headsProj =
-            matrices
-                .batchMatMul(heads.expandDims(2))
-                .reshape(Shape(numTriples, relDim))
-        val tailsProj =
-            matrices
-                .batchMatMul(tails.expandDims(2))
-                .reshape(Shape(numTriples, relDim))
+            // Project entities into relation space using relation-specific matrices
+            matrices = matrix.get(relationIds)
+            headsExp = heads.expandDims(2)
+            tailsExp = tails.expandDims(2)
+            headsProj = matrices.batchMatMul(headsExp).reshape(Shape(numTriples, relDim))
+            tailsProj = matrices.batchMatMul(tailsExp).reshape(Shape(numTriples, relDim))
 
-        // TransR energy: d(h_r + r, t_r) with L1 distance
-        return headsProj.add(relations).sub(tailsProj).abs().sum(intArrayOf(1))
+            // TransR energy: d(h_r + r, t_r) with L1 distance
+            sum = headsProj.add(relations)
+            diff = sum.sub(tailsProj)
+            abs = diff.abs()
+            return abs.sum(intArrayOf(1))
+        } finally {
+            abs?.close()
+            diff?.close()
+            sum?.close()
+            tailsProj?.close()
+            headsProj?.close()
+            tailsExp?.close()
+            headsExp?.close()
+            matrices?.close()
+            tails?.close()
+            relations?.close()
+            heads?.close()
+            tailIds?.close()
+            relationIds?.close()
+            headIds?.close()
+            triples?.close()
+        }
     }
 
     @Override
@@ -173,10 +208,19 @@ class TransR(
     fun normalize() {
         val ent = getParameters().valueAt(0).array
         val rel = getParameters().valueAt(1).array
-        val entNorm = ent.norm(intArrayOf(1), true).maximum(1.0e-12f)
-        val relNorm = rel.norm(intArrayOf(1), true).maximum(1.0e-12f)
-        ent.divi(entNorm)
-        rel.divi(relNorm)
+        val entNorm = ent.norm(intArrayOf(1), true)
+        val entSafe = entNorm.maximum(1.0e-12f)
+        val relNorm = rel.norm(intArrayOf(1), true)
+        val relSafe = relNorm.maximum(1.0e-12f)
+        try {
+            ent.divi(entSafe)
+            rel.divi(relSafe)
+        } finally {
+            relSafe.close()
+            relNorm.close()
+            entSafe.close()
+            entNorm.close()
+        }
     }
 
     @Override

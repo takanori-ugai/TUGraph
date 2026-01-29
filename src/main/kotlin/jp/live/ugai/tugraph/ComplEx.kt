@@ -97,27 +97,70 @@ class ComplEx(
         edges: NDArray,
     ): NDArray {
         val numTriples = input.size() / TRIPLE
-        val triples = input.reshape(numTriples, TRIPLE)
+        var triples: NDArray? = null
+        var headIds: NDArray? = null
+        var relationIds: NDArray? = null
+        var tailIds: NDArray? = null
+        var heads: NDArray? = null
+        var relations: NDArray? = null
+        var tails: NDArray? = null
+        var hRe: NDArray? = null
+        var hIm: NDArray? = null
+        var rRe: NDArray? = null
+        var rIm: NDArray? = null
+        var tRe: NDArray? = null
+        var tIm: NDArray? = null
+        var term1: NDArray? = null
+        var term2: NDArray? = null
+        var term1b: NDArray? = null
+        var term2b: NDArray? = null
+        var sum: NDArray? = null
+        try {
+            triples = input.reshape(numTriples, TRIPLE)
+            headIds = triples.get(headIndex)
+            relationIds = triples.get(relationIndex)
+            tailIds = triples.get(tailIndex)
 
-        val headIds = triples.get(headIndex)
-        val relationIds = triples.get(relationIndex)
-        val tailIds = triples.get(tailIndex)
+            heads = entities.get(headIds)
+            relations = edges.get(relationIds)
+            tails = entities.get(tailIds)
 
-        val heads = entities.get(headIds)
-        val relations = edges.get(relationIds)
-        val tails = entities.get(tailIds)
+            hRe = heads.get(realIndex)
+            hIm = heads.get(imagIndex)
+            rRe = relations.get(realIndex)
+            rIm = relations.get(imagIndex)
+            tRe = tails.get(realIndex)
+            tIm = tails.get(imagIndex)
 
-        val hRe = heads.get(realIndex)
-        val hIm = heads.get(imagIndex)
-        val rRe = relations.get(realIndex)
-        val rIm = relations.get(imagIndex)
-        val tRe = tails.get(realIndex)
-        val tIm = tails.get(imagIndex)
-
-        // ComplEx: Re(<h, r, conj(t)>)
-        val term1 = hRe.mul(rRe).sub(hIm.mul(rIm))
-        val term2 = hRe.mul(rIm).add(hIm.mul(rRe))
-        return term1.mul(tRe).add(term2.mul(tIm)).sum(sumAxis)
+            // ComplEx: Re(<h, r, conj(t)>)
+            term1 = hRe.mul(rRe)
+            term1b = hIm.mul(rIm)
+            term1 = term1.sub(term1b)
+            term2 = hRe.mul(rIm)
+            term2b = hIm.mul(rRe)
+            term2 = term2.add(term2b)
+            sum = term1.mul(tRe).add(term2.mul(tIm))
+            return sum.sum(sumAxis)
+        } finally {
+            sum?.close()
+            term2b?.close()
+            term2?.close()
+            term1b?.close()
+            term1?.close()
+            tIm?.close()
+            tRe?.close()
+            rIm?.close()
+            rRe?.close()
+            hIm?.close()
+            hRe?.close()
+            tails?.close()
+            relations?.close()
+            heads?.close()
+            tailIds?.close()
+            relationIds?.close()
+            headIds?.close()
+            triples?.close()
+        }
     }
 
     @Override

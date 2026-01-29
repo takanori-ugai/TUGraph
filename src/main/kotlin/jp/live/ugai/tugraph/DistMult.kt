@@ -100,18 +100,40 @@ class DistMult(
         edges: NDArray,
     ): NDArray {
         val numTriples = input.size() / TRIPLE
-        val triples = input.reshape(numTriples, TRIPLE)
+        var triples: NDArray? = null
+        var headIds: NDArray? = null
+        var relationIds: NDArray? = null
+        var tailIds: NDArray? = null
+        var heads: NDArray? = null
+        var relations: NDArray? = null
+        var tails: NDArray? = null
+        var prod: NDArray? = null
+        var prod2: NDArray? = null
+        try {
+            triples = input.reshape(numTriples, TRIPLE)
+            headIds = triples.get(headIndex)
+            relationIds = triples.get(relationIndex)
+            tailIds = triples.get(tailIndex)
 
-        val headIds = triples.get(headIndex)
-        val relationIds = triples.get(relationIndex)
-        val tailIds = triples.get(tailIndex)
+            heads = entities.get(headIds)
+            relations = edges.get(relationIds)
+            tails = entities.get(tailIds)
 
-        val heads = entities.get(headIds)
-        val relations = edges.get(relationIds)
-        val tails = entities.get(tailIds)
-
-        // DistMult: <h, r, t>
-        return heads.mul(relations).mul(tails).sum(sumAxis)
+            // DistMult: <h, r, t>
+            prod = heads.mul(relations)
+            prod2 = prod.mul(tails)
+            return prod2.sum(sumAxis)
+        } finally {
+            prod2?.close()
+            prod?.close()
+            tails?.close()
+            relations?.close()
+            heads?.close()
+            tailIds?.close()
+            relationIds?.close()
+            headIds?.close()
+            triples?.close()
+        }
     }
 
     /**

@@ -96,18 +96,44 @@ class TransE(
         edges: NDArray,
     ): NDArray {
         val numTriples = input.size() / TRIPLE
-        val triples = input.reshape(numTriples, TRIPLE)
+        var triples: NDArray? = null
+        var headIds: NDArray? = null
+        var relationIds: NDArray? = null
+        var tailIds: NDArray? = null
+        var heads: NDArray? = null
+        var tails: NDArray? = null
+        var relations: NDArray? = null
+        var sum: NDArray? = null
+        var diff: NDArray? = null
+        var abs: NDArray? = null
+        try {
+            triples = input.reshape(numTriples, TRIPLE)
 
-        // Gather embeddings for head, relation, and tail entities
-        val headIds = triples.get(headIndex)
-        val relationIds = triples.get(relationIndex)
-        val tailIds = triples.get(tailIndex)
-        val heads = entities.get(headIds)
-        val tails = entities.get(tailIds)
-        val relations = edges.get(relationIds)
+            // Gather embeddings for head, relation, and tail entities
+            headIds = triples.get(headIndex)
+            relationIds = triples.get(relationIndex)
+            tailIds = triples.get(tailIndex)
+            heads = entities.get(headIds)
+            tails = entities.get(tailIds)
+            relations = edges.get(relationIds)
 
-        // TransE energy: d(h + r, t) with L1 distance
-        return heads.add(relations).sub(tails).abs().sum(sumAxis)
+            // TransE energy: d(h + r, t) with L1 distance
+            sum = heads.add(relations)
+            diff = sum.sub(tails)
+            abs = diff.abs()
+            return abs.sum(sumAxis)
+        } finally {
+            abs?.close()
+            diff?.close()
+            sum?.close()
+            relations?.close()
+            tails?.close()
+            heads?.close()
+            tailIds?.close()
+            relationIds?.close()
+            headIds?.close()
+            triples?.close()
+        }
     }
 
     @Override
@@ -144,7 +170,12 @@ class TransE(
         val rel = getParameters().valueAt(1).array
         val norm = rel.norm(sumAxis, true)
         val safe = norm.maximum(1.0e-12f)
-        rel.divi(safe)
+        try {
+            rel.divi(safe)
+        } finally {
+            safe.close()
+            norm.close()
+        }
     }
 
     /**
@@ -172,6 +203,11 @@ class TransE(
         val ent = getParameters().valueAt(0).array
         val norm = ent.norm(sumAxis, true)
         val safe = norm.maximum(1.0e-12f)
-        ent.divi(safe)
+        try {
+            ent.divi(safe)
+        } finally {
+            safe.close()
+            norm.close()
+        }
     }
 }

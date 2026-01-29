@@ -38,7 +38,7 @@ fun main() {
         val numEdges = relMax + 1
         val transe =
             TransE(numEntities, numEdges, DIMENSION).also {
-                it.initialize(manager, DataType.FLOAT32, input.shape)
+                it.initialize(manager, DataType.FLOAT16, input.shape)
             }
         val model =
             Model.newInstance("transe").also {
@@ -63,6 +63,7 @@ fun main() {
 
         val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, numEntities, trainer, NEPOCH)
         eTrainer.training()
+        input.close()
         println("Training Result")
         println(trainer.trainingResult)
 
@@ -74,6 +75,7 @@ fun main() {
         val test = manager.create(longArrayOf(1, 1, 2))
         print("Predict (False):")
         println(predictor.predict(NDList(test)).singletonOrThrow().toFloatArray()[0])
+        test.close()
 
         val result = ResultEval(inputList, manager.newSubManager(), predictor, numEntities)
         println("Tail")
@@ -85,6 +87,7 @@ fun main() {
             println("${it.key} : ${it.value}")
         }
         result.close()
+        predictor.close()
     }
 }
 
