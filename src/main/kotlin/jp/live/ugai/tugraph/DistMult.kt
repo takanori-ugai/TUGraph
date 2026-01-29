@@ -137,10 +137,13 @@ class DistMult(
     /**
      * Computes the output shape(s) by counting triples in the first input shape.
      *
-     * The number of triples is inputs[0].size() / 3. If a second input shape is provided, two identical shapes are returned.
+     * The number of triples is inputs[0].size() / 3. If a second input shape is provided, two identical
+     * shapes are returned.
      *
-     * @param inputs Input shapes where the first entry represents flattened triples (three values per triple).
-     * @return An array containing one Shape(number of triples), or two identical Shape(number of triples) when two inputs are provided.
+     * @param inputs Input shapes where the first entry represents flattened triples (three values per
+     *     triple).
+     * @return An array containing one Shape(number of triples), or two identical Shape(number of triples)
+     *     when two inputs are provided.
      */
     @Override
     /**

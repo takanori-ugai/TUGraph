@@ -14,12 +14,6 @@ import ai.djl.training.ParameterStore
  * Sets up an NDManager and a ParameterStore, constructs a vocabulary and a trainable embedding, initializes it,
  * and runs several embed/encode/forward operations whose results are printed to standard output.
  */
-/**
- * Demonstrates creating and using a TrainableWordEmbedding with a small vocabulary and prints example embeddings and encodings.
- *
- * Initializes an NDManager and ParameterStore, constructs a vocabulary and a TrainableWordEmbedding, initializes its parameters,
- * then performs embed, encode, and forward operations while printing the resulting tensors and parameter arrays.
- */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val ps = ParameterStore(manager, false)

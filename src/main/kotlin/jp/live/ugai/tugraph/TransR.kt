@@ -98,11 +98,14 @@ class TransR(
      * Computes TransR scores for a batch of triples by projecting entity embeddings into relation space
      * and measuring the L1 distance between (projected head + relation) and projected tail for each triple.
      *
-     * @param input Flat array of triple IDs arranged as consecutive (head, relation, tail) entries; length must be a multiple of 3.
+     * @param input Flat array of triple IDs arranged as consecutive (head, relation, tail) entries;
+     *     length must be a multiple of 3.
      * @param entities Entity embedding matrix with shape (numEntities, entDim).
      * @param edges Relation embedding matrix with shape (numRelations, relDim).
      * @param matrix Relation-specific projection matrices with shape (numRelations, relDim, entDim).
-     * @return A 1-D NDArray of length equal to the number of triples containing the L1 score for each triple. */
+     * @return A 1-D NDArray of length equal to the number of triples containing the L1 score for each
+     *     triple.
+     */
     fun model(
         input: NDArray,
         entities: NDArray,
@@ -176,16 +179,12 @@ class TransR(
     /**
      * Determine the output Shape(s) based on the number of triples encoded in the first input shape.
      *
-     * @param inputs Array of input shapes; the first shape's size is expected to be a multiple of the triple arity.
-     * @return An array containing one Shape(numTriples) for a single input, or two identical Shape(numTriples) entries if a second input is provided.
+     * @param inputs Array of input shapes; the first shape's size is expected to be a multiple of the
+     *     triple arity.
+     * @return An array containing one Shape(numTriples) for a single input, or two identical
+     *     Shape(numTriples) entries if a second input is provided.
      */
     @Override
-    /**
-     * Computes output shapes for the provided input shapes.
-     *
-     * @param inputs Input shapes for the block.
-     * @return Output shapes for the block.
-     */
     override fun getOutputShapes(inputs: Array<Shape>): Array<Shape> {
         val numTriples = inputs[0].size() / TRIPLE
         val outShape = Shape(numTriples)

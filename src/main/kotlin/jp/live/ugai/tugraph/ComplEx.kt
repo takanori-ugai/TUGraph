@@ -177,16 +177,12 @@ class ComplEx(
      * Infer the output Shape(s) from the supplied input Shapes by computing the number of triples
      * present in the first input.
      *
-     * @param inputs Array of input Shapes; the number of triples is computed from inputs[0].size() / TRIPLE.
-     * @return An array containing one Shape (number of triples). If two inputs are provided, returns two identical Shapes.
+     * @param inputs Array of input Shapes; the number of triples is computed from inputs[0].size() /
+     *     TRIPLE.
+     * @return An array containing one Shape (number of triples). If two inputs are provided, returns two
+     *     identical Shapes.
      */
     @Override
-    /**
-     * Computes output shapes for the provided input shapes.
-     *
-     * @param inputs Input shapes for the block.
-     * @return Output shapes for the block.
-     */
     override fun getOutputShapes(inputs: Array<Shape>): Array<Shape> {
         val numTriples = inputs[0].size() / TRIPLE
         val outShape = Shape(numTriples)
@@ -209,7 +205,7 @@ class ComplEx(
     /**
      * Gets relation (edge) embeddings.
      *
-     * @return NDArray of shape (numEdge, dim * 2) containing concatenated real and imaginary parts for each relation. 
+     * @return NDArray of shape (numEdge, dim * 2) containing concatenated real and imaginary parts for each relation.
      */
     fun getEdges(): NDArray {
         return getParameters().get("edges").array

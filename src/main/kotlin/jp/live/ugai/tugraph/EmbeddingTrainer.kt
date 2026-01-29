@@ -246,7 +246,8 @@ class EmbeddingTrainer(
     /**
      * Releases resources held by this trainer by closing the underlying NDManager.
      *
-     * After calling this method the trainer's manager and any NDArrays attached to it become invalid and should not be used.
+     * After calling this method the trainer's manager and any NDArrays attached to it become invalid and
+     * should not be used.
      */
     fun close() {
         manager.close()

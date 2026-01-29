@@ -18,12 +18,6 @@ import ai.djl.translate.NoopTranslator
  * Reads triples from the CSV, constructs and initializes a DistMult model and trainer, runs embedding training,
  * prints training results and learned parameters, runs a sample prediction, and evaluates head/tail predictions.
  */
-/**
- * Trains and evaluates a DistMult knowledge-graph embedding model using triples loaded from data/sample.csv.
- *
- * Reads triples from data/sample.csv, trains a DistMult model, prints learned entity and relation embeddings and training results,
- * performs a sample prediction, and evaluates head/tail prediction metrics which are printed to stdout.
- */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)

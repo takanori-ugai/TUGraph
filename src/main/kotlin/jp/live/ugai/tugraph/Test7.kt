@@ -11,12 +11,6 @@ import ai.djl.training.dataset.ArrayDataset
  * Performs examples of reshaping, slicing, transposing, arithmetic between arrays, concatenation, repetition,
  * and builds a small ArrayDataset with sampling configuration; outputs intermediate results to standard output.
  */
-/**
- * Demonstrates creation and manipulation of NDArrays and construction/preparation of an ArrayDataset.
- *
- * Creates arrays, performs slicing, reshaping, transposition, element-wise arithmetic, concatenation,
- * and repetition, then builds and prepares an ArrayDataset with sample inputs and optional labels.
- */
 fun main() {
     val rank =
         mapOf<Int, Float>(

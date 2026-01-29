@@ -9,14 +9,6 @@ import java.io.InputStream
 import java.io.InputStreamReader
 
 /**
- * Reads numeric rows from data/sample.csv, accumulates them into a single INT64 NDArray, and prints per-row and
- * summary outputs.
- *
- * Each CSV record is parsed into a List<Long>, appended to an in-memory list, and concatenated onto an NDArray.
- * After processing, prints whether the list [0, 0, 1] is present and prints the NDArray reshaped to
- * (number of rows, columns).
- */
-/**
  * Application entry point that loads numeric CSV data and prints processing results.
  *
  * Reads "data/sample.csv" using UTF-8 and Excel CSV format, parses each record into a

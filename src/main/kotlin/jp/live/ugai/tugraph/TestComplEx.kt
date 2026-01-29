@@ -21,13 +21,6 @@ import ai.djl.translate.NoopTranslator
  * prints training results and the model's learned entities/edges; runs a single sample prediction; evaluates and
  * prints head and tail ranking results.
  */
-/**
- * Runs an end-to-end workflow that trains and evaluates a ComplEx knowledge-graph embedding model.
- *
- * Loads triples from "data/sample.csv", constructs and initializes a ComplEx model, trains entity and relation
- * embeddings with an EmbeddingTrainer, prints training results and model contents, performs a sample prediction,
- * computes head and tail ranking evaluations, and prints those evaluation results.
- */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)

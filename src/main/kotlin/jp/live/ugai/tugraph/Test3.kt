@@ -25,14 +25,6 @@ import ai.djl.translate.NoopTranslator
  * and prints the training result, metric names, a specific L2 loss metric value, the model's edges and entities,
  * and predictions for the training inputs and a small test input.
  */
-/**
- * Runs a TransE training example on a small toy dataset and prints training results and predictions.
- *
- * Prepares a training and validation ArrayDataset, constructs and initializes a TransE model,
- * configures training (L2 loss, SGD optimizer, devices, logging), trains for a fixed number of epochs,
- * and prints the training result, metric names, a specific L2 loss metric value, the model's edges and entities,
- * and predictions for the training input and a small test input.
- */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val input = manager.create(longArrayOf(2, 0, 1, 2, 1, 3, 0, 0, 1, 0, 1, 2), Shape(4, 3))

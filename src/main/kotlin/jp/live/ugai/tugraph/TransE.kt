@@ -85,7 +85,8 @@ class TransE(
     /**
      * Computes TransE energy scores d(h + r, t) using L1 distance for the provided triples.
      *
-     * @param input A 1-D or 2-D NDArray of triple indices (flattened or shaped) where each triple is (head, relation, tail).
+     * @param input A 1-D or 2-D NDArray of triple indices (flattened or shaped) where each triple is
+     *     (head, relation, tail).
      * @param entities Entity embedding matrix with shape [numEnt, dim].
      * @param edges Relation embedding matrix with shape [numEdge, dim].
      * @return An NDArray of shape [numTriples] containing the L1 energy for each triple.
@@ -139,16 +140,12 @@ class TransE(
     /**
      * Computes the block's output shapes from the given input shapes.
      *
-     * @param inputs Input shapes; inputs[0].size() is interpreted as TRIPLE * numTriples and must be divisible by TRIPLE.
-     * @return An array containing one Shape equal to [numTriples], or two identical Shapes when a second input is provided.
+     * @param inputs Input shapes; inputs[0].size() is interpreted as TRIPLE * numTriples and must be
+     *     divisible by TRIPLE.
+     * @return An array containing one Shape equal to [numTriples], or two identical Shapes when a second
+     *     input is provided.
      */
     @Override
-    /**
-     * Computes output shapes for the provided input shapes.
-     *
-     * @param inputs Input shapes for the block.
-     * @return Output shapes for the block.
-     */
     override fun getOutputShapes(inputs: Array<Shape>): Array<Shape> {
         val numTriples = inputs[0].size() / TRIPLE
         val outShape = Shape(numTriples)
@@ -168,13 +165,6 @@ class TransE(
      * @param inputShapes Input shapes for initialization.
      */
     @Override
-    /**
-     * Initializes parameters and normalizes relation embeddings.
-     *
-     * @param manager NDManager used for initialization.
-     * @param dataType Data type for parameters.
-     * @param inputShapes Input shapes for initialization.
-     */
     override fun initialize(
         manager: ai.djl.ndarray.NDManager,
         dataType: ai.djl.ndarray.types.DataType,

@@ -18,13 +18,6 @@ import ai.djl.translate.NoopTranslator
  * a TransE block and DJL model, configures an SGD optimizer and training config, executes embedding training
  * via EmbeddingTrainer, prints the trainer's results, and performs one prediction using the trained model.
  */
-/**
- * Runs a short TransE training and prediction example using CSV input data.
- *
- * Reads triples from "data/sample.csv", constructs and initializes a TransE model,
- * configures training (optimizer, devices, listeners), trains embeddings, prints training results,
- * and performs a single prediction.
- */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)

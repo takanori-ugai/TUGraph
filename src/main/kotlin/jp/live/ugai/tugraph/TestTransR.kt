@@ -20,14 +20,6 @@ import ai.djl.translate.NoopTranslator
  * runs embedding training, prints training results as well as learned edges and entities,
  * performs a single example prediction, and prints tail/head evaluation summaries.
  */
-/**
- * Runs TransR training and evaluation using triples loaded from data/sample.csv.
- *
- * Reads triples from the CSV, constructs and initializes a TransR model and trainer,
- * trains embeddings for the configured number of epochs, prints training results and
- * learned entity/edge embeddings, performs a sample prediction for the triple [1, 1, 2],
- * and computes and prints head/tail evaluation results.
- */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)
