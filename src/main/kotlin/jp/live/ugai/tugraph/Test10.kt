@@ -7,9 +7,9 @@ import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
 import ai.djl.training.ParameterStore
 
-/** Runs a quick embedding lookup demonstration. */
 /**
- * Demonstrates creating and using a TrainableWordEmbedding with a small vocabulary and prints example embeddings and encodings.
+ * Demonstrates creating and using a TrainableWordEmbedding with a small vocabulary and prints example embeddings
+ * and encodings.
  *
  * Sets up an NDManager and a ParameterStore, constructs a vocabulary and a trainable embedding, initializes it,
  * and runs several embed/encode/forward operations whose results are printed to standard output.

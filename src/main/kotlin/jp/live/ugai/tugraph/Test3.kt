@@ -17,7 +17,6 @@ import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
-/** Runs a TransE training example with training and validation datasets. */
 /**
  * Entry point that constructs a small TransE example, trains it on a toy dataset, and prints metrics and predictions.
  *

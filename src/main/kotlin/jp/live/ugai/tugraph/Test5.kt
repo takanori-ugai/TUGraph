@@ -22,7 +22,6 @@ import java.io.InputStream
 import java.io.InputStreamReader
 import kotlin.random.Random
 
-/** Runs a TransE training example with CSV input and negative sampling. */
 /**
  * Runs a complete TransE training and inference workflow using data from `data/sample.csv`.
  *

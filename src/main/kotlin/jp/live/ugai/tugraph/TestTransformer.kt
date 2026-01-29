@@ -19,7 +19,6 @@ import ai.djl.training.loss.SoftmaxCrossEntropyLoss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.util.PairList
 
-/** Trains and evaluates a tiny causal transformer language model. */
 /**
  * Runs a self-contained example that trains and evaluates a tiny causal transformer language model.
  *

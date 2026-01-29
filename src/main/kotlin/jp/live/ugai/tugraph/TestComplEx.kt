@@ -12,13 +12,14 @@ import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
-/** Runs ComplEx training and evaluation on a CSV dataset. */
 /**
- * Orchestrates data loading, model construction, training, evaluation, and a sample prediction within a managed NDManager scope.
+ * Orchestrates data loading, model construction, training, evaluation, and a sample prediction within a managed
+ * NDManager scope.
  *
- * Reads triple data from "data/sample.csv"; builds and initializes a ComplEx knowledge-graph embedding model; configures
- * training (optimizer, devices, listeners) and runs embedding training for a fixed number of epochs; prints training results
- * and the model's learned entities/edges; runs a single sample prediction; evaluates and prints head and tail ranking results.
+ * Reads triple data from "data/sample.csv"; builds and initializes a ComplEx knowledge-graph embedding model;
+ * configures training (optimizer, devices, listeners) and runs embedding training for a fixed number of epochs;
+ * prints training results and the model's learned entities/edges; runs a single sample prediction; evaluates and
+ * prints head and tail ranking results.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->

@@ -95,13 +95,16 @@ class TransR(
     }
 
     /**
-     * Applies the linear transformation of the TransR model.
+     * Computes TransR scores for a batch of triples by projecting entity embeddings into relation space
+     * and measuring the L1 distance between (projected head + relation) and projected tail for each triple.
      *
-     * @param input The input NDArray.
-     * @param entities The entities NDArray.
-     * @param edges The edges NDArray.
-     * @param matrix The matrix NDArray.
-     * @return The output NDArray.
+     * @param input Flat array of triple IDs arranged as consecutive (head, relation, tail) entries;
+     *     length must be a multiple of 3.
+     * @param entities Entity embedding matrix with shape (numEntities, entDim).
+     * @param edges Relation embedding matrix with shape (numRelations, relDim).
+     * @param matrix Relation-specific projection matrices with shape (numRelations, relDim, entDim).
+     * @return A 1-D NDArray of length equal to the number of triples containing the L1 score for each
+     *     triple.
      */
     fun model(
         input: NDArray,
@@ -110,35 +113,78 @@ class TransR(
         matrix: NDArray,
     ): NDArray {
         val numTriples = input.size() / TRIPLE
-        val triples = input.reshape(numTriples, TRIPLE)
+        var triples: NDArray? = null
+        var headIds: NDArray? = null
+        var relationIds: NDArray? = null
+        var tailIds: NDArray? = null
+        var heads: NDArray? = null
+        var relations: NDArray? = null
+        var tails: NDArray? = null
+        var matrices: NDArray? = null
+        var headsExp: NDArray? = null
+        var tailsExp: NDArray? = null
+        var headsProjLocalRaw: NDArray? = null
+        var tailsProjLocalRaw: NDArray? = null
+        var headsProj: NDArray? = null
+        var tailsProj: NDArray? = null
+        var sum: NDArray? = null
+        var diff: NDArray? = null
+        var abs: NDArray? = null
+        try {
+            triples = input.reshape(numTriples, TRIPLE)
+            headIds = triples.get(headIndex)
+            relationIds = triples.get(relationIndex)
+            tailIds = triples.get(tailIndex)
 
-        // Gather embeddings for head, relation, and tail
-        val heads = entities.get(triples.get(headIndex))
-        val relations = edges.get(triples.get(relationIndex))
-        val tails = entities.get(triples.get(tailIndex))
+            // Gather embeddings for head, relation, and tail
+            heads = entities.get(headIds)
+            relations = edges.get(relationIds)
+            tails = entities.get(tailIds)
 
-        // Project entities into relation space using relation-specific matrices
-        val matrices = matrix.get(triples.get(relationIndex))
-        val headsProj =
-            matrices
-                .batchMatMul(heads.expandDims(2))
-                .reshape(Shape(numTriples, relDim))
-        val tailsProj =
-            matrices
-                .batchMatMul(tails.expandDims(2))
-                .reshape(Shape(numTriples, relDim))
+            // Project entities into relation space using relation-specific matrices
+            matrices = matrix.get(relationIds)
+            headsExp = heads.expandDims(2)
+            tailsExp = tails.expandDims(2)
+            headsProjLocalRaw = matrices.batchMatMul(headsExp)
+            headsProj = headsProjLocalRaw.reshape(Shape(numTriples, relDim))
+            tailsProjLocalRaw = matrices.batchMatMul(tailsExp)
+            tailsProj = tailsProjLocalRaw.reshape(Shape(numTriples, relDim))
 
-        // TransR energy: d(h_r + r, t_r) with L1 distance
-        return headsProj.add(relations).sub(tailsProj).abs().sum(intArrayOf(1))
+            // TransR energy: d(h_r + r, t_r) with L1 distance
+            sum = requireNotNull(headsProj).add(requireNotNull(relations))
+            diff = sum.sub(requireNotNull(tailsProj))
+            abs = diff.abs()
+            return abs.sum(intArrayOf(1))
+        } finally {
+            abs?.close()
+            diff?.close()
+            sum?.close()
+            tailsProj?.close()
+            headsProj?.close()
+            tailsProjLocalRaw?.close()
+            headsProjLocalRaw?.close()
+            tailsExp?.close()
+            headsExp?.close()
+            matrices?.close()
+            tails?.close()
+            relations?.close()
+            heads?.close()
+            tailIds?.close()
+            relationIds?.close()
+            headIds?.close()
+            triples?.close()
+        }
     }
 
-    @Override
     /**
-     * Computes output shapes for the provided input shapes.
+     * Determine the output Shape(s) based on the number of triples encoded in the first input shape.
      *
-     * @param inputs Input shapes for the block.
-     * @return Output shapes for the block.
+     * @param inputs Array of input shapes; the first shape's size is expected to be a multiple of the
+     *     triple arity.
+     * @return An array containing one Shape(numTriples) for a single input, or two identical
+     *     Shape(numTriples) entries if a second input is provided.
      */
+    @Override
     override fun getOutputShapes(inputs: Array<Shape>): Array<Shape> {
         val numTriples = inputs[0].size() / TRIPLE
         val outShape = Shape(numTriples)
@@ -168,15 +214,27 @@ class TransR(
     }
 
     /**
-     * Normalizes the embeddings.
+     * Normalize entity and relation embedding rows to unit length.
+     *
+     * Each row of the entity and relation parameter matrices is divided in place by its L2 norm,
+     * with the norm floored to 1e-12 to avoid division by zero.
      */
     fun normalize() {
         val ent = getParameters().valueAt(0).array
         val rel = getParameters().valueAt(1).array
-        val entNorm = ent.norm(intArrayOf(1), true).maximum(1.0e-12f)
-        val relNorm = rel.norm(intArrayOf(1), true).maximum(1.0e-12f)
-        ent.divi(entNorm)
-        rel.divi(relNorm)
+        val entNorm = ent.norm(intArrayOf(1), true)
+        val entSafe = entNorm.maximum(1.0e-12f)
+        val relNorm = rel.norm(intArrayOf(1), true)
+        val relSafe = relNorm.maximum(1.0e-12f)
+        try {
+            ent.divi(entSafe)
+            rel.divi(relSafe)
+        } finally {
+            relSafe.close()
+            relNorm.close()
+            entSafe.close()
+            entNorm.close()
+        }
     }
 
     @Override

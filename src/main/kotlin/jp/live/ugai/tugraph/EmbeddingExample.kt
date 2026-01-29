@@ -35,14 +35,18 @@ object EmbeddingExample {
 
             val lang = manager.randomInteger(0, numOfWords, Shape(sizeOfMatrix), DataType.INT32)
             println("LANG: $lang")
-            val features = manager.full(Shape(numOfSentence, 1), 4).concat(lang.reshape(numOfSentence, sizeOfSentence), 1)
+            val features =
+                manager.full(Shape(numOfSentence, 1), 4)
+                    .concat(lang.reshape(numOfSentence, sizeOfSentence), 1)
             println("Features: $features")
             val lang2 =
                 lang.reshape(numOfSentence, sizeOfSentence).concat(manager.full(Shape(numOfSentence, 1), 5), 1)
                     .reshape((sizeOfSentence + 1) * numOfSentence)
             println(lang2)
             val labels =
-                manager.eye(numOfWords.toInt() + 2).get(lang2).reshape(numOfSentence, sizeOfSentence + 1, numOfWords + 2)
+                manager.eye(numOfWords.toInt() + 2)
+                    .get(lang2)
+                    .reshape(numOfSentence, sizeOfSentence + 1, numOfWords + 2)
             println("Labels: $labels")
             val dataset = loadArray(features, labels, 2, true)
             println(dic.getIndex("<END>"))

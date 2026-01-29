@@ -6,13 +6,13 @@ package jp.live.ugai.tugraph
 const val LEARNING_RATE = 0.005f
 
 /** Default embedding dimension for example models. */
-const val DIMENSION = 20L
+const val DIMENSION = 200L
 
 /** Default number of epochs for example training runs. */
-const val NEPOCH = 300
+const val NEPOCH = 30
 
 /** Default batch size for example datasets. */
-const val BATCH_SIZE = 1
+const val BATCH_SIZE = 1000
 
 /** Max attempts to resample a negative before falling back. */
 const val NEGATIVE_RESAMPLE_CAP = 10

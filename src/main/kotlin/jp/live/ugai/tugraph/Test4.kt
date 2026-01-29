@@ -8,12 +8,13 @@ import java.io.FileInputStream
 import java.io.InputStream
 import java.io.InputStreamReader
 
-/** Parses a CSV sample into NDArrays for inspection. */
 /**
- * Reads numeric rows from data/sample.csv, accumulates them into a single INT64 NDArray, and prints per-row and summary outputs.
+ * Application entry point that loads numeric CSV data and prints processing results.
  *
- * Each CSV record is parsed into a List<Long>, appended to an in-memory list, and concatenated onto an NDArray.
- * After processing, prints whether the list [0, 0, 1] is present and prints the NDArray reshaped to (number of rows, columns).
+ * Reads "data/sample.csv" using UTF-8 and Excel CSV format, parses each record into a
+ * list of Long values, appends rows into a DJL NDArray, and prints each parsed row.
+ * After reading all records it prints whether the sequence [0, 0, 1] is present and
+ * prints the NDArray reshaped to (rowCount, columnCount).
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->

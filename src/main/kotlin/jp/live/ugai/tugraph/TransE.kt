@@ -83,12 +83,13 @@ class TransE(
     }
 
     /**
-     * Applies the linear transformation of the TransE model.
+     * Computes TransE energy scores d(h + r, t) using L1 distance for the provided triples.
      *
-     * @param input The input NDArray.
-     * @param entities The entities NDArray.
-     * @param edges The edges NDArray.
-     * @return The output NDArray.
+     * @param input A 1-D or 2-D NDArray of triple indices (flattened or shaped) where each triple is
+     *     (head, relation, tail).
+     * @param entities Entity embedding matrix with shape [numEnt, dim].
+     * @param edges Relation embedding matrix with shape [numEdge, dim].
+     * @return An NDArray of shape [numTriples] containing the L1 energy for each triple.
      */
     fun model(
         input: NDArray,
@@ -96,27 +97,55 @@ class TransE(
         edges: NDArray,
     ): NDArray {
         val numTriples = input.size() / TRIPLE
-        val triples = input.reshape(numTriples, TRIPLE)
+        var triples: NDArray? = null
+        var headIds: NDArray? = null
+        var relationIds: NDArray? = null
+        var tailIds: NDArray? = null
+        var heads: NDArray? = null
+        var tails: NDArray? = null
+        var relations: NDArray? = null
+        var sum: NDArray? = null
+        var diff: NDArray? = null
+        var abs: NDArray? = null
+        try {
+            triples = input.reshape(numTriples, TRIPLE)
 
-        // Gather embeddings for head, relation, and tail entities
-        val headIds = triples.get(headIndex)
-        val relationIds = triples.get(relationIndex)
-        val tailIds = triples.get(tailIndex)
-        val heads = entities.get(headIds)
-        val tails = entities.get(tailIds)
-        val relations = edges.get(relationIds)
+            // Gather embeddings for head, relation, and tail entities
+            headIds = triples.get(headIndex)
+            relationIds = triples.get(relationIndex)
+            tailIds = triples.get(tailIndex)
+            heads = entities.get(headIds)
+            tails = entities.get(tailIds)
+            relations = edges.get(relationIds)
 
-        // TransE energy: d(h + r, t) with L1 distance
-        return heads.add(relations).sub(tails).abs().sum(sumAxis)
+            // TransE energy: d(h + r, t) with L1 distance
+            sum = heads.add(relations)
+            diff = sum.sub(tails)
+            abs = diff.abs()
+            return abs.sum(sumAxis)
+        } finally {
+            abs?.close()
+            diff?.close()
+            sum?.close()
+            relations?.close()
+            tails?.close()
+            heads?.close()
+            tailIds?.close()
+            relationIds?.close()
+            headIds?.close()
+            triples?.close()
+        }
     }
 
-    @Override
     /**
-     * Computes output shapes for the provided input shapes.
+     * Computes the block's output shapes from the given input shapes.
      *
-     * @param inputs Input shapes for the block.
-     * @return Output shapes for the block.
+     * @param inputs Input shapes; inputs[0].size() is interpreted as TRIPLE * numTriples and must be
+     *     divisible by TRIPLE.
+     * @return An array containing one Shape equal to [numTriples], or two identical Shapes when a second
+     *     input is provided.
      */
+    @Override
     override fun getOutputShapes(inputs: Array<Shape>): Array<Shape> {
         val numTriples = inputs[0].size() / TRIPLE
         val outShape = Shape(numTriples)
@@ -127,14 +156,15 @@ class TransE(
         }
     }
 
-    @Override
     /**
-     * Initializes parameters and normalizes relation embeddings.
+     * Initializes model parameters and normalizes relation embeddings to unit L2 norm per embedding,
+     * stabilizing the division with a minimum norm of 1e-12.
      *
      * @param manager NDManager used for initialization.
      * @param dataType Data type for parameters.
      * @param inputShapes Input shapes for initialization.
      */
+    @Override
     override fun initialize(
         manager: ai.djl.ndarray.NDManager,
         dataType: ai.djl.ndarray.types.DataType,
@@ -144,7 +174,12 @@ class TransE(
         val rel = getParameters().valueAt(1).array
         val norm = rel.norm(sumAxis, true)
         val safe = norm.maximum(1.0e-12f)
-        rel.divi(safe)
+        try {
+            rel.divi(safe)
+        } finally {
+            safe.close()
+            norm.close()
+        }
     }
 
     /**
@@ -166,12 +201,19 @@ class TransE(
     }
 
     /**
-     * Normalizes the embeddings.
+     * Normalize entity embeddings in-place so each embedding has L2 norm equal to 1 along the embedding axis.
+     *
+     * Norms smaller than 1e-12 are clamped to 1e-12 to avoid division by zero.
      */
     fun normalize() {
         val ent = getParameters().valueAt(0).array
         val norm = ent.norm(sumAxis, true)
         val safe = norm.maximum(1.0e-12f)
-        ent.divi(safe)
+        try {
+            ent.divi(safe)
+        } finally {
+            safe.close()
+            norm.close()
+        }
     }
 }

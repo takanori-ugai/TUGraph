@@ -55,13 +55,11 @@ class DistMult(
     }
 
     /**
-     * Performs the DistMult forward pass, computing scores for input triples.
+     * Compute DistMult scores for one or two sets of triples.
      *
-     * Computes scores for the first NDList element (positive triples) and, if present, for the second element (negative triples),
-     * returning an NDList with one or two NDArrays of per-triple scores.
-     *
-     * @param inputs NDList where inputs[0] contains triples as rows of (head, relation, tail) and inputs[1] (optional) contains additional triples to score.
-     * @return NDList containing one NDArray of scores for each provided input (one or two elements).
+     * @param inputs NDList where inputs[0] is an NDArray of triples shaped (N, 3) with rows (head, relation, tail);
+     *        if present, inputs[1] is a second NDArray of triples to score.
+     * @return NDList containing one NDArray of per-triple scores for each provided input (one or two elements).
      */
     @Override
     override fun forwardInternal(
@@ -100,25 +98,52 @@ class DistMult(
         edges: NDArray,
     ): NDArray {
         val numTriples = input.size() / TRIPLE
-        val triples = input.reshape(numTriples, TRIPLE)
+        var triples: NDArray? = null
+        var headIds: NDArray? = null
+        var relationIds: NDArray? = null
+        var tailIds: NDArray? = null
+        var heads: NDArray? = null
+        var relations: NDArray? = null
+        var tails: NDArray? = null
+        var prod: NDArray? = null
+        var prod2: NDArray? = null
+        try {
+            triples = input.reshape(numTriples, TRIPLE)
+            headIds = triples.get(headIndex)
+            relationIds = triples.get(relationIndex)
+            tailIds = triples.get(tailIndex)
 
-        val headIds = triples.get(headIndex)
-        val relationIds = triples.get(relationIndex)
-        val tailIds = triples.get(tailIndex)
+            heads = entities.get(headIds)
+            relations = edges.get(relationIds)
+            tails = entities.get(tailIds)
 
-        val heads = entities.get(headIds)
-        val relations = edges.get(relationIds)
-        val tails = entities.get(tailIds)
-
-        // DistMult: <h, r, t>
-        return heads.mul(relations).mul(tails).sum(sumAxis)
+            // DistMult: <h, r, t>
+            prod = heads.mul(relations)
+            prod2 = prod.mul(tails)
+            return prod2.sum(sumAxis)
+        } finally {
+            prod2?.close()
+            prod?.close()
+            tails?.close()
+            relations?.close()
+            heads?.close()
+            tailIds?.close()
+            relationIds?.close()
+            headIds?.close()
+            triples?.close()
+        }
     }
 
     /**
-     * Compute the block's output shape(s) from the provided input shape(s) by counting triples in the first input.
+     * Computes the output shape(s) by counting triples in the first input shape.
      *
-     * @param inputs Array of input shapes; the number of triples is computed as inputs[0].size() / 3.
-     * @return An array containing a single Shape(numTriples), or two identical Shape(numTriples) entries when two inputs are provided.
+     * The number of triples is inputs[0].size() / 3. If a second input shape is provided, two identical
+     * shapes are returned.
+     *
+     * @param inputs Input shapes where the first entry represents flattened triples (three values per
+     *     triple).
+     * @return An array containing one Shape(number of triples), or two identical Shape(number of triples)
+     *     when two inputs are provided.
      */
     @Override
     /**
@@ -147,7 +172,7 @@ class DistMult(
     }
 
     /**
-     * Accesses the NDArray that stores relation (edge) embeddings.
+     * Get the relation (edge) embeddings.
      *
      * @return The relation embeddings NDArray with shape (numEdge, dim).
      */
