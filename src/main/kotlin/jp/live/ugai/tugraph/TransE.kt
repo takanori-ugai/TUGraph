@@ -102,10 +102,8 @@ class TransE(
         val headIds = triples.get(headIndex)
         val relationIds = triples.get(relationIndex)
         val tailIds = triples.get(tailIndex)
-        val headsAndTails = entities.get(headIds.concat(tailIds, 0))
-        val numTriplesInt = numTriples.toInt()
-        val heads = headsAndTails.get("0:$numTriplesInt")
-        val tails = headsAndTails.get("$numTriplesInt:")
+        val heads = entities.get(headIds)
+        val tails = entities.get(tailIds)
         val relations = edges.get(relationIds)
 
         // TransE energy: d(h + r, t) with L1 distance

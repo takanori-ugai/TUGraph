@@ -6,7 +6,7 @@ import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
 import ai.djl.training.DefaultTrainingConfig
-import ai.djl.training.listener.TrainingListener
+import ai.djl.training.listener.EpochTrainingListener
 import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
@@ -45,7 +45,7 @@ fun main() {
         DefaultTrainingConfig(Loss.l1Loss())
             .optOptimizer(sgd) // Optimizer (loss function)
             .optDevices(manager.engine.getDevices(1)) // single GPU
-            .addTrainingListeners(*TrainingListener.Defaults.logging()) // Logging
+            .addTrainingListeners(EpochTrainingListener(), HingeLossLoggingListener()) // Hinge loss logging
 
     val trainer =
         model.newTrainer(config).also {
@@ -53,11 +53,14 @@ fun main() {
             it.metrics = Metrics()
         }
 
-    val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, numEntities, trainer, 30)
+    val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, numEntities, trainer, NEPOCH)
     eTrainer.training()
+    println("Training Result")
     println(trainer.trainingResult)
 
+    println("Edge")
     println(transe.getEdges())
+    println("Entities")
     println(transe.getEntities())
 
     val test = manager.create(longArrayOf(1, 1, 2))

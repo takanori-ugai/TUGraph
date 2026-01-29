@@ -18,12 +18,12 @@ const val BATCH_SIZE = 3
 const val TRIPLE = 3L
 
 /** Default entity count used in sample runs. */
-const val NUM_ENTITIES = 202487L
+// const val NUM_ENTITIES = 202487L
 
 // const val NUM_ENTITIES = 7658L
 
 /** Default relation/edge count used in sample runs. */
-const val NUM_EDGES = 37L
+// const val NUM_EDGES = 37L
 // const val NUM_EDGES = 57L
 
 /** Placeholder class to keep common constants in one file. */
