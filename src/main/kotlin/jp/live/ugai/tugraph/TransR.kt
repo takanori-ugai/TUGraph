@@ -120,6 +120,8 @@ class TransR(
         var matrices: NDArray? = null
         var headsExp: NDArray? = null
         var tailsExp: NDArray? = null
+        var headsProjLocalRaw: NDArray? = null
+        var tailsProjLocalRaw: NDArray? = null
         var headsProj: NDArray? = null
         var tailsProj: NDArray? = null
         var sum: NDArray? = null
@@ -140,20 +142,14 @@ class TransR(
             matrices = matrix.get(relationIds)
             headsExp = heads.expandDims(2)
             tailsExp = tails.expandDims(2)
-            val headsProjLocal =
-                matrices.batchMatMul(headsExp).use { tmp ->
-                    tmp.reshape(Shape(numTriples, relDim))
-                }
-            headsProj = headsProjLocal
-            val tailsProjLocal =
-                matrices.batchMatMul(tailsExp).use { tmp ->
-                    tmp.reshape(Shape(numTriples, relDim))
-                }
-            tailsProj = tailsProjLocal
+            headsProjLocalRaw = matrices.batchMatMul(headsExp)
+            headsProj = headsProjLocalRaw.reshape(Shape(numTriples, relDim))
+            tailsProjLocalRaw = matrices.batchMatMul(tailsExp)
+            tailsProj = tailsProjLocalRaw.reshape(Shape(numTriples, relDim))
 
             // TransR energy: d(h_r + r, t_r) with L1 distance
-            sum = headsProjLocal.add(requireNotNull(relations))
-            diff = sum.sub(tailsProjLocal)
+            sum = requireNotNull(headsProj).add(requireNotNull(relations))
+            diff = sum.sub(requireNotNull(tailsProj))
             abs = diff.abs()
             return abs.sum(intArrayOf(1))
         } finally {
@@ -162,6 +158,8 @@ class TransR(
             sum?.close()
             tailsProj?.close()
             headsProj?.close()
+            tailsProjLocalRaw?.close()
+            headsProjLocalRaw?.close()
             tailsExp?.close()
             headsExp?.close()
             matrices?.close()
