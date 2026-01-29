@@ -47,7 +47,6 @@ class EmbeddingTrainer(
      * Trains the embedding model.
      */
     fun training() {
-        val checkTriplet = mutableListOf(0L, 0L, 0L)
         val batchSize = maxOf(1, BATCH_SIZE)
         val numTriplesInt = numOfTriples.toInt()
         require(numTriplesInt > 0) { "No triples available for training (numOfTriples=0)." }
@@ -69,12 +68,16 @@ class EmbeddingTrainer(
                         val negNaN = neg.isNaN().any().getBoolean()
                         val hingeNaN = hinge.isNaN().any().getBoolean()
                         if (posNaN || negNaN || hingeNaN) {
-                            println(
-                                "NaN detected in batch $start:$end " +
-                                    "(pos=$posNaN, neg=$negNaN, hinge=$hingeNaN)",
+                            logger.warn(
+                                "NaN detected in batch {}:{} (pos={}, neg={}, hinge={})",
+                                start,
+                                end,
+                                posNaN,
+                                negNaN,
+                                hingeNaN,
                             )
-                            println("Sample: $sample")
-                            println("Negative sample: $negativeSample")
+                            logger.warn("Sample: {}", sample)
+                            logger.warn("Negative sample: {}", negativeSample)
                             firstNanReported = true
                         }
                     }
