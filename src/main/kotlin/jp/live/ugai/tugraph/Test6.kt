@@ -20,6 +20,14 @@ import ai.djl.translate.NoopTranslator
  * training results, model edges and entities, performs a sample prediction, and computes head/tail evaluation
  * results; all DJL resources are created and released inside the managed NDManager scope.
  */
+/**
+ * Runs the end-to-end TransE embedding workflow: loads training triples, constructs and initializes
+ * the TransE model, trains embeddings, performs a sample prediction, evaluates head/tail results,
+ * and prints training and evaluation outputs while ensuring proper resource management.
+ *
+ * The function performs CSV loading and preprocessing, model and trainer setup, embedding training
+ * via EmbeddingTrainer, a single prediction using the model predictor, and evaluation via ResultEval.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)

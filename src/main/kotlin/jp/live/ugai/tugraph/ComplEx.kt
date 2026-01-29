@@ -84,12 +84,12 @@ class ComplEx(
     }
 
     /**
-     * Applies the ComplEx scoring function.
+     * Compute ComplEx scores for a batch of triples using the provided entity and relation embeddings.
      *
-     * @param input The input NDArray.
-     * @param entities The entities NDArray.
-     * @param edges The edges NDArray.
-     * @return The output NDArray.
+     * @param input NDArray of triples where each row is (head, relation, tail) indices.
+     * @param entities NDArray of entity embeddings with real and imaginary components concatenated.
+     * @param edges NDArray of relation embeddings with real and imaginary components concatenated.
+     * @return An NDArray of shape (numTriples) containing the ComplEx score for each triple.
      */
     fun model(
         input: NDArray,
@@ -173,6 +173,13 @@ class ComplEx(
         }
     }
 
+    /**
+     * Infer the output Shape(s) from the supplied input Shapes by computing the number of triples
+     * present in the first input.
+     *
+     * @param inputs Array of input Shapes; the number of triples is computed from inputs[0].size() / TRIPLE.
+     * @return An array containing one Shape (number of triples). If two inputs are provided, returns two identical Shapes.
+     */
     @Override
     /**
      * Computes output shapes for the provided input shapes.
@@ -200,9 +207,9 @@ class ComplEx(
     }
 
     /**
-     * Retrieve the relation (edge) embeddings.
+     * Gets relation (edge) embeddings.
      *
-     * @return The edges NDArray containing embeddings for each relation.
+     * @return NDArray of shape (numEdge, dim * 2) containing concatenated real and imaginary parts for each relation. 
      */
     fun getEdges(): NDArray {
         return getParameters().get("edges").array
