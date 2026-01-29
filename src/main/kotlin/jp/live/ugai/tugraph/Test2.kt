@@ -18,6 +18,13 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /** Runs a small TransE training loop with manual loss tracking. */
+/**
+ * Runs a self-contained example that trains a TransE embedding model on a small synthetic dataset.
+ *
+ * Creates an NDManager-scoped dataset and model, initializes a TransE block and trainer, performs a training
+ * loop that accumulates per-epoch loss for a fixed number of epochs, and prints the trained model's edges,
+ * entities, and example predictions.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val input = manager.create(longArrayOf(2, 0, 1, 2, 1, 3, 0, 0, 1, 0, 1, 2), Shape(4, 3))

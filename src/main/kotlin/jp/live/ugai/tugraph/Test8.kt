@@ -12,6 +12,13 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /** Runs a short TransE training example against CSV data. */
+/**
+ * Loads triplet data from CSV, constructs and trains a TransE embedding model, and runs a single prediction.
+ *
+ * Reads "data/sample.csv" into an NDArray, derives entity and relation counts from the data, initializes
+ * a TransE block and DJL model, configures an SGD optimizer and training config, executes embedding training
+ * via EmbeddingTrainer, prints the trainer's results, and performs one prediction using the trained model.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)

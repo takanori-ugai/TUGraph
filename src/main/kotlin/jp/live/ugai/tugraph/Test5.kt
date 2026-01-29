@@ -23,6 +23,13 @@ import java.io.InputStreamReader
 import kotlin.random.Random
 
 /** Runs a TransE training example with CSV input and negative sampling. */
+/**
+ * Runs a complete TransE training and inference workflow using data from `data/sample.csv`.
+ *
+ * Loads CSV records into an NDArray dataset, constructs labels and an ArrayDataset, initializes
+ * and trains a TransE model for a fixed number of epochs, and prints model edges, entities,
+ * and predictions for the training input and a sample test tensor.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         var input = manager.zeros(Shape(0), DataType.INT64)

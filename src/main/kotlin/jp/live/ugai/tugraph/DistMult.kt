@@ -55,13 +55,13 @@ class DistMult(
     }
 
     /**
-     * Computes the forward pass of the DistMult model.
+     * Performs the DistMult forward pass, computing scores for input triples.
      *
-     * @param parameterStore The parameter store.
-     * @param inputs The input NDList.
-     * @param training Whether the model is in training mode.
-     * @param params Additional parameters.
-     * @return The output NDList.
+     * Computes scores for the first NDList element (positive triples) and, if present, for the second element (negative triples),
+     * returning an NDList with one or two NDArrays of per-triple scores.
+     *
+     * @param inputs NDList where inputs[0] contains triples as rows of (head, relation, tail) and inputs[1] (optional) contains additional triples to score.
+     * @return NDList containing one NDArray of scores for each provided input (one or two elements).
      */
     @Override
     override fun forwardInternal(
@@ -82,12 +82,17 @@ class DistMult(
     }
 
     /**
-     * Applies the DistMult scoring function.
+     * Compute DistMult scores for a batch of triples.
      *
-     * @param input The input NDArray.
-     * @param entities The entities NDArray.
-     * @param edges The edges NDArray.
-     * @return The output NDArray.
+     * The input must contain triples of indices in the order [head, relation, tail] for each triple;
+     * it may be shaped (numTriples, 3) or flattened as a multiple of 3. Each returned value is the
+     * scalar DistMult score for the corresponding triple.
+     *
+     * @param input NDArray containing triple indices (head, relation, tail) as described above.
+     * @param entities Entity embedding matrix with shape (numEnt, dim); rows map entity IDs to embeddings.
+     * @param edges Relation embedding matrix with shape (numEdge, dim); rows map relation IDs to embeddings.
+     * @return An NDArray of shape (numTriples) where each entry is the sum over the elementwise product
+     *         of the head, relation, and tail embeddings for that triple.
      */
     fun model(
         input: NDArray,
@@ -109,6 +114,12 @@ class DistMult(
         return heads.mul(relations).mul(tails).sum(sumAxis)
     }
 
+    /**
+     * Compute the block's output shape(s) from the provided input shape(s) by counting triples in the first input.
+     *
+     * @param inputs Array of input shapes; the number of triples is computed as inputs[0].size() / 3.
+     * @return An array containing a single Shape(numTriples), or two identical Shape(numTriples) entries when two inputs are provided.
+     */
     @Override
     /**
      * Computes output shapes for the provided input shapes.
@@ -127,18 +138,18 @@ class DistMult(
     }
 
     /**
-     * Returns the entities NDArray.
+     * Retrieves the entity embedding matrix.
      *
-     * @return The entities NDArray.
+     * @return The entity embeddings as an NDArray with shape (numEnt, dim).
      */
     fun getEntities(): NDArray {
         return getParameters().get("entities").array
     }
 
     /**
-     * Returns the edges NDArray.
+     * Accesses the NDArray that stores relation (edge) embeddings.
      *
-     * @return The edges NDArray.
+     * @return The relation embeddings NDArray with shape (numEdge, dim).
      */
     fun getEdges(): NDArray {
         return getParameters().get("edges").array

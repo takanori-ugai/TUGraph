@@ -18,6 +18,14 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /** Runs a TransE training example with training and validation datasets. */
+/**
+ * Entry point that constructs a small TransE example, trains it on a toy dataset, and prints metrics and predictions.
+ *
+ * The function creates feature and label tensors, builds training and validation datasets, initializes a TransE
+ * model, configures training (L2 loss, SGD optimizer, devices, and logging), runs training for `NEPOCH` epochs,
+ * and prints the training result, metric names, a specific L2 loss metric value, the model's edges and entities,
+ * and predictions for the training inputs and a small test input.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val input = manager.create(longArrayOf(2, 0, 1, 2, 1, 3, 0, 0, 1, 0, 1, 2), Shape(4, 3))

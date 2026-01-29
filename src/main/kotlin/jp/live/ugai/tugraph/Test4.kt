@@ -9,6 +9,12 @@ import java.io.InputStream
 import java.io.InputStreamReader
 
 /** Parses a CSV sample into NDArrays for inspection. */
+/**
+ * Reads numeric rows from data/sample.csv, accumulates them into a single INT64 NDArray, and prints per-row and summary outputs.
+ *
+ * Each CSV record is parsed into a List<Long>, appended to an in-memory list, and concatenated onto an NDArray.
+ * After processing, prints whether the list [0, 0, 1] is present and prints the NDArray reshaped to (number of rows, columns).
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         var input = manager.zeros(Shape(0), DataType.INT64)
