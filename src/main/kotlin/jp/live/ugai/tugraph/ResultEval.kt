@@ -60,15 +60,10 @@ class ResultEval(
         }
     }
 
-    private enum class TransEMode {
-        TAIL,
-        HEAD,
-    }
-
     private fun computeRanksTransE(
         evalBatchSize: Int,
         entityChunkSize: Int,
-        mode: TransEMode,
+        mode: EvalMode,
         buildBatch: (start: Int, end: Int) -> EvalBatch,
     ): List<Int> {
         val transe = transE ?: return emptyList()
@@ -90,7 +85,7 @@ class ResultEval(
                 try {
                     val baseEmb =
                         when (mode) {
-                            TransEMode.TAIL -> {
+                            EvalMode.TAIL -> {
                                 val heads = entities.get(baseCol0)
                                 val rels = edges.get(baseCol1)
                                 try {
@@ -100,7 +95,7 @@ class ResultEval(
                                     rels.close()
                                 }
                             }
-                            TransEMode.HEAD -> {
+                            EvalMode.HEAD -> {
                                 val rels = edges.get(baseCol0)
                                 val tails = entities.get(baseCol1)
                                 try {
@@ -225,7 +220,17 @@ class ResultEval(
                     val fixed = entities.get(fixedIds)
                     val baseMul = fixed.mul(rels)
                     val trueEmb = entities.get(trueIdsFlat)
-                    val trueScore = baseMul.mul(trueEmb).sum(intArrayOf(1)).reshape(batchSize.toLong(), 1)
+                    var trueScore: NDArray? = null
+                    var trueMul: NDArray? = null
+                    var trueSum: NDArray? = null
+                    try {
+                        trueMul = baseMul.mul(trueEmb)
+                        trueSum = trueMul.sum(intArrayOf(1))
+                        trueScore = trueSum.reshape(batchSize.toLong(), 1)
+                    } finally {
+                        trueSum?.close()
+                        trueMul?.close()
+                    }
                     val countBetter = baseMul.manager.zeros(Shape(batchSize.toLong()), DataType.INT64)
                     try {
                         var chunkStart = 0
@@ -264,7 +269,7 @@ class ResultEval(
                         }
                     } finally {
                         countBetter.close()
-                        trueScore.close()
+                        trueScore?.close()
                         trueEmb.close()
                         baseMul.close()
                         fixed.close()
@@ -348,8 +353,20 @@ class ResultEval(
                     val trueEmb = entities.get(trueIdsFlat)
                     val tRe = trueEmb.get(realIndex)
                     val tIm = trueEmb.get(imagIndex)
-                    val trueScore =
-                        a.mul(tRe).add(b.mul(tIm)).sum(intArrayOf(1)).reshape(batchSize.toLong(), 1)
+                    var trueScore: NDArray? = null
+                    var trueMulRe: NDArray? = null
+                    var trueMulIm: NDArray? = null
+                    var trueSum: NDArray? = null
+                    try {
+                        trueMulRe = a.mul(tRe)
+                        trueMulIm = b.mul(tIm)
+                        trueSum = trueMulRe.add(trueMulIm)
+                        trueScore = trueSum.sum(intArrayOf(1)).reshape(batchSize.toLong(), 1)
+                    } finally {
+                        trueSum?.close()
+                        trueMulIm?.close()
+                        trueMulRe?.close()
+                    }
                     val countBetter = a.manager.zeros(Shape(batchSize.toLong()), DataType.INT64)
                     try {
                         var chunkStart = 0
@@ -398,7 +415,7 @@ class ResultEval(
                         }
                     } finally {
                         countBetter.close()
-                        trueScore.close()
+                        trueScore?.close()
                         tIm.close()
                         tRe.close()
                         trueEmb.close()
@@ -484,13 +501,23 @@ class ResultEval(
                                 } else {
                                     relEmb.sub(tailProj)
                                 }
-                            val trueScore =
-                                if (mode == EvalMode.TAIL) {
-                                    base.sub(tailProj).abs().sum(intArrayOf(1))
-                                } else {
-                                    base.add(headProj).abs().sum(intArrayOf(1))
-                                }
-                            val trueScore2d = trueScore.reshape(idxArr.size.toLong(), 1)
+                            var trueScore: NDArray? = null
+                            var trueDiff: NDArray? = null
+                            var trueAbs: NDArray? = null
+                            try {
+                                trueDiff =
+                                    if (mode == EvalMode.TAIL) {
+                                        base.sub(tailProj)
+                                    } else {
+                                        base.add(headProj)
+                                    }
+                                trueAbs = trueDiff.abs()
+                                trueScore = trueAbs.sum(intArrayOf(1))
+                            } finally {
+                                trueAbs?.close()
+                                trueDiff?.close()
+                            }
+                            val trueScore2d = trueScore!!.reshape(idxArr.size.toLong(), 1)
                             val countBetter = base.manager.zeros(Shape(idxArr.size.toLong()), DataType.INT64)
                             try {
                                 var chunkStart = 0
@@ -700,7 +727,7 @@ class ResultEval(
         val ranks =
             when {
                 transE != null ->
-                    computeRanksTransE(evalBatchSize, entityChunkSize, TransEMode.TAIL, buildBatch)
+                    computeRanksTransE(evalBatchSize, entityChunkSize, EvalMode.TAIL, buildBatch)
                 transR != null ->
                     computeRanksTransR(evalBatchSize, entityChunkSize, EvalMode.TAIL, buildBatch)
                 distMult != null ->
@@ -786,7 +813,7 @@ class ResultEval(
         val ranks =
             when {
                 transE != null ->
-                    computeRanksTransE(evalBatchSize, entityChunkSize, TransEMode.HEAD, buildBatch)
+                    computeRanksTransE(evalBatchSize, entityChunkSize, EvalMode.HEAD, buildBatch)
                 transR != null ->
                     computeRanksTransR(evalBatchSize, entityChunkSize, EvalMode.HEAD, buildBatch)
                 distMult != null ->

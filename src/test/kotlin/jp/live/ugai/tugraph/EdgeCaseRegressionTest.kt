@@ -327,7 +327,13 @@ class EdgeCaseRegressionTest {
 
         val inputList = mutableListOf<LongArray>()
         for (i in 0 until 20) {
-            inputList.add(longArrayOf(i % 10, i % 5, (i + 1) % 20))
+            inputList.add(
+                longArrayOf(
+                    (i % 10).toLong(),
+                    (i % 5).toLong(),
+                    ((i + 1) % 20).toLong(),
+                ),
+            )
         }
 
         val resultEval =
