@@ -20,6 +20,9 @@ const val NEGATIVE_RESAMPLE_CAP = 10
 /** Batch size for ResultEval scoring. */
 const val RESULT_EVAL_BATCH_SIZE = 8
 
+/** Chunk size for entity candidates during ResultEval scoring to limit memory use. */
+const val RESULT_EVAL_ENTITY_CHUNK_SIZE = 10000
+
 /** Run validation every N epochs during training. */
 const val EVAL_EVERY = 5
 

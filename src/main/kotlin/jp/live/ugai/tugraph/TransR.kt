@@ -214,6 +214,15 @@ class TransR(
     }
 
     /**
+     * Returns the relation projection matrices.
+     *
+     * @return NDArray of shape (numEdge, relDim, entDim).
+     */
+    fun getMatrix(): NDArray {
+        return getParameters().get("matrix").array
+    }
+
+    /**
      * Normalize entity and relation embedding rows to unit length.
      *
      * Each row of the entity and relation parameter matrices is divided in place by its L2 norm,
