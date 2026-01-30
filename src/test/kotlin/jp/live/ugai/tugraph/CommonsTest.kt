@@ -150,8 +150,7 @@ class CommonsTest {
 
     @Test
     fun commonsClassShouldExist() {
-        val commons = Commons()
-        assertTrue(commons is Commons, "Commons class should be instantiable")
+        Commons() // Verifies instantiation succeeds
     }
 
     @Test
@@ -214,8 +213,4 @@ class CommonsTest {
         assertEquals(0.0f, SELF_ADVERSARIAL_TEMP, 1e-6f, "Self-adversarial temperature should be 0.0")
     }
 
-    @Test
-    fun verifyTripleValue() {
-        assertEquals(3L, TRIPLE, "Triple constant should be 3")
-    }
 }

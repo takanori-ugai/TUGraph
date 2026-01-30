@@ -701,7 +701,11 @@ class ResultEval(
             val tailIds = IntArray(batchSize)
             for (i in 0 until batchSize) {
                 val triple = inputList[start + i]
-                headArr[i] = triple[0]
+                val headId = triple[0].toInt()
+                require(headId in 0 until numEntities.toInt()) {
+                    "Head id out of range: $headId (numEntities=$numEntities)."
+                }
+                headArr[i] = headId.toLong()
                 relArr[i] = triple[1]
                 val tailId = triple[2].toInt()
                 require(tailId in 0 until numEntities.toInt()) {
@@ -788,7 +792,11 @@ class ResultEval(
             for (i in 0 until batchSize) {
                 val triple = inputList[start + i]
                 relArr[i] = triple[1]
-                tailArr[i] = triple[2]
+                val tailId = triple[2].toInt()
+                require(tailId in 0 until numEntities.toInt()) {
+                    "Tail id out of range: $tailId (numEntities=$numEntities)."
+                }
+                tailArr[i] = tailId.toLong()
                 val headId = triple[0].toInt()
                 require(headId in 0 until numEntities.toInt()) {
                     "Head id out of range: $headId (numEntities=$numEntities)."
