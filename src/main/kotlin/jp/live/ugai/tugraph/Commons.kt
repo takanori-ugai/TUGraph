@@ -20,6 +20,9 @@ const val NEGATIVE_RESAMPLE_CAP = 10
 /** Batch size for ResultEval scoring. */
 const val RESULT_EVAL_BATCH_SIZE = 8
 
+/** Run validation every N epochs during training. */
+const val EVAL_EVERY = 5
+
 /** L2 regularization weight for DistMult embeddings. */
 const val DISTMULT_L2 = 1.0e-4f
 
