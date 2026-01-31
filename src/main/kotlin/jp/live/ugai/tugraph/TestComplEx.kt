@@ -71,7 +71,15 @@ fun main() {
         val test = manager.create(longArrayOf(1, 1, 2))
         println(predictor.predict(NDList(test)).singletonOrThrow())
 
-        val result = ResultEval(inputList, manager.newSubManager(), predictor, numEntities, higherIsBetter = true)
+        val result =
+            ResultEval(
+                inputList,
+                manager.newSubManager(),
+                predictor,
+                numEntities,
+                higherIsBetter = true,
+                complEx = complex,
+            )
         println("Tail")
         result.getTailResult().forEach {
             println("${it.key} : ${it.value}")

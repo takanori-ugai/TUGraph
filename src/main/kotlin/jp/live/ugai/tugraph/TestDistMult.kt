@@ -70,7 +70,15 @@ fun main() {
             println(predictor.predict(NDList(it)).singletonOrThrow())
         }
 
-        val result = ResultEval(inputList, manager.newSubManager(), predictor, numEntities, higherIsBetter = true)
+        val result =
+            ResultEval(
+                inputList,
+                manager.newSubManager(),
+                predictor,
+                numEntities,
+                higherIsBetter = true,
+                distMult = distMult,
+            )
         println("Tail")
         result.getTailResult().forEach {
             println("${it.key} : ${it.value}")
