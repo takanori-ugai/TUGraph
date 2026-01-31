@@ -56,7 +56,9 @@ class Matryoshka(
             require(dim <= maxDim) { "dim $dim exceeds embedding dimension $maxDim." }
             val l = left.get(NDIndex(":, 0:$dim"))
             val r = right.get(NDIndex(":, 0:$dim"))
-            val score = l.mul(r).sum(intArrayOf(1))
+            val product = l.mul(r)
+            val score = product.sum(intArrayOf(1))
+            product.close()
             outputs.add(score)
             l.close()
             r.close()

@@ -24,6 +24,12 @@ class EmbeddingTrainer(
     private val trainer: Trainer,
     private val epoch: Int,
 ) {
+    private data class MatryoshkaConfig(
+        val dims: LongArray,
+        val weights: FloatArray,
+        val entities: NDArray,
+        val edges: NDArray,
+    )
     private val margin = 1.0f
     private val logger = org.slf4j.LoggerFactory.getLogger(EmbeddingTrainer::class.java)
 
@@ -470,26 +476,25 @@ class EmbeddingTrainer(
         useSimilarityLoss: Boolean,
         useSelfAdversarial: Boolean,
     ): NDArray {
-        val (dims, weights) =
+        val (dims, weights, entities, edges) =
             when (block) {
-                is RotatE -> MATRYOSHKA_ROTATE_DIMS to MATRYOSHKA_ROTATE_WEIGHTS
-                is QuatE -> MATRYOSHKA_QUATE_DIMS to MATRYOSHKA_QUATE_WEIGHTS
+                is RotatE ->
+                    MatryoshkaConfig(
+                        MATRYOSHKA_ROTATE_DIMS,
+                        MATRYOSHKA_ROTATE_WEIGHTS,
+                        block.getEntities(),
+                        block.getEdges(),
+                    )
+                is QuatE ->
+                    MatryoshkaConfig(
+                        MATRYOSHKA_QUATE_DIMS,
+                        MATRYOSHKA_QUATE_WEIGHTS,
+                        block.getEntities(),
+                        block.getEdges(),
+                    )
                 else -> throw IllegalStateException("Matryoshka loss used with unsupported block.")
             }
         require(dims.size == weights.size) { "Matryoshka dims and weights must have the same length." }
-
-        val entities =
-            when (block) {
-                is RotatE -> block.getEntities()
-                is QuatE -> block.getEntities()
-                else -> throw IllegalStateException("Matryoshka loss used with unsupported block.")
-            }
-        val edges =
-            when (block) {
-                is RotatE -> block.getEdges()
-                is QuatE -> block.getEdges()
-                else -> throw IllegalStateException("Matryoshka loss used with unsupported block.")
-            }
 
         val embDim = entities.shape[1]
         val usable = ArrayList<Pair<Long, Float>>(dims.size)
@@ -506,14 +511,14 @@ class EmbeddingTrainer(
             for ((dim, weight) in usable) {
                 val posScores =
                     when (block) {
-                        is RotatE -> rotateScores(sample, entities, edges, dim)
-                        is QuatE -> quatScores(sample, entities, edges, dim)
+                        is RotatE -> block.score(sample, entities, edges, dim)
+                        is QuatE -> block.score(sample, entities, edges, dim)
                         else -> throw IllegalStateException("Matryoshka loss used with unsupported block.")
                     }
                 val negScores =
                     when (block) {
-                        is RotatE -> rotateScores(negativeSample, entities, edges, dim)
-                        is QuatE -> quatScores(negativeSample, entities, edges, dim)
+                        is RotatE -> block.score(negativeSample, entities, edges, dim)
+                        is QuatE -> block.score(negativeSample, entities, edges, dim)
                         else -> throw IllegalStateException("Matryoshka loss used with unsupported block.")
                     }
                 val negReshaped = negScores.reshape(posScores.shape[0], numNegatives.toLong())
@@ -540,200 +545,4 @@ class EmbeddingTrainer(
         }
     }
 
-    private fun rotateScores(
-        input: NDArray,
-        entities: NDArray,
-        edges: NDArray,
-        totalDim: Long,
-    ): NDArray {
-        require(totalDim % 2L == 0L) { "RotatE totalDim must be even, was $totalDim." }
-        val numTriples = input.size() / TRIPLE
-        val realDim = totalDim / 2L
-        val headIndex = NDIndex(":, 0")
-        val relationIndex = NDIndex(":, 1")
-        val tailIndex = NDIndex(":, 2")
-        val realIndex = NDIndex(":, 0:$realDim")
-        val imagIndex = NDIndex(":, $realDim:$totalDim")
-        val sumAxis = intArrayOf(1)
-        var triples: NDArray? = null
-        var headIds: NDArray? = null
-        var relationIds: NDArray? = null
-        var tailIds: NDArray? = null
-        var heads: NDArray? = null
-        var relations: NDArray? = null
-        var tails: NDArray? = null
-        var hRe: NDArray? = null
-        var hIm: NDArray? = null
-        var tRe: NDArray? = null
-        var tIm: NDArray? = null
-        var rPhase: NDArray? = null
-        var rCos: NDArray? = null
-        var rSin: NDArray? = null
-        var rotRe: NDArray? = null
-        var rotIm: NDArray? = null
-        var diffRe: NDArray? = null
-        var diffIm: NDArray? = null
-        var absRe: NDArray? = null
-        var absIm: NDArray? = null
-        var sum: NDArray? = null
-        try {
-            triples = input.reshape(numTriples, TRIPLE)
-            headIds = triples.get(headIndex)
-            relationIds = triples.get(relationIndex)
-            tailIds = triples.get(tailIndex)
-
-            heads = entities.get(headIds)
-            relations = edges.get(relationIds)
-            tails = entities.get(tailIds)
-
-            hRe = heads.get(realIndex)
-            hIm = heads.get(imagIndex)
-            tRe = tails.get(realIndex)
-            tIm = tails.get(imagIndex)
-            rPhase = relations.get(NDIndex(":, 0:$realDim"))
-            rCos = rPhase.cos()
-            rSin = rPhase.sin()
-            rotRe = hRe.mul(rCos).sub(hIm.mul(rSin))
-            rotIm = hRe.mul(rSin).add(hIm.mul(rCos))
-            diffRe = rotRe.sub(tRe)
-            diffIm = rotIm.sub(tIm)
-            absRe = diffRe.abs()
-            absIm = diffIm.abs()
-            sum = absRe.add(absIm)
-            return sum.sum(sumAxis)
-        } finally {
-            sum?.close()
-            absIm?.close()
-            absRe?.close()
-            diffIm?.close()
-            diffRe?.close()
-            rotIm?.close()
-            rotRe?.close()
-            rSin?.close()
-            rCos?.close()
-            rPhase?.close()
-            tIm?.close()
-            tRe?.close()
-            hIm?.close()
-            hRe?.close()
-            tails?.close()
-            relations?.close()
-            heads?.close()
-            tailIds?.close()
-            relationIds?.close()
-            headIds?.close()
-            triples?.close()
-        }
-    }
-
-    private fun quatScores(
-        input: NDArray,
-        entities: NDArray,
-        edges: NDArray,
-        totalDim: Long,
-    ): NDArray {
-        require(totalDim % 4L == 0L) { "QuatE totalDim must be divisible by 4, was $totalDim." }
-        val numTriples = input.size() / TRIPLE
-        val compDim = totalDim / 4L
-        val headIndex = NDIndex(":, 0")
-        val relationIndex = NDIndex(":, 1")
-        val tailIndex = NDIndex(":, 2")
-        val rIndex = NDIndex(":, 0:$compDim")
-        val iIndex = NDIndex(":, $compDim:${compDim * 2}")
-        val jIndex = NDIndex(":, ${compDim * 2}:${compDim * 3}")
-        val kIndex = NDIndex(":, ${compDim * 3}:$totalDim")
-        val sumAxis = intArrayOf(1)
-        var triples: NDArray? = null
-        var headIds: NDArray? = null
-        var relationIds: NDArray? = null
-        var tailIds: NDArray? = null
-        var heads: NDArray? = null
-        var relations: NDArray? = null
-        var tails: NDArray? = null
-        var hR: NDArray? = null
-        var hI: NDArray? = null
-        var hJ: NDArray? = null
-        var hK: NDArray? = null
-        var rR: NDArray? = null
-        var rI: NDArray? = null
-        var rJ: NDArray? = null
-        var rK: NDArray? = null
-        var tR: NDArray? = null
-        var tI: NDArray? = null
-        var tJ: NDArray? = null
-        var tK: NDArray? = null
-        var hrR: NDArray? = null
-        var hrI: NDArray? = null
-        var hrJ: NDArray? = null
-        var hrK: NDArray? = null
-        var dotR: NDArray? = null
-        var dotI: NDArray? = null
-        var dotJ: NDArray? = null
-        var dotK: NDArray? = null
-        var sum: NDArray? = null
-        try {
-            triples = input.reshape(numTriples, TRIPLE)
-            headIds = triples.get(headIndex)
-            relationIds = triples.get(relationIndex)
-            tailIds = triples.get(tailIndex)
-
-            heads = entities.get(headIds)
-            relations = edges.get(relationIds)
-            tails = entities.get(tailIds)
-
-            hR = heads.get(rIndex)
-            hI = heads.get(iIndex)
-            hJ = heads.get(jIndex)
-            hK = heads.get(kIndex)
-            rR = relations.get(rIndex)
-            rI = relations.get(iIndex)
-            rJ = relations.get(jIndex)
-            rK = relations.get(kIndex)
-            tR = tails.get(rIndex)
-            tI = tails.get(iIndex)
-            tJ = tails.get(jIndex)
-            tK = tails.get(kIndex)
-
-            hrR = hR.mul(rR).sub(hI.mul(rI)).sub(hJ.mul(rJ)).sub(hK.mul(rK))
-            hrI = hR.mul(rI).add(hI.mul(rR)).add(hJ.mul(rK)).sub(hK.mul(rJ))
-            hrJ = hR.mul(rJ).sub(hI.mul(rK)).add(hJ.mul(rR)).add(hK.mul(rI))
-            hrK = hR.mul(rK).add(hI.mul(rJ)).sub(hJ.mul(rI)).add(hK.mul(rR))
-
-            dotR = hrR.mul(tR)
-            dotI = hrI.mul(tI)
-            dotJ = hrJ.mul(tJ)
-            dotK = hrK.mul(tK)
-            sum = dotR.add(dotI).add(dotJ).add(dotK)
-            return sum.sum(sumAxis)
-        } finally {
-            sum?.close()
-            dotK?.close()
-            dotJ?.close()
-            dotI?.close()
-            dotR?.close()
-            hrK?.close()
-            hrJ?.close()
-            hrI?.close()
-            hrR?.close()
-            tK?.close()
-            tJ?.close()
-            tI?.close()
-            tR?.close()
-            rK?.close()
-            rJ?.close()
-            rI?.close()
-            rR?.close()
-            hK?.close()
-            hJ?.close()
-            hI?.close()
-            hR?.close()
-            tails?.close()
-            relations?.close()
-            heads?.close()
-            tailIds?.close()
-            relationIds?.close()
-            headIds?.close()
-            triples?.close()
-        }
-    }
 }

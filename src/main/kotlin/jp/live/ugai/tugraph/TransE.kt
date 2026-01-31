@@ -97,43 +97,24 @@ class TransE(
         edges: NDArray,
     ): NDArray {
         val numTriples = input.size() / TRIPLE
-        var triples: NDArray? = null
-        var headIds: NDArray? = null
-        var relationIds: NDArray? = null
-        var tailIds: NDArray? = null
-        var heads: NDArray? = null
-        var tails: NDArray? = null
-        var relations: NDArray? = null
-        var sum: NDArray? = null
-        var diff: NDArray? = null
-        var abs: NDArray? = null
-        try {
-            triples = input.reshape(numTriples, TRIPLE)
+        val parent = input.manager
+        return parent.newSubManager().use { sm ->
+            val triples = input.reshape(numTriples, TRIPLE).also { it.attach(sm) }
 
             // Gather embeddings for head, relation, and tail entities
-            headIds = triples.get(headIndex)
-            relationIds = triples.get(relationIndex)
-            tailIds = triples.get(tailIndex)
-            heads = entities.get(headIds)
-            tails = entities.get(tailIds)
-            relations = edges.get(relationIds)
+            val headIds = triples.get(headIndex).also { it.attach(sm) }
+            val relationIds = triples.get(relationIndex).also { it.attach(sm) }
+            val tailIds = triples.get(tailIndex).also { it.attach(sm) }
+            val heads = entities.get(headIds).also { it.attach(sm) }
+            val tails = entities.get(tailIds).also { it.attach(sm) }
+            val relations = edges.get(relationIds).also { it.attach(sm) }
 
             // TransE energy: d(h + r, t) with L1 distance
-            sum = heads.add(relations)
-            diff = sum.sub(tails)
-            abs = diff.abs()
-            return abs.sum(sumAxis)
-        } finally {
-            abs?.close()
-            diff?.close()
-            sum?.close()
-            relations?.close()
-            tails?.close()
-            heads?.close()
-            tailIds?.close()
-            relationIds?.close()
-            headIds?.close()
-            triples?.close()
+            val sum = heads.add(relations).also { it.attach(sm) }
+            val diff = sum.sub(tails).also { it.attach(sm) }
+            val abs = diff.abs().also { it.attach(sm) }
+            val result = abs.sum(sumAxis).also { it.attach(parent) }
+            result
         }
     }
 

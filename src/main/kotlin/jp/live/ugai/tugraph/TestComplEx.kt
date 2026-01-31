@@ -8,7 +8,6 @@ import ai.djl.ndarray.types.DataType
 import ai.djl.training.DefaultTrainingConfig
 import ai.djl.training.listener.EpochTrainingListener
 import ai.djl.training.loss.Loss
-import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 

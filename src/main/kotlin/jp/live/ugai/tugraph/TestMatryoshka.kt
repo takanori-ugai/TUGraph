@@ -75,7 +75,7 @@ fun main() {
         val predictor = model.newPredictor(NoopTranslator())
 
         // Matryoshka scores using nested dimensions on entity embeddings.
-        val matryoshkaDims = longArrayOf(DIMENSION, DIMENSION * 2, DIMENSION * 4)
+        val matryoshkaDims = MATRYOSHKA_QUATE_DIMS
         val matryoshka = Matryoshka(matryoshkaDims)
         val firstBatch = input.get("0:${minOf(4, numOfTriples.toInt())}, :")
         firstBatch.use { batch ->

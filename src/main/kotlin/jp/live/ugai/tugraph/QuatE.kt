@@ -100,99 +100,70 @@ class QuatE(
         entities: NDArray,
         edges: NDArray,
     ): NDArray {
+        return score(input, entities, edges, dim * 4)
+    }
+
+    /**
+     * Compute QuatE scores for a batch of triples with a configurable total embedding dimension.
+     *
+     * The score is the inner product between (h ⊗ r) and t (higher is better).
+     *
+     * @param input NDArray of triples where each row is (head, relation, tail) indices.
+     * @param entities NDArray of entity embeddings with quaternion components concatenated.
+     * @param edges NDArray of relation embeddings with quaternion components concatenated.
+     * @param totalDim Total number of entity embedding dimensions to use (must be divisible by 4).
+     * @return An NDArray of shape (numTriples) containing the QuatE score for each triple.
+     */
+    fun score(
+        input: NDArray,
+        entities: NDArray,
+        edges: NDArray,
+        totalDim: Long,
+    ): NDArray {
+        require(totalDim % 4L == 0L) { "QuatE totalDim must be divisible by 4, was $totalDim." }
         val numTriples = input.size() / TRIPLE
-        var triples: NDArray? = null
-        var headIds: NDArray? = null
-        var relationIds: NDArray? = null
-        var tailIds: NDArray? = null
-        var heads: NDArray? = null
-        var relations: NDArray? = null
-        var tails: NDArray? = null
-        var hR: NDArray? = null
-        var hI: NDArray? = null
-        var hJ: NDArray? = null
-        var hK: NDArray? = null
-        var rR: NDArray? = null
-        var rI: NDArray? = null
-        var rJ: NDArray? = null
-        var rK: NDArray? = null
-        var tR: NDArray? = null
-        var tI: NDArray? = null
-        var tJ: NDArray? = null
-        var tK: NDArray? = null
-        var hrR: NDArray? = null
-        var hrI: NDArray? = null
-        var hrJ: NDArray? = null
-        var hrK: NDArray? = null
-        var dotR: NDArray? = null
-        var dotI: NDArray? = null
-        var dotJ: NDArray? = null
-        var dotK: NDArray? = null
-        var sum: NDArray? = null
-        try {
-            triples = input.reshape(numTriples, TRIPLE)
-            headIds = triples.get(headIndex)
-            relationIds = triples.get(relationIndex)
-            tailIds = triples.get(tailIndex)
+        val compDim = totalDim / 4L
+        val rIndex = NDIndex(":, 0:$compDim")
+        val iIndex = NDIndex(":, $compDim:${compDim * 2}")
+        val jIndex = NDIndex(":, ${compDim * 2}:${compDim * 3}")
+        val kIndex = NDIndex(":, ${compDim * 3}:$totalDim")
+        val parent = input.manager
+        return parent.newSubManager().use { sm ->
+            val triples = input.reshape(numTriples, TRIPLE).also { it.attach(sm) }
+            val headIds = triples.get(headIndex).also { it.attach(sm) }
+            val relationIds = triples.get(relationIndex).also { it.attach(sm) }
+            val tailIds = triples.get(tailIndex).also { it.attach(sm) }
 
-            heads = entities.get(headIds)
-            relations = edges.get(relationIds)
-            tails = entities.get(tailIds)
+            val heads = entities.get(headIds).also { it.attach(sm) }
+            val relations = edges.get(relationIds).also { it.attach(sm) }
+            val tails = entities.get(tailIds).also { it.attach(sm) }
 
-            hR = heads.get(rIndex)
-            hI = heads.get(iIndex)
-            hJ = heads.get(jIndex)
-            hK = heads.get(kIndex)
-            rR = relations.get(rIndex)
-            rI = relations.get(iIndex)
-            rJ = relations.get(jIndex)
-            rK = relations.get(kIndex)
-            tR = tails.get(rIndex)
-            tI = tails.get(iIndex)
-            tJ = tails.get(jIndex)
-            tK = tails.get(kIndex)
+            val hR = heads.get(rIndex).also { it.attach(sm) }
+            val hI = heads.get(iIndex).also { it.attach(sm) }
+            val hJ = heads.get(jIndex).also { it.attach(sm) }
+            val hK = heads.get(kIndex).also { it.attach(sm) }
+            val rR = relations.get(rIndex).also { it.attach(sm) }
+            val rI = relations.get(iIndex).also { it.attach(sm) }
+            val rJ = relations.get(jIndex).also { it.attach(sm) }
+            val rK = relations.get(kIndex).also { it.attach(sm) }
+            val tR = tails.get(rIndex).also { it.attach(sm) }
+            val tI = tails.get(iIndex).also { it.attach(sm) }
+            val tJ = tails.get(jIndex).also { it.attach(sm) }
+            val tK = tails.get(kIndex).also { it.attach(sm) }
 
             // Hamilton product h ⊗ r
-            hrR = hR.mul(rR).sub(hI.mul(rI)).sub(hJ.mul(rJ)).sub(hK.mul(rK))
-            hrI = hR.mul(rI).add(hI.mul(rR)).add(hJ.mul(rK)).sub(hK.mul(rJ))
-            hrJ = hR.mul(rJ).sub(hI.mul(rK)).add(hJ.mul(rR)).add(hK.mul(rI))
-            hrK = hR.mul(rK).add(hI.mul(rJ)).sub(hJ.mul(rI)).add(hK.mul(rR))
+            val hrR = hR.mul(rR).sub(hI.mul(rI)).sub(hJ.mul(rJ)).sub(hK.mul(rK)).also { it.attach(sm) }
+            val hrI = hR.mul(rI).add(hI.mul(rR)).add(hJ.mul(rK)).sub(hK.mul(rJ)).also { it.attach(sm) }
+            val hrJ = hR.mul(rJ).sub(hI.mul(rK)).add(hJ.mul(rR)).add(hK.mul(rI)).also { it.attach(sm) }
+            val hrK = hR.mul(rK).add(hI.mul(rJ)).sub(hJ.mul(rI)).add(hK.mul(rR)).also { it.attach(sm) }
 
-            dotR = hrR.mul(tR)
-            dotI = hrI.mul(tI)
-            dotJ = hrJ.mul(tJ)
-            dotK = hrK.mul(tK)
-            sum = dotR.add(dotI).add(dotJ).add(dotK)
-            return sum.sum(sumAxis)
-        } finally {
-            sum?.close()
-            dotK?.close()
-            dotJ?.close()
-            dotI?.close()
-            dotR?.close()
-            hrK?.close()
-            hrJ?.close()
-            hrI?.close()
-            hrR?.close()
-            tK?.close()
-            tJ?.close()
-            tI?.close()
-            tR?.close()
-            rK?.close()
-            rJ?.close()
-            rI?.close()
-            rR?.close()
-            hK?.close()
-            hJ?.close()
-            hI?.close()
-            hR?.close()
-            tails?.close()
-            relations?.close()
-            heads?.close()
-            tailIds?.close()
-            relationIds?.close()
-            headIds?.close()
-            triples?.close()
+            val dotR = hrR.mul(tR).also { it.attach(sm) }
+            val dotI = hrI.mul(tI).also { it.attach(sm) }
+            val dotJ = hrJ.mul(tJ).also { it.attach(sm) }
+            val dotK = hrK.mul(tK).also { it.attach(sm) }
+            val sum = dotR.add(dotI).add(dotJ).add(dotK).also { it.attach(sm) }
+            val result = sum.sum(sumAxis).also { it.attach(parent) }
+            result
         }
     }
 

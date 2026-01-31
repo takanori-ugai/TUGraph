@@ -83,106 +83,60 @@ class ResultEval(
                 val basePair = batch.basePair
                 val trueEntityCol = batch.trueEntityCol
                 val batchSize = batch.batchSize
-                val baseCol0 = basePair.get(col0Index)
-                val baseCol1 = basePair.get(col1Index)
-                val trueIdsFlat = trueEntityCol.reshape(batchSize.toLong())
-                try {
+                manager.newSubManager().use { batchManager ->
+                    val baseCol0 = basePair.get(col0Index).also { it.attach(batchManager) }
+                    val baseCol1 = basePair.get(col1Index).also { it.attach(batchManager) }
+                    val trueIdsFlat =
+                        trueEntityCol.reshape(batchSize.toLong()).also { it.attach(batchManager) }
                     val baseEmb =
                         when (mode) {
                             EvalMode.TAIL -> {
-                                val heads = entities.get(baseCol0)
-                                val rels = edges.get(baseCol1)
-                                try {
-                                    heads.add(rels)
-                                } finally {
-                                    heads.close()
-                                    rels.close()
-                                }
+                                val heads = entities.get(baseCol0).also { it.attach(batchManager) }
+                                val rels = edges.get(baseCol1).also { it.attach(batchManager) }
+                                heads.add(rels).also { it.attach(batchManager) }
                             }
                             EvalMode.HEAD -> {
-                                val rels = edges.get(baseCol0)
-                                val tails = entities.get(baseCol1)
-                                try {
-                                    tails.sub(rels)
-                                } finally {
-                                    tails.close()
-                                    rels.close()
-                                }
+                                val rels = edges.get(baseCol0).also { it.attach(batchManager) }
+                                val tails = entities.get(baseCol1).also { it.attach(batchManager) }
+                                tails.sub(rels).also { it.attach(batchManager) }
                             }
                         }
-                    val trueEmb = entities.get(trueIdsFlat)
-                    var trueScore: NDArray? = null
-                    var diffTrue: NDArray? = null
-                    var absTrue: NDArray? = null
-                    try {
-                        diffTrue = baseEmb.sub(trueEmb)
-                        absTrue = diffTrue.abs()
-                        trueScore = absTrue.sum(intArrayOf(1)).reshape(batchSize.toLong(), 1)
-                    } finally {
-                        absTrue?.close()
-                        diffTrue?.close()
-                    }
-                    val countBetter = baseEmb.manager.zeros(Shape(batchSize.toLong()), DataType.INT64)
-                    try {
-                        val baseEmbExp = baseEmb.expandDims(1)
-                        var chunkStart = 0
-                        try {
-                            while (chunkStart < numEntities.toInt()) {
-                                val chunkEnd = minOf(chunkStart + chunkSize, numEntities.toInt())
-                                val entityChunk = entities.get(NDIndex("$chunkStart:$chunkEnd, :"))
-                                try {
-                                    val entityExp = entityChunk.expandDims(0)
-                                    var diff: NDArray? = null
-                                    var abs: NDArray? = null
-                                    var scores: NDArray? = null
-                                    try {
-                                        diff = baseEmbExp.sub(entityExp)
-                                        abs = diff.abs()
-                                        scores = abs.sum(intArrayOf(2))
+                    val trueEmb = entities.get(trueIdsFlat).also { it.attach(batchManager) }
+                    val trueScore =
+                        baseEmb.sub(trueEmb).abs().sum(intArrayOf(1)).reshape(batchSize.toLong(), 1)
+                            .also { it.attach(batchManager) }
+                    val countBetter = batchManager.zeros(Shape(batchSize.toLong()), DataType.INT64)
+                    val baseEmbExp = baseEmb.expandDims(1).also { it.attach(batchManager) }
+                    var chunkStart = 0
+                    while (chunkStart < numEntities.toInt()) {
+                        val chunkEnd = minOf(chunkStart + chunkSize, numEntities.toInt())
+                        entities.get(NDIndex("$chunkStart:$chunkEnd, :")).use { entityChunk ->
+                            val entityExp = entityChunk.expandDims(0)
+                            entityExp.use { ent ->
+                                val diff = baseEmbExp.sub(ent)
+                                diff.use { d ->
+                                    val scores = d.abs().sum(intArrayOf(2))
+                                    scores.use { sc ->
                                         val countBetterNd =
                                             if (higherIsBetter) {
-                                                scores.gt(trueScore!!).sum(intArrayOf(1))
+                                                sc.gt(trueScore).sum(intArrayOf(1))
                                             } else {
-                                                scores.lt(trueScore!!).sum(intArrayOf(1))
+                                                sc.lt(trueScore).sum(intArrayOf(1))
                                             }
-                                        try {
-                                            countBetter.addi(countBetterNd)
-                                        } finally {
-                                            countBetterNd.close()
-                                        }
-                                    } finally {
-                                        scores?.close()
-                                        abs?.close()
-                                        diff?.close()
-                                        entityExp.close()
+                                        countBetter.addi(countBetterNd)
+                                        countBetterNd.close()
                                     }
-                                } finally {
-                                    entityChunk.close()
                                 }
-                                chunkStart = chunkEnd
                             }
-                        } finally {
-                            baseEmbExp.close()
                         }
-                        val ranksNd = countBetter.add(1)
-                        try {
-                            val batchRanks = ranksNd.toLongArray()
-                            for (rank in batchRanks) {
-                                ranks.add(rank.toInt())
-                            }
-                        } finally {
-                            ranksNd.close()
-                        }
-                    } finally {
-                        countBetter.close()
-                        trueScore?.close()
-                        trueEmb.close()
-                        baseEmb.close()
+                        chunkStart = chunkEnd
                     }
-                } finally {
-                    trueIdsFlat.close()
-                    baseCol1.close()
-                    baseCol0.close()
+                    val ranksNd = countBetter.add(1)
+                    val batchRanks = ranksNd.toLongArray()
+                    ranksNd.close()
+                    for (rank in batchRanks) {
+                        ranks.add(rank.toInt())
+                    }
                 }
             }
             start = end
@@ -214,75 +168,47 @@ class ResultEval(
                 val basePair = batch.basePair
                 val trueEntityCol = batch.trueEntityCol
                 val batchSize = batch.batchSize
-                val baseCol0 = basePair.get(col0Index)
-                val baseCol1 = basePair.get(col1Index)
-                val trueIdsFlat = trueEntityCol.reshape(batchSize.toLong())
-                try {
+                manager.newSubManager().use { batchManager ->
+                    val baseCol0 = basePair.get(col0Index).also { it.attach(batchManager) }
+                    val baseCol1 = basePair.get(col1Index).also { it.attach(batchManager) }
+                    val trueIdsFlat =
+                        trueEntityCol.reshape(batchSize.toLong()).also { it.attach(batchManager) }
                     val relIds = if (mode == EvalMode.TAIL) baseCol1 else baseCol0
                     val fixedIds = if (mode == EvalMode.TAIL) baseCol0 else baseCol1
-                    val rels = edges.get(relIds)
-                    val fixed = entities.get(fixedIds)
-                    val baseMul = fixed.mul(rels)
-                    val trueEmb = entities.get(trueIdsFlat)
-                    var trueScore: NDArray? = null
-                    var trueMul: NDArray? = null
-                    var trueSum: NDArray? = null
-                    try {
-                        trueMul = baseMul.mul(trueEmb)
-                        trueSum = trueMul.sum(intArrayOf(1))
-                        trueScore = trueSum.reshape(batchSize.toLong(), 1)
-                    } finally {
-                        trueSum?.close()
-                        trueMul?.close()
-                    }
-                    val countBetter = baseMul.manager.zeros(Shape(batchSize.toLong()), DataType.INT64)
-                    try {
-                        var chunkStart = 0
-                        while (chunkStart < numEntities.toInt()) {
-                            val chunkEnd = minOf(chunkStart + chunkSize, numEntities.toInt())
-                            val entityChunk = entities.get(NDIndex("$chunkStart:$chunkEnd, :"))
-                            val entityChunkT = entityChunk.transpose()
-                            try {
+                    val rels = edges.get(relIds).also { it.attach(batchManager) }
+                    val fixed = entities.get(fixedIds).also { it.attach(batchManager) }
+                    val baseMul = fixed.mul(rels).also { it.attach(batchManager) }
+                    val trueEmb = entities.get(trueIdsFlat).also { it.attach(batchManager) }
+                    val trueScore =
+                        baseMul.mul(trueEmb).sum(intArrayOf(1)).reshape(batchSize.toLong(), 1)
+                            .also { it.attach(batchManager) }
+                    val countBetter = batchManager.zeros(Shape(batchSize.toLong()), DataType.INT64)
+                    var chunkStart = 0
+                    while (chunkStart < numEntities.toInt()) {
+                        val chunkEnd = minOf(chunkStart + chunkSize, numEntities.toInt())
+                        entities.get(NDIndex("$chunkStart:$chunkEnd, :")).use { entityChunk ->
+                            entityChunk.transpose().use { entityChunkT ->
                                 val scores = baseMul.matMul(entityChunkT)
-                                val countBetterNd =
-                                    if (higherIsBetter) {
-                                        scores.gt(trueScore).sum(intArrayOf(1))
-                                    } else {
-                                        scores.lt(trueScore).sum(intArrayOf(1))
-                                    }
-                                try {
+                                scores.use { sc ->
+                                    val countBetterNd =
+                                        if (higherIsBetter) {
+                                            sc.gt(trueScore).sum(intArrayOf(1))
+                                        } else {
+                                            sc.lt(trueScore).sum(intArrayOf(1))
+                                        }
                                     countBetter.addi(countBetterNd)
-                                } finally {
                                     countBetterNd.close()
                                 }
-                                scores.close()
-                            } finally {
-                                entityChunkT.close()
-                                entityChunk.close()
                             }
-                            chunkStart = chunkEnd
                         }
-                        val ranksNd = countBetter.add(1)
-                        try {
-                            val batchRanks = ranksNd.toLongArray()
-                            for (rank in batchRanks) {
-                                ranks.add(rank.toInt())
-                            }
-                        } finally {
-                            ranksNd.close()
-                        }
-                    } finally {
-                        countBetter.close()
-                        trueScore?.close()
-                        trueEmb.close()
-                        baseMul.close()
-                        fixed.close()
-                        rels.close()
+                        chunkStart = chunkEnd
                     }
-                } finally {
-                    trueIdsFlat.close()
-                    baseCol1.close()
-                    baseCol0.close()
+                    val ranksNd = countBetter.add(1)
+                    val batchRanks = ranksNd.toLongArray()
+                    ranksNd.close()
+                    for (rank in batchRanks) {
+                        ranks.add(rank.toInt())
+                    }
                 }
             }
             start = end
@@ -314,126 +240,75 @@ class ResultEval(
                 val basePair = batch.basePair
                 val trueEntityCol = batch.trueEntityCol
                 val batchSize = batch.batchSize
-                val baseCol0 = basePair.get(col0Index)
-                val baseCol1 = basePair.get(col1Index)
-                val trueIdsFlat = trueEntityCol.reshape(batchSize.toLong())
-                try {
+                manager.newSubManager().use { batchManager ->
+                    val baseCol0 = basePair.get(col0Index).also { it.attach(batchManager) }
+                    val baseCol1 = basePair.get(col1Index).also { it.attach(batchManager) }
+                    val trueIdsFlat =
+                        trueEntityCol.reshape(batchSize.toLong()).also { it.attach(batchManager) }
                     val relIds = if (mode == EvalMode.TAIL) baseCol1 else baseCol0
                     val fixedIds = if (mode == EvalMode.TAIL) baseCol0 else baseCol1
-                    val rels = edges.get(relIds)
-                    val fixed = entities.get(fixedIds)
-                    val rCos = rels.cos()
-                    val rSin = rels.sin()
-                    val fRe = fixed.get(realIndex)
-                    val fIm = fixed.get(imagIndex)
-                    val rotRe: NDArray
-                    val rotIm: NDArray
-                    try {
+                    val rels = edges.get(relIds).also { it.attach(batchManager) }
+                    val fixed = entities.get(fixedIds).also { it.attach(batchManager) }
+                    val rCos = rels.cos().also { it.attach(batchManager) }
+                    val rSin = rels.sin().also { it.attach(batchManager) }
+                    val fRe = fixed.get(realIndex).also { it.attach(batchManager) }
+                    val fIm = fixed.get(imagIndex).also { it.attach(batchManager) }
+                    val rotRe =
                         if (mode == EvalMode.TAIL) {
-                            rotRe = fRe.mul(rCos).sub(fIm.mul(rSin))
-                            rotIm = fRe.mul(rSin).add(fIm.mul(rCos))
+                            fRe.mul(rCos).sub(fIm.mul(rSin))
                         } else {
-                            rotRe = fRe.mul(rCos).add(fIm.mul(rSin))
-                            rotIm = fIm.mul(rCos).sub(fRe.mul(rSin))
-                        }
-                    } finally {
-                        fIm.close()
-                        fRe.close()
-                    }
-                    val trueEmb = entities.get(trueIdsFlat)
-                    val tRe = trueEmb.get(realIndex)
-                    val tIm = trueEmb.get(imagIndex)
-                    var trueScore: NDArray? = null
-                    var diffRe: NDArray? = null
-                    var diffIm: NDArray? = null
-                    var absRe: NDArray? = null
-                    var absIm: NDArray? = null
-                    try {
-                        diffRe = rotRe.sub(tRe)
-                        diffIm = rotIm.sub(tIm)
-                        absRe = diffRe.abs()
-                        absIm = diffIm.abs()
-                        trueScore = absRe.add(absIm).sum(intArrayOf(1)).reshape(batchSize.toLong(), 1)
-                    } finally {
-                        absIm?.close()
-                        absRe?.close()
-                        diffIm?.close()
-                        diffRe?.close()
-                        tIm.close()
-                        tRe.close()
-                        trueEmb.close()
-                    }
-                    val countBetter = rotRe.manager.zeros(Shape(batchSize.toLong()), DataType.INT64)
-                    try {
-                        val rotReExp = rotRe.expandDims(1)
-                        val rotImExp = rotIm.expandDims(1)
-                        try {
-                            var chunkStart = 0
-                            while (chunkStart < numEntities.toInt()) {
-                                val chunkEnd = minOf(chunkStart + chunkSize, numEntities.toInt())
-                                val entityChunk = entities.get(NDIndex("$chunkStart:$chunkEnd, :"))
-                                val eRe = entityChunk.get(realIndex)
-                                val eIm = entityChunk.get(imagIndex)
-                                val eReExp = eRe.expandDims(0)
-                                val eImExp = eIm.expandDims(0)
-                                try {
-                                    val diffReChunk = rotReExp.sub(eReExp)
-                                    val diffImChunk = rotImExp.sub(eImExp)
-                                    val absReChunk = diffReChunk.abs()
-                                    val absImChunk = diffImChunk.abs()
-                                    val scores = absReChunk.add(absImChunk).sum(intArrayOf(2))
-                                    val countBetterNd =
-                                        if (higherIsBetter) {
-                                            scores.gt(trueScore).sum(intArrayOf(1))
-                                        } else {
-                                            scores.lt(trueScore).sum(intArrayOf(1))
+                            fRe.mul(rCos).add(fIm.mul(rSin))
+                        }.also { it.attach(batchManager) }
+                    val rotIm =
+                        if (mode == EvalMode.TAIL) {
+                            fRe.mul(rSin).add(fIm.mul(rCos))
+                        } else {
+                            fIm.mul(rCos).sub(fRe.mul(rSin))
+                        }.also { it.attach(batchManager) }
+                    val trueEmb = entities.get(trueIdsFlat).also { it.attach(batchManager) }
+                    val tRe = trueEmb.get(realIndex).also { it.attach(batchManager) }
+                    val tIm = trueEmb.get(imagIndex).also { it.attach(batchManager) }
+                    val trueScore =
+                        rotRe.sub(tRe).abs().add(rotIm.sub(tIm).abs()).sum(intArrayOf(1))
+                            .reshape(batchSize.toLong(), 1)
+                            .also { it.attach(batchManager) }
+                    val countBetter = batchManager.zeros(Shape(batchSize.toLong()), DataType.INT64)
+                    var chunkStart = 0
+                    while (chunkStart < numEntities.toInt()) {
+                        val chunkEnd = minOf(chunkStart + chunkSize, numEntities.toInt())
+                        entities.get(NDIndex("$chunkStart:$chunkEnd, :")).use { entityChunk ->
+                            val eRe = entityChunk.get(realIndex)
+                            val eIm = entityChunk.get(imagIndex)
+                            eRe.use { re ->
+                                eIm.use { im ->
+                                    val diffRe = rotRe.expandDims(1).sub(re.expandDims(0))
+                                    val diffIm = rotIm.expandDims(1).sub(im.expandDims(0))
+                                    diffRe.use { dr ->
+                                        diffIm.use { di ->
+                                            val scores = dr.abs().add(di.abs()).sum(intArrayOf(2))
+                                            scores.use { sc ->
+                                                val countBetterNd =
+                                                    if (higherIsBetter) {
+                                                        sc.gt(trueScore).sum(intArrayOf(1))
+                                                    } else {
+                                                        sc.lt(trueScore).sum(intArrayOf(1))
+                                                    }
+                                                countBetter.addi(countBetterNd)
+                                                countBetterNd.close()
+                                            }
                                         }
-                                    try {
-                                        countBetter.addi(countBetterNd)
-                                    } finally {
-                                        countBetterNd.close()
                                     }
-                                    scores.close()
-                                    absImChunk.close()
-                                    absReChunk.close()
-                                    diffImChunk.close()
-                                    diffReChunk.close()
-                                } finally {
-                                    eImExp.close()
-                                    eReExp.close()
-                                    eIm.close()
-                                    eRe.close()
-                                    entityChunk.close()
                                 }
-                                chunkStart = chunkEnd
                             }
-                        } finally {
-                            rotImExp.close()
-                            rotReExp.close()
                         }
-                        val ranksNd = countBetter.add(1)
-                        try {
-                            val batchRanks = ranksNd.toLongArray()
-                            for (rank in batchRanks) {
-                                ranks.add(rank.toInt())
-                            }
-                        } finally {
-                            ranksNd.close()
-                        }
-                    } finally {
-                        countBetter.close()
-                        trueScore?.close()
-                        rotIm.close()
-                        rotRe.close()
-                        rSin.close()
-                        rCos.close()
-                        fixed.close()
-                        rels.close()
+                        chunkStart = chunkEnd
                     }
-                } finally {
-                    trueIdsFlat.close()
-                    baseCol1.close()
-                    baseCol0.close()
+                    val ranksNd = countBetter.add(1)
+                    val batchRanks = ranksNd.toLongArray()
+                    ranksNd.close()
+                    for (rank in batchRanks) {
+                        ranks.add(rank.toInt())
+                    }
                 }
             }
             start = end
@@ -467,172 +342,116 @@ class ResultEval(
                 val basePair = batch.basePair
                 val trueEntityCol = batch.trueEntityCol
                 val batchSize = batch.batchSize
-                val baseCol0 = basePair.get(col0Index)
-                val baseCol1 = basePair.get(col1Index)
-                val trueIdsFlat = trueEntityCol.reshape(batchSize.toLong())
-                try {
+                manager.newSubManager().use { batchManager ->
+                    val baseCol0 = basePair.get(col0Index).also { it.attach(batchManager) }
+                    val baseCol1 = basePair.get(col1Index).also { it.attach(batchManager) }
+                    val trueIdsFlat =
+                        trueEntityCol.reshape(batchSize.toLong()).also { it.attach(batchManager) }
                     val relIds = if (mode == EvalMode.TAIL) baseCol1 else baseCol0
                     val fixedIds = if (mode == EvalMode.TAIL) baseCol0 else baseCol1
-                    val rels = edges.get(relIds)
-                    val fixed = entities.get(fixedIds)
-                    val rR = rels.get(rIndex)
-                    val rI = rels.get(iIndex)
-                    val rJ = rels.get(jIndex)
-                    val rK = rels.get(kIndex)
-                    val fR = fixed.get(rIndex)
-                    val fI = fixed.get(iIndex)
-                    val fJ = fixed.get(jIndex)
-                    val fK = fixed.get(kIndex)
+                    val rels = edges.get(relIds).also { it.attach(batchManager) }
+                    val fixed = entities.get(fixedIds).also { it.attach(batchManager) }
+                    val rR = rels.get(rIndex).also { it.attach(batchManager) }
+                    val rI = rels.get(iIndex).also { it.attach(batchManager) }
+                    val rJ = rels.get(jIndex).also { it.attach(batchManager) }
+                    val rK = rels.get(kIndex).also { it.attach(batchManager) }
+                    val fR = fixed.get(rIndex).also { it.attach(batchManager) }
+                    val fI = fixed.get(iIndex).also { it.attach(batchManager) }
+                    val fJ = fixed.get(jIndex).also { it.attach(batchManager) }
+                    val fK = fixed.get(kIndex).also { it.attach(batchManager) }
                     val aR: NDArray
                     val aI: NDArray
                     val aJ: NDArray
                     val aK: NDArray
                     if (mode == EvalMode.TAIL) {
-                        // a = h ⊗ r
                         val hrR = fR.mul(rR).sub(fI.mul(rI)).sub(fJ.mul(rJ)).sub(fK.mul(rK))
                         val hrI = fR.mul(rI).add(fI.mul(rR)).add(fJ.mul(rK)).sub(fK.mul(rJ))
                         val hrJ = fR.mul(rJ).sub(fI.mul(rK)).add(fJ.mul(rR)).add(fK.mul(rI))
                         val hrK = fR.mul(rK).add(fI.mul(rJ)).sub(fJ.mul(rI)).add(fK.mul(rR))
-                        aR = hrR
-                        aI = hrI
-                        aJ = hrJ
-                        aK = hrK
+                        aR = hrR.also { it.attach(batchManager) }
+                        aI = hrI.also { it.attach(batchManager) }
+                        aJ = hrJ.also { it.attach(batchManager) }
+                        aK = hrK.also { it.attach(batchManager) }
                     } else {
-                        // a coefficients for score = <h, a> where a depends on r and t
-                        val tEmb = entities.get(trueIdsFlat)
-                        val tR = tEmb.get(rIndex)
-                        val tI = tEmb.get(iIndex)
-                        val tJ = tEmb.get(jIndex)
-                        val tK = tEmb.get(kIndex)
-                        try {
-                            aR = rR.mul(tR).add(rI.mul(tI)).add(rJ.mul(tJ)).add(rK.mul(tK))
-                            aI = rR.mul(tI).sub(rI.mul(tR)).add(rJ.mul(tK)).sub(rK.mul(tJ))
-                            aJ = rR.mul(tJ).sub(rJ.mul(tR)).add(rK.mul(tI)).sub(rI.mul(tK))
-                            aK = rR.mul(tK).sub(rK.mul(tR)).add(rI.mul(tJ)).sub(rJ.mul(tI))
-                        } finally {
-                            tK.close()
-                            tJ.close()
-                            tI.close()
-                            tR.close()
-                            tEmb.close()
+                        val tEmb = entities.get(trueIdsFlat).also { it.attach(batchManager) }
+                        val tR = tEmb.get(rIndex).also { it.attach(batchManager) }
+                        val tI = tEmb.get(iIndex).also { it.attach(batchManager) }
+                        val tJ = tEmb.get(jIndex).also { it.attach(batchManager) }
+                        val tK = tEmb.get(kIndex).also { it.attach(batchManager) }
+                        aR = rR.mul(tR).add(rI.mul(tI)).add(rJ.mul(tJ)).add(rK.mul(tK)).also {
+                            it.attach(batchManager)
+                        }
+                        aI = rR.mul(tI).sub(rI.mul(tR)).add(rJ.mul(tK)).sub(rK.mul(tJ)).also {
+                            it.attach(batchManager)
+                        }
+                        aJ = rR.mul(tJ).sub(rJ.mul(tR)).add(rK.mul(tI)).sub(rI.mul(tK)).also {
+                            it.attach(batchManager)
+                        }
+                        aK = rR.mul(tK).sub(rK.mul(tR)).add(rI.mul(tJ)).sub(rJ.mul(tI)).also {
+                            it.attach(batchManager)
                         }
                     }
-                    var trueScore: NDArray? = null
-                    if (mode == EvalMode.TAIL) {
-                        val trueEmb = entities.get(trueIdsFlat)
-                        val tR = trueEmb.get(rIndex)
-                        val tI = trueEmb.get(iIndex)
-                        val tJ = trueEmb.get(jIndex)
-                        val tK = trueEmb.get(kIndex)
-                        try {
-                            trueScore =
-                                aR.mul(tR).add(aI.mul(tI)).add(aJ.mul(tJ)).add(aK.mul(tK)).sum(intArrayOf(1))
-                                    .reshape(batchSize.toLong(), 1)
-                        } finally {
-                            tK.close()
-                            tJ.close()
-                            tI.close()
-                            tR.close()
-                            trueEmb.close()
+                    val trueScore =
+                        if (mode == EvalMode.TAIL) {
+                            val trueEmb = entities.get(trueIdsFlat).also { it.attach(batchManager) }
+                            val tR = trueEmb.get(rIndex).also { it.attach(batchManager) }
+                            val tI = trueEmb.get(iIndex).also { it.attach(batchManager) }
+                            val tJ = trueEmb.get(jIndex).also { it.attach(batchManager) }
+                            val tK = trueEmb.get(kIndex).also { it.attach(batchManager) }
+                            aR.mul(tR).add(aI.mul(tI)).add(aJ.mul(tJ)).add(aK.mul(tK)).sum(intArrayOf(1))
+                                .reshape(batchSize.toLong(), 1)
+                                .also { it.attach(batchManager) }
+                        } else {
+                            val trueEmb = entities.get(trueIdsFlat).also { it.attach(batchManager) }
+                            val hR = trueEmb.get(rIndex).also { it.attach(batchManager) }
+                            val hI = trueEmb.get(iIndex).also { it.attach(batchManager) }
+                            val hJ = trueEmb.get(jIndex).also { it.attach(batchManager) }
+                            val hK = trueEmb.get(kIndex).also { it.attach(batchManager) }
+                            aR.mul(hR).add(aI.mul(hI)).add(aJ.mul(hJ)).add(aK.mul(hK)).sum(intArrayOf(1))
+                                .reshape(batchSize.toLong(), 1)
+                                .also { it.attach(batchManager) }
                         }
-                    } else {
-                        val trueEmb = entities.get(trueIdsFlat)
-                        val hR = trueEmb.get(rIndex)
-                        val hI = trueEmb.get(iIndex)
-                        val hJ = trueEmb.get(jIndex)
-                        val hK = trueEmb.get(kIndex)
-                        try {
-                            trueScore =
-                                aR.mul(hR).add(aI.mul(hI)).add(aJ.mul(hJ)).add(aK.mul(hK)).sum(intArrayOf(1))
-                                    .reshape(batchSize.toLong(), 1)
-                        } finally {
-                            hK.close()
-                            hJ.close()
-                            hI.close()
-                            hR.close()
-                            trueEmb.close()
-                        }
-                    }
-                    val countBetter = aR.manager.zeros(Shape(batchSize.toLong()), DataType.INT64)
-                    try {
-                        var chunkStart = 0
-                        while (chunkStart < numEntities.toInt()) {
-                            val chunkEnd = minOf(chunkStart + chunkSize, numEntities.toInt())
-                            val entityChunk = entities.get(NDIndex("$chunkStart:$chunkEnd, :"))
+                    val countBetter = batchManager.zeros(Shape(batchSize.toLong()), DataType.INT64)
+                    var chunkStart = 0
+                    while (chunkStart < numEntities.toInt()) {
+                        val chunkEnd = minOf(chunkStart + chunkSize, numEntities.toInt())
+                        entities.get(NDIndex("$chunkStart:$chunkEnd, :")).use { entityChunk ->
                             val eR = entityChunk.get(rIndex)
                             val eI = entityChunk.get(iIndex)
                             val eJ = entityChunk.get(jIndex)
                             val eK = entityChunk.get(kIndex)
-                            val eRT = eR.transpose()
-                            val eIT = eI.transpose()
-                            val eJT = eJ.transpose()
-                            val eKT = eK.transpose()
-                            try {
-                                val sR = aR.matMul(eRT)
-                                val sI = aI.matMul(eIT)
-                                val sJ = aJ.matMul(eJT)
-                                val sK = aK.matMul(eKT)
-                                val scores = sR.add(sI).add(sJ).add(sK)
-                                val countBetterNd =
-                                    if (higherIsBetter) {
-                                        scores.gt(trueScore).sum(intArrayOf(1))
-                                    } else {
-                                        scores.lt(trueScore).sum(intArrayOf(1))
+                            eR.use { er ->
+                                eI.use { ei ->
+                                    eJ.use { ej ->
+                                        eK.use { ek ->
+                                            val scores =
+                                                aR.matMul(er.transpose())
+                                                    .add(aI.matMul(ei.transpose()))
+                                                    .add(aJ.matMul(ej.transpose()))
+                                                    .add(aK.matMul(ek.transpose()))
+                                            scores.use { sc ->
+                                                val countBetterNd =
+                                                    if (higherIsBetter) {
+                                                        sc.gt(trueScore).sum(intArrayOf(1))
+                                                    } else {
+                                                        sc.lt(trueScore).sum(intArrayOf(1))
+                                                    }
+                                                countBetter.addi(countBetterNd)
+                                                countBetterNd.close()
+                                            }
+                                        }
                                     }
-                                try {
-                                    countBetter.addi(countBetterNd)
-                                } finally {
-                                    countBetterNd.close()
                                 }
-                                scores.close()
-                                sK.close()
-                                sJ.close()
-                                sI.close()
-                                sR.close()
-                            } finally {
-                                eKT.close()
-                                eJT.close()
-                                eIT.close()
-                                eRT.close()
-                                eK.close()
-                                eJ.close()
-                                eI.close()
-                                eR.close()
-                                entityChunk.close()
                             }
-                            chunkStart = chunkEnd
                         }
-                        val ranksNd = countBetter.add(1)
-                        try {
-                            val batchRanks = ranksNd.toLongArray()
-                            for (rank in batchRanks) {
-                                ranks.add(rank.toInt())
-                            }
-                        } finally {
-                            ranksNd.close()
-                        }
-                    } finally {
-                        countBetter.close()
-                        trueScore?.close()
-                        aK.close()
-                        aJ.close()
-                        aI.close()
-                        aR.close()
-                        fK.close()
-                        fJ.close()
-                        fI.close()
-                        fR.close()
-                        rK.close()
-                        rJ.close()
-                        rI.close()
-                        rR.close()
-                        fixed.close()
-                        rels.close()
+                        chunkStart = chunkEnd
                     }
-                } finally {
-                    trueIdsFlat.close()
-                    baseCol1.close()
-                    baseCol0.close()
+                    val ranksNd = countBetter.add(1)
+                    val batchRanks = ranksNd.toLongArray()
+                    ranksNd.close()
+                    for (rank in batchRanks) {
+                        ranks.add(rank.toInt())
+                    }
                 }
             }
             start = end
@@ -664,128 +483,70 @@ class ResultEval(
                 val basePair = batch.basePair
                 val trueEntityCol = batch.trueEntityCol
                 val batchSize = batch.batchSize
-                val baseCol0 = basePair.get(col0Index)
-                val baseCol1 = basePair.get(col1Index)
-                val trueIdsFlat = trueEntityCol.reshape(batchSize.toLong())
-                try {
+                manager.newSubManager().use { batchManager ->
+                    val baseCol0 = basePair.get(col0Index).also { it.attach(batchManager) }
+                    val baseCol1 = basePair.get(col1Index).also { it.attach(batchManager) }
+                    val trueIdsFlat =
+                        trueEntityCol.reshape(batchSize.toLong()).also { it.attach(batchManager) }
                     val relIds = if (mode == EvalMode.TAIL) baseCol1 else baseCol0
                     val fixedIds = if (mode == EvalMode.TAIL) baseCol0 else baseCol1
-                    val rels = edges.get(relIds)
-                    val fixed = entities.get(fixedIds)
-                    val rRe = rels.get(realIndex)
-                    val rIm = rels.get(imagIndex)
-                    val fRe = fixed.get(realIndex)
-                    val fIm = fixed.get(imagIndex)
-                    val a: NDArray
-                    val b: NDArray
-                    var term1: NDArray? = null
-                    var term2: NDArray? = null
-                    var term3: NDArray? = null
-                    var term4: NDArray? = null
-                    try {
+                    val rels = edges.get(relIds).also { it.attach(batchManager) }
+                    val fixed = entities.get(fixedIds).also { it.attach(batchManager) }
+                    val rRe = rels.get(realIndex).also { it.attach(batchManager) }
+                    val rIm = rels.get(imagIndex).also { it.attach(batchManager) }
+                    val fRe = fixed.get(realIndex).also { it.attach(batchManager) }
+                    val fIm = fixed.get(imagIndex).also { it.attach(batchManager) }
+                    val (a, b) =
                         if (mode == EvalMode.TAIL) {
-                            term1 = fRe.mul(rRe)
-                            term2 = fIm.mul(rIm)
-                            a = term1.sub(term2)
-                            term3 = fRe.mul(rIm)
-                            term4 = fIm.mul(rRe)
-                            b = term3.add(term4)
+                            val aVal = fRe.mul(rRe).sub(fIm.mul(rIm)).also { it.attach(batchManager) }
+                            val bVal = fRe.mul(rIm).add(fIm.mul(rRe)).also { it.attach(batchManager) }
+                            aVal to bVal
                         } else {
-                            term1 = rRe.mul(fRe)
-                            term2 = rIm.mul(fIm)
-                            a = term1.add(term2)
-                            term3 = rRe.mul(fIm)
-                            term4 = rIm.mul(fRe)
-                            b = term3.sub(term4)
+                            val aVal = rRe.mul(fRe).add(rIm.mul(fIm)).also { it.attach(batchManager) }
+                            val bVal = rRe.mul(fIm).sub(rIm.mul(fRe)).also { it.attach(batchManager) }
+                            aVal to bVal
                         }
-                    } finally {
-                        term4?.close()
-                        term3?.close()
-                        term2?.close()
-                        term1?.close()
-                    }
-                    val trueEmb = entities.get(trueIdsFlat)
-                    val tRe = trueEmb.get(realIndex)
-                    val tIm = trueEmb.get(imagIndex)
-                    var trueScore: NDArray? = null
-                    var trueMulRe: NDArray? = null
-                    var trueMulIm: NDArray? = null
-                    var trueSum: NDArray? = null
-                    try {
-                        trueMulRe = a.mul(tRe)
-                        trueMulIm = b.mul(tIm)
-                        trueSum = trueMulRe.add(trueMulIm)
-                        trueScore = trueSum.sum(intArrayOf(1)).reshape(batchSize.toLong(), 1)
-                    } finally {
-                        trueSum?.close()
-                        trueMulIm?.close()
-                        trueMulRe?.close()
-                    }
-                    val countBetter = a.manager.zeros(Shape(batchSize.toLong()), DataType.INT64)
-                    try {
-                        var chunkStart = 0
-                        while (chunkStart < numEntities.toInt()) {
-                            val chunkEnd = minOf(chunkStart + chunkSize, numEntities.toInt())
-                            val entityChunk = entities.get(NDIndex("$chunkStart:$chunkEnd, :"))
+                    val trueEmb = entities.get(trueIdsFlat).also { it.attach(batchManager) }
+                    val tRe = trueEmb.get(realIndex).also { it.attach(batchManager) }
+                    val tIm = trueEmb.get(imagIndex).also { it.attach(batchManager) }
+                    val trueScore =
+                        a.mul(tRe).add(b.mul(tIm)).sum(intArrayOf(1)).reshape(batchSize.toLong(), 1)
+                            .also { it.attach(batchManager) }
+                    val countBetter = batchManager.zeros(Shape(batchSize.toLong()), DataType.INT64)
+                    var chunkStart = 0
+                    while (chunkStart < numEntities.toInt()) {
+                        val chunkEnd = minOf(chunkStart + chunkSize, numEntities.toInt())
+                        entities.get(NDIndex("$chunkStart:$chunkEnd, :")).use { entityChunk ->
                             val eRe = entityChunk.get(realIndex)
                             val eIm = entityChunk.get(imagIndex)
-                            val eReT = eRe.transpose()
-                            val eImT = eIm.transpose()
-                            try {
-                                val scoresRe = a.matMul(eReT)
-                                val scoresIm = b.matMul(eImT)
-                                val scores = scoresRe.add(scoresIm)
-                                val countBetterNd =
-                                    if (higherIsBetter) {
-                                        scores.gt(trueScore).sum(intArrayOf(1))
-                                    } else {
-                                        scores.lt(trueScore).sum(intArrayOf(1))
+                            eRe.use { er ->
+                                eIm.use { ei ->
+                                    er.transpose().use { erT ->
+                                        ei.transpose().use { eiT ->
+                                            val scores = a.matMul(erT).add(b.matMul(eiT))
+                                            scores.use { sc ->
+                                                val countBetterNd =
+                                                    if (higherIsBetter) {
+                                                        sc.gt(trueScore).sum(intArrayOf(1))
+                                                    } else {
+                                                        sc.lt(trueScore).sum(intArrayOf(1))
+                                                    }
+                                                countBetter.addi(countBetterNd)
+                                                countBetterNd.close()
+                                            }
+                                        }
                                     }
-                                try {
-                                    countBetter.addi(countBetterNd)
-                                } finally {
-                                    countBetterNd.close()
                                 }
-                                scores.close()
-                                scoresIm.close()
-                                scoresRe.close()
-                            } finally {
-                                eImT.close()
-                                eReT.close()
-                                eIm.close()
-                                eRe.close()
-                                entityChunk.close()
                             }
-                            chunkStart = chunkEnd
                         }
-                        val ranksNd = countBetter.add(1)
-                        try {
-                            val batchRanks = ranksNd.toLongArray()
-                            for (rank in batchRanks) {
-                                ranks.add(rank.toInt())
-                            }
-                        } finally {
-                            ranksNd.close()
-                        }
-                    } finally {
-                        countBetter.close()
-                        trueScore?.close()
-                        tIm.close()
-                        tRe.close()
-                        trueEmb.close()
-                        b.close()
-                        a.close()
-                        fIm.close()
-                        fRe.close()
-                        rIm.close()
-                        rRe.close()
-                        fixed.close()
-                        rels.close()
+                        chunkStart = chunkEnd
                     }
-                } finally {
-                    trueIdsFlat.close()
-                    baseCol1.close()
-                    baseCol0.close()
+                    val ranksNd = countBetter.add(1)
+                    val batchRanks = ranksNd.toLongArray()
+                    ranksNd.close()
+                    for (rank in batchRanks) {
+                        ranks.add(rank.toInt())
+                    }
                 }
             }
             start = end
@@ -813,10 +574,11 @@ class ResultEval(
                 val basePair = batch.basePair
                 val trueEntityCol = batch.trueEntityCol
                 val batchSize = batch.batchSize
-                val baseCol0 = basePair.get(col0Index)
-                val baseCol1 = basePair.get(col1Index)
-                val trueIdsFlat = trueEntityCol.reshape(batchSize.toLong())
-                try {
+                manager.newSubManager().use { batchManager ->
+                    val baseCol0 = basePair.get(col0Index).also { it.attach(batchManager) }
+                    val baseCol1 = basePair.get(col1Index).also { it.attach(batchManager) }
+                    val trueIdsFlat =
+                        trueEntityCol.reshape(batchSize.toLong()).also { it.attach(batchManager) }
                     val relIds = if (mode == EvalMode.TAIL) baseCol1 else baseCol0
                     val relIdsArr = relIds.toLongArray()
                     val indicesByRel = mutableMapOf<Long, MutableList<Int>>()
@@ -827,125 +589,116 @@ class ResultEval(
                     val countBetterAll = LongArray(batchSize)
                     for ((relId, indices) in indicesByRel) {
                         val idxArr = indices.toIntArray()
-                        val idxNd = manager.create(idxArr)
-                        val headIdsNd =
-                            if (mode == EvalMode.TAIL) {
-                                baseCol0.get(idxNd)
-                            } else {
-                                trueIdsFlat.get(idxNd)
-                            }
-                        val tailIdsNd =
-                            if (mode == EvalMode.TAIL) {
-                                trueIdsFlat.get(idxNd)
-                            } else {
-                                baseCol1.get(idxNd)
-                            }
-                        val relIdNd = manager.create(longArrayOf(relId))
-                        try {
-                            val heads = entities.get(headIdsNd)
-                            val tails = entities.get(tailIdsNd)
-                            val relEmb = edges.get(relIdNd)
-                            val matrixRel = matrix.get(relIdNd).reshape(relEmb.shape[1], heads.shape[1])
-                            val matrixT = matrixRel.transpose()
-                            val headProj = heads.matMul(matrixT)
-                            val tailProj = tails.matMul(matrixT)
-                            val base =
+                        manager.create(idxArr).use { idxNd ->
+                            val headIdsNd =
                                 if (mode == EvalMode.TAIL) {
-                                    headProj.add(relEmb)
+                                    baseCol0.get(idxNd)
                                 } else {
-                                    relEmb.sub(tailProj)
+                                    trueIdsFlat.get(idxNd)
                                 }
-                            var trueScore: NDArray? = null
-                            var trueDiff: NDArray? = null
-                            var trueAbs: NDArray? = null
-                            try {
-                                trueDiff =
-                                    if (mode == EvalMode.TAIL) {
-                                        base.sub(tailProj)
-                                    } else {
-                                        base.add(headProj)
-                                    }
-                                trueAbs = trueDiff.abs()
-                                trueScore = trueAbs.sum(intArrayOf(1))
-                            } finally {
-                                trueAbs?.close()
-                                trueDiff?.close()
-                            }
-                            val trueScore2d = trueScore!!.reshape(idxArr.size.toLong(), 1)
-                            val countBetter = base.manager.zeros(Shape(idxArr.size.toLong()), DataType.INT64)
-                            try {
-                                var chunkStart = 0
-                                while (chunkStart < numEntities.toInt()) {
-                                    val chunkEnd = minOf(chunkStart + chunkSize, numEntities.toInt())
-                                    val entityChunk = entities.get(NDIndex("$chunkStart:$chunkEnd, :"))
-                                    val projChunk = entityChunk.matMul(matrixT)
-                                    val projExp = projChunk.expandDims(0)
-                                    val baseExp = base.expandDims(1)
-                                    var scores: NDArray? = null
-                                    var abs: NDArray? = null
-                                    var diff: NDArray? = null
-                                    try {
-                                        diff =
-                                            if (mode == EvalMode.TAIL) {
-                                                baseExp.sub(projExp)
-                                            } else {
-                                                baseExp.add(projExp)
+                            val tailIdsNd =
+                                if (mode == EvalMode.TAIL) {
+                                    trueIdsFlat.get(idxNd)
+                                } else {
+                                    baseCol1.get(idxNd)
+                                }
+                            headIdsNd.use { hIds ->
+                                tailIdsNd.use { tIds ->
+                                    manager.create(longArrayOf(relId)).use { relIdNd ->
+                                        val heads = entities.get(hIds)
+                                        val tails = entities.get(tIds)
+                                        val relEmb = edges.get(relIdNd)
+                                        heads.use { h ->
+                                            tails.use { t ->
+                                                relEmb.use { r ->
+                                                    val matrixRel = matrix.get(relIdNd).reshape(r.shape[1], h.shape[1])
+                                                    matrixRel.use { mRel ->
+                                                        val matrixT = mRel.transpose()
+                                                        matrixT.use { mT ->
+                                                            val headProj = h.matMul(mT)
+                                                            val tailProj = t.matMul(mT)
+                                                            headProj.use { hP ->
+                                                                tailProj.use { tP ->
+                                                                    val base =
+                                                                        if (mode == EvalMode.TAIL) {
+                                                                            hP.add(r)
+                                                                        } else {
+                                                                            r.sub(tP)
+                                                                        }
+                                                                    base.use { b ->
+                                                                        val trueScore2d =
+                                                                            if (mode == EvalMode.TAIL) {
+                                                                                b.sub(tP).abs().sum(intArrayOf(1))
+                                                                            } else {
+                                                                                b.add(hP).abs().sum(intArrayOf(1))
+                                                                            }.reshape(idxArr.size.toLong(), 1)
+                                                                        trueScore2d.use { ts2d ->
+                                                                            val countBetter =
+                                                                                batchManager.zeros(
+                                                                                    Shape(idxArr.size.toLong()),
+                                                                                    DataType.INT64,
+                                                                                )
+                                                                            var chunkStart = 0
+                                                                            while (chunkStart < numEntities.toInt()) {
+                                                                                val chunkEnd =
+                                                                                    minOf(
+                                                                                        chunkStart + chunkSize,
+                                                                                        numEntities.toInt(),
+                                                                                    )
+                                                                                entities.get(NDIndex("$chunkStart:$chunkEnd, :")).use { entityChunk ->
+                                                                                    val projChunk = entityChunk.matMul(mT)
+                                                                                    projChunk.use { pChunk ->
+                                                                                        val baseExp = b.expandDims(1)
+                                                                                        val projExp = pChunk.expandDims(0)
+                                                                                        baseExp.use { be ->
+                                                                                            projExp.use { pe ->
+                                                                                                val diff =
+                                                                                                    if (mode == EvalMode.TAIL) {
+                                                                                                        be.sub(pe)
+                                                                                                    } else {
+                                                                                                        be.add(pe)
+                                                                                                    }
+                                                                                                diff.use { d ->
+                                                                                                    val scores = d.abs().sum(intArrayOf(2))
+                                                                                                    scores.use { sc ->
+                                                                                                        val countBetterNd =
+                                                                                                            if (higherIsBetter) {
+                                                                                                                sc.gt(ts2d).sum(intArrayOf(1))
+                                                                                                            } else {
+                                                                                                                sc.lt(ts2d).sum(intArrayOf(1))
+                                                                                                            }
+                                                                                                        countBetter.addi(countBetterNd)
+                                                                                                        countBetterNd.close()
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                                chunkStart = chunkEnd
+                                                                            }
+                                                                            val subsetCounts = countBetter.toLongArray()
+                                                                            countBetter.close()
+                                                                            for (i in idxArr.indices) {
+                                                                                countBetterAll[idxArr[i]] = subsetCounts[i]
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
                                             }
-                                        abs = diff.abs()
-                                        scores = abs.sum(intArrayOf(2))
-                                        val countBetterNd =
-                                            if (higherIsBetter) {
-                                                scores.gt(trueScore2d).sum(intArrayOf(1))
-                                            } else {
-                                                scores.lt(trueScore2d).sum(intArrayOf(1))
-                                            }
-                                        try {
-                                            countBetter.addi(countBetterNd)
-                                        } finally {
-                                            countBetterNd.close()
                                         }
-                                    } finally {
-                                        scores?.close()
-                                        abs?.close()
-                                        diff?.close()
-                                        baseExp.close()
-                                        projExp.close()
-                                        projChunk.close()
-                                        entityChunk.close()
                                     }
-                                    chunkStart = chunkEnd
                                 }
-                                val subsetCounts = countBetter.toLongArray()
-                                for (i in idxArr.indices) {
-                                    countBetterAll[idxArr[i]] = subsetCounts[i]
-                                }
-                            } finally {
-                                countBetter.close()
-                                trueScore2d.close()
-                                trueScore.close()
-                                base.close()
-                                tailProj.close()
-                                headProj.close()
-                                matrixT.close()
-                                matrixRel.close()
-                                relEmb.close()
-                                tails.close()
-                                heads.close()
                             }
-                        } finally {
-                            relIdNd.close()
-                            tailIdsNd.close()
-                            headIdsNd.close()
-                            idxNd.close()
                         }
                     }
                     for (count in countBetterAll) {
                         ranks.add((count + 1L).toInt())
                     }
-                } finally {
-                    trueIdsFlat.close()
-                    baseCol1.close()
-                    baseCol0.close()
                 }
             }
             start = end

@@ -29,30 +29,17 @@ class DenseAdagrad(
             throw IllegalStateException("learning rate or weight decay is nan or infinite")
         }
 
-        var gradWork: NDArray = grad
-        var ownsGrad = false
-        try {
+        grad.manager.newSubManager().use { tempManager ->
+            var gradWork: NDArray = grad
             if (rescaleGrad != 1.0f) {
-                gradWork = gradWork.mul(rescaleGrad)
-                ownsGrad = true
+                gradWork = gradWork.mul(rescaleGrad).also { it.attach(tempManager) }
             }
             if (clipGrad > 0f) {
-                val clipped = gradWork.clip(-clipGrad, clipGrad)
-                if (ownsGrad) {
-                    gradWork.close()
-                }
-                gradWork = clipped
-                ownsGrad = true
+                gradWork = gradWork.clip(-clipGrad, clipGrad).also { it.attach(tempManager) }
             }
             if (wd != 0f) {
-                val wdTerm = weight.mul(wd)
-                val withDecay = gradWork.add(wdTerm)
-                wdTerm.close()
-                if (ownsGrad) {
-                    gradWork.close()
-                }
-                gradWork = withDecay
-                ownsGrad = true
+                val wdTerm = weight.mul(wd).also { it.attach(tempManager) }
+                gradWork = gradWork.add(wdTerm).also { it.attach(tempManager) }
             }
 
             val state =
@@ -70,10 +57,6 @@ class DenseAdagrad(
                         }
                     }
                 }
-            }
-        } finally {
-            if (ownsGrad) {
-                gradWork.close()
             }
         }
     }

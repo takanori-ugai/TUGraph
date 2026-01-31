@@ -98,39 +98,22 @@ class DistMult(
         edges: NDArray,
     ): NDArray {
         val numTriples = input.size() / TRIPLE
-        var triples: NDArray? = null
-        var headIds: NDArray? = null
-        var relationIds: NDArray? = null
-        var tailIds: NDArray? = null
-        var heads: NDArray? = null
-        var relations: NDArray? = null
-        var tails: NDArray? = null
-        var prod: NDArray? = null
-        var prod2: NDArray? = null
-        try {
-            triples = input.reshape(numTriples, TRIPLE)
-            headIds = triples.get(headIndex)
-            relationIds = triples.get(relationIndex)
-            tailIds = triples.get(tailIndex)
+        val parent = input.manager
+        return parent.newSubManager().use { sm ->
+            val triples = input.reshape(numTriples, TRIPLE).also { it.attach(sm) }
+            val headIds = triples.get(headIndex).also { it.attach(sm) }
+            val relationIds = triples.get(relationIndex).also { it.attach(sm) }
+            val tailIds = triples.get(tailIndex).also { it.attach(sm) }
 
-            heads = entities.get(headIds)
-            relations = edges.get(relationIds)
-            tails = entities.get(tailIds)
+            val heads = entities.get(headIds).also { it.attach(sm) }
+            val relations = edges.get(relationIds).also { it.attach(sm) }
+            val tails = entities.get(tailIds).also { it.attach(sm) }
 
             // DistMult: <h, r, t>
-            prod = heads.mul(relations)
-            prod2 = prod.mul(tails)
-            return prod2.sum(sumAxis)
-        } finally {
-            prod2?.close()
-            prod?.close()
-            tails?.close()
-            relations?.close()
-            heads?.close()
-            tailIds?.close()
-            relationIds?.close()
-            headIds?.close()
-            triples?.close()
+            val prod = heads.mul(relations).also { it.attach(sm) }
+            val prod2 = prod.mul(tails).also { it.attach(sm) }
+            val result = prod2.sum(sumAxis).also { it.attach(parent) }
+            result
         }
     }
 

@@ -65,7 +65,6 @@ class RotatE(
      * @param params Additional parameters.
      * @return The output NDList.
      */
-    @Override
     override fun forwardInternal(
         parameterStore: ParameterStore,
         inputs: NDList,
@@ -98,75 +97,59 @@ class RotatE(
         entities: NDArray,
         edges: NDArray,
     ): NDArray {
+        return score(input, entities, edges, dim * 2)
+    }
+
+    /**
+     * Compute RotatE scores for a batch of triples with a configurable total embedding dimension.
+     *
+     * The score is the L1 distance ||h ∘ r - t|| where r is a phase rotation (lower is better).
+     *
+     * @param input NDArray of triples where each row is (head, relation, tail) indices.
+     * @param entities NDArray of entity embeddings with real and imaginary components concatenated.
+     * @param edges NDArray of relation phase embeddings (radians).
+     * @param totalDim Total number of entity embedding dimensions to use (must be even).
+     * @return An NDArray of shape (numTriples) containing the RotatE score for each triple.
+     */
+    fun score(
+        input: NDArray,
+        entities: NDArray,
+        edges: NDArray,
+        totalDim: Long,
+    ): NDArray {
+        require(totalDim % 2L == 0L) { "RotatE totalDim must be even, was $totalDim." }
         val numTriples = input.size() / TRIPLE
-        var triples: NDArray? = null
-        var headIds: NDArray? = null
-        var relationIds: NDArray? = null
-        var tailIds: NDArray? = null
-        var heads: NDArray? = null
-        var relations: NDArray? = null
-        var tails: NDArray? = null
-        var hRe: NDArray? = null
-        var hIm: NDArray? = null
-        var tRe: NDArray? = null
-        var tIm: NDArray? = null
-        var rPhase: NDArray? = null
-        var rCos: NDArray? = null
-        var rSin: NDArray? = null
-        var rotRe: NDArray? = null
-        var rotIm: NDArray? = null
-        var diffRe: NDArray? = null
-        var diffIm: NDArray? = null
-        var absRe: NDArray? = null
-        var absIm: NDArray? = null
-        var sum: NDArray? = null
-        try {
-            triples = input.reshape(numTriples, TRIPLE)
-            headIds = triples.get(headIndex)
-            relationIds = triples.get(relationIndex)
-            tailIds = triples.get(tailIndex)
+        val realDim = totalDim / 2L
+        val realIndex = NDIndex(":, 0:$realDim")
+        val imagIndex = NDIndex(":, $realDim:$totalDim")
+        val parent = input.manager
+        return parent.newSubManager().use { sm ->
+            val triples = input.reshape(numTriples, TRIPLE).also { it.attach(sm) }
+            val headIds = triples.get(headIndex).also { it.attach(sm) }
+            val relationIds = triples.get(relationIndex).also { it.attach(sm) }
+            val tailIds = triples.get(tailIndex).also { it.attach(sm) }
 
-            heads = entities.get(headIds)
-            relations = edges.get(relationIds)
-            tails = entities.get(tailIds)
+            val heads = entities.get(headIds).also { it.attach(sm) }
+            val relations = edges.get(relationIds).also { it.attach(sm) }
+            val tails = entities.get(tailIds).also { it.attach(sm) }
 
-            hRe = heads.get(realIndex)
-            hIm = heads.get(imagIndex)
-            tRe = tails.get(realIndex)
-            tIm = tails.get(imagIndex)
+            val hRe = heads.get(realIndex).also { it.attach(sm) }
+            val hIm = heads.get(imagIndex).also { it.attach(sm) }
+            val tRe = tails.get(realIndex).also { it.attach(sm) }
+            val tIm = tails.get(imagIndex).also { it.attach(sm) }
 
-            rPhase = relations
-            rCos = rPhase.cos()
-            rSin = rPhase.sin()
-            rotRe = hRe.mul(rCos).sub(hIm.mul(rSin))
-            rotIm = hRe.mul(rSin).add(hIm.mul(rCos))
-            diffRe = rotRe.sub(tRe)
-            diffIm = rotIm.sub(tIm)
-            absRe = diffRe.abs()
-            absIm = diffIm.abs()
-            sum = absRe.add(absIm)
-            return sum.sum(sumAxis)
-        } finally {
-            sum?.close()
-            absIm?.close()
-            absRe?.close()
-            diffIm?.close()
-            diffRe?.close()
-            rotIm?.close()
-            rotRe?.close()
-            rSin?.close()
-            rCos?.close()
-            tIm?.close()
-            tRe?.close()
-            hIm?.close()
-            hRe?.close()
-            tails?.close()
-            relations?.close()
-            heads?.close()
-            tailIds?.close()
-            relationIds?.close()
-            headIds?.close()
-            triples?.close()
+            val rPhase = relations.get(NDIndex(":, 0:$realDim")).also { it.attach(sm) }
+            val rCos = rPhase.cos().also { it.attach(sm) }
+            val rSin = rPhase.sin().also { it.attach(sm) }
+            val rotRe = hRe.mul(rCos).sub(hIm.mul(rSin)).also { it.attach(sm) }
+            val rotIm = hRe.mul(rSin).add(hIm.mul(rCos)).also { it.attach(sm) }
+            val diffRe = rotRe.sub(tRe).also { it.attach(sm) }
+            val diffIm = rotIm.sub(tIm).also { it.attach(sm) }
+            val absRe = diffRe.abs().also { it.attach(sm) }
+            val absIm = diffIm.abs().also { it.attach(sm) }
+            val sum = absRe.add(absIm).also { it.attach(sm) }
+            val result = sum.sum(sumAxis).also { it.attach(parent) }
+            result
         }
     }
 
@@ -176,7 +159,6 @@ class RotatE(
      * @param inputs Input shapes for the block.
      * @return Output shapes for the block.
      */
-    @Override
     override fun getOutputShapes(inputs: Array<Shape>): Array<Shape> {
         val numTriples = inputs[0].size() / TRIPLE
         val outShape = Shape(numTriples)
