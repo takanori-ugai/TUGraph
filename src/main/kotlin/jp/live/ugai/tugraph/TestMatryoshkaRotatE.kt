@@ -9,15 +9,11 @@ import ai.djl.ndarray.types.Shape
 import ai.djl.training.DefaultTrainingConfig
 import ai.djl.training.listener.EpochTrainingListener
 import ai.djl.training.loss.Loss
-import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /**
- * Trains and evaluates a DistMult knowledge-graph embedding model using triples loaded from "data/sample.csv".
- *
- * Reads triples from the CSV, constructs and initializes a DistMult model and trainer, runs embedding training,
- * prints training results and learned parameters, runs a sample prediction, and evaluates head/tail predictions.
+ * Demonstrates combining Matryoshka embeddings with a RotatE model on "data/sample.csv".
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->
@@ -46,21 +42,22 @@ fun main() {
             }
         val numEntities = maxOf(headMax, tailMax) + 1
         val numEdges = relMax + 1
-        val distMult =
-            DistMult(numEntities, numEdges, DIMENSION).also {
+
+        val rotate =
+            RotatE(numEntities, numEdges, DIMENSION).also {
                 it.initialize(manager, DataType.FLOAT32, input.shape)
             }
         val model =
-            Model.newInstance("distmult").also {
-                it.block = distMult
+            Model.newInstance("rotate-matryoshka").also {
+                it.block = rotate
             }
 
-        val lrt = Tracker.fixed(LEARNING_RATE)
-        val sgd = Optimizer.sgd().setLearningRateTracker(lrt).build()
+        val lrt = Tracker.fixed(ADAGRAD_LEARNING_RATE)
+        val adagrad = DenseAdagrad.builder().optLearningRateTracker(lrt).build()
 
         val config =
             DefaultTrainingConfig(Loss.l1Loss()) // Placeholder loss; EmbeddingTrainer computes its own.
-                .optOptimizer(sgd) // Optimizer
+                .optOptimizer(adagrad) // Optimizer
                 .optDevices(manager.engine.getDevices(1)) // single GPU
                 .addTrainingListeners(EpochTrainingListener(), HingeLossLoggingListener()) // Hinge loss logging
 
@@ -75,10 +72,35 @@ fun main() {
         eTrainer.close()
         println(trainer.trainingResult)
 
-        println(distMult.getEdges())
-        println(distMult.getEntities())
-
         val predictor = model.newPredictor(NoopTranslator())
+
+        // Matryoshka scores using nested dimensions on entity embeddings.
+        val matryoshkaDims = longArrayOf(DIMENSION, DIMENSION * 2)
+        val matryoshka = Matryoshka(matryoshkaDims)
+        val firstBatch = input.get("0:${minOf(4, numOfTriples.toInt())}, :")
+        firstBatch.use { batch ->
+            val heads = batch.get(":, 0")
+            val tails = batch.get(":, 2")
+            try {
+                val ent = rotate.getEntities()
+                val headEmb = ent.get(heads)
+                val tailEmb = ent.get(tails)
+                try {
+                    val scores = matryoshka.dotScores(headEmb, tailEmb)
+                    for (i in scores.indices) {
+                        println("Matryoshka dot score (dim=${matryoshkaDims[i]}): ${scores[i]}")
+                        scores[i].close()
+                    }
+                } finally {
+                    headEmb.close()
+                    tailEmb.close()
+                }
+            } finally {
+                heads.close()
+                tails.close()
+            }
+        }
+
         val test = manager.create(longArrayOf(1, 1, 2))
         test.use {
             println(predictor.predict(NDList(it)).singletonOrThrow())
@@ -90,8 +112,8 @@ fun main() {
                 manager.newSubManager(),
                 predictor,
                 numEntities,
-                higherIsBetter = true,
-                distMult = distMult,
+                higherIsBetter = false,
+                rotatE = rotate,
             )
         println("Tail")
         result.getTailResult().forEach {
@@ -107,5 +129,5 @@ fun main() {
     }
 }
 
-/** Marker class for TestDistMult example. */
-class TestDistMult
+/** Marker class for TestMatryoshkaRotatE example. */
+class TestMatryoshkaRotatE

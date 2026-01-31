@@ -1,7 +1,6 @@
 package jp.live.ugai.tugraph
 
 import ai.djl.Model
-import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape

@@ -14,9 +14,9 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /**
- * Trains and evaluates a DistMult knowledge-graph embedding model using triples loaded from "data/sample.csv".
+ * Trains and evaluates a QuatE knowledge-graph embedding model using triples loaded from "data/sample.csv".
  *
- * Reads triples from the CSV, constructs and initializes a DistMult model and trainer, runs embedding training,
+ * Reads triples from the CSV, constructs and initializes a QuatE model and trainer, runs embedding training,
  * prints training results and learned parameters, runs a sample prediction, and evaluates head/tail predictions.
  */
 fun main() {
@@ -46,21 +46,21 @@ fun main() {
             }
         val numEntities = maxOf(headMax, tailMax) + 1
         val numEdges = relMax + 1
-        val distMult =
-            DistMult(numEntities, numEdges, DIMENSION).also {
+        val quate =
+            QuatE(numEntities, numEdges, DIMENSION).also {
                 it.initialize(manager, DataType.FLOAT32, input.shape)
             }
         val model =
-            Model.newInstance("distmult").also {
-                it.block = distMult
+            Model.newInstance("quate").also {
+                it.block = quate
             }
 
-        val lrt = Tracker.fixed(LEARNING_RATE)
-        val sgd = Optimizer.sgd().setLearningRateTracker(lrt).build()
+        val lrt = Tracker.fixed(ADAGRAD_LEARNING_RATE)
+        val adagrad = DenseAdagrad.builder().optLearningRateTracker(lrt).build()
 
         val config =
             DefaultTrainingConfig(Loss.l1Loss()) // Placeholder loss; EmbeddingTrainer computes its own.
-                .optOptimizer(sgd) // Optimizer
+                .optOptimizer(adagrad) // Optimizer
                 .optDevices(manager.engine.getDevices(1)) // single GPU
                 .addTrainingListeners(EpochTrainingListener(), HingeLossLoggingListener()) // Hinge loss logging
 
@@ -75,8 +75,8 @@ fun main() {
         eTrainer.close()
         println(trainer.trainingResult)
 
-        println(distMult.getEdges())
-        println(distMult.getEntities())
+        println(quate.getEdges())
+        println(quate.getEntities())
 
         val predictor = model.newPredictor(NoopTranslator())
         val test = manager.create(longArrayOf(1, 1, 2))
@@ -91,7 +91,6 @@ fun main() {
                 predictor,
                 numEntities,
                 higherIsBetter = true,
-                distMult = distMult,
             )
         println("Tail")
         result.getTailResult().forEach {
@@ -107,5 +106,5 @@ fun main() {
     }
 }
 
-/** Marker class for TestDistMult example. */
-class TestDistMult
+/** Marker class for TestQuatE example. */
+class TestQuatE

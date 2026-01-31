@@ -50,7 +50,7 @@ class EmbeddingModelsIntegrationTest {
         val prediction = predictor.predict(NDList(testTriple))
 
         assertNotNull(prediction)
-        assertEquals(1, prediction.size())
+        assertEquals(1, prediction.size)
 
         val score = prediction.singletonOrThrow().toFloatArray()[0]
         assertTrue(score >= 0.0f, "TransE score should be non-negative (L1 distance)")
@@ -79,7 +79,7 @@ class EmbeddingModelsIntegrationTest {
         val prediction = predictor.predict(NDList(testTriple))
 
         assertNotNull(prediction)
-        assertEquals(1, prediction.size())
+        assertEquals(1, prediction.size)
 
         val score = prediction.singletonOrThrow().toFloatArray()[0]
         assertTrue(score >= 0.0f, "TransR score should be non-negative (L1 distance)")
@@ -107,7 +107,7 @@ class EmbeddingModelsIntegrationTest {
         val prediction = predictor.predict(NDList(testTriple))
 
         assertNotNull(prediction)
-        assertEquals(1, prediction.size())
+        assertEquals(1, prediction.size)
 
         testTriple.close()
         predictor.close()
@@ -132,7 +132,7 @@ class EmbeddingModelsIntegrationTest {
         val prediction = predictor.predict(NDList(testTriple))
 
         assertNotNull(prediction)
-        assertEquals(1, prediction.size())
+        assertEquals(1, prediction.size)
 
         testTriple.close()
         predictor.close()
@@ -156,15 +156,21 @@ class EmbeddingModelsIntegrationTest {
         val testTriples =
             manager.create(
                 longArrayOf(
-                    0, 0, 1,
-                    1, 1, 2,
-                    2, 0, 3,
+                    0,
+                    0,
+                    1,
+                    1,
+                    1,
+                    2,
+                    2,
+                    0,
+                    3,
                 ),
             )
         val prediction = predictor.predict(NDList(testTriples))
 
         assertNotNull(prediction)
-        assertEquals(1, prediction.size())
+        assertEquals(1, prediction.size)
 
         val scores = prediction.singletonOrThrow().toFloatArray()
         assertEquals(3, scores.size)

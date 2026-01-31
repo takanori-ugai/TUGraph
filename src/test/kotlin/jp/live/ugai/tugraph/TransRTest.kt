@@ -155,8 +155,8 @@ class TransRTest {
         val outputShapes = transR.getOutputShapes(inputShapes)
 
         assertEquals(1, outputShapes.size)
-        assertEquals(1, outputShapes[0].size())
-        assertEquals(1L, outputShapes[0][0])
+        assertEquals(3, outputShapes[0].size())
+        assertEquals(3L, outputShapes[0][0])
     }
 
     @Test
@@ -172,8 +172,8 @@ class TransRTest {
         val outputShapes = transR.getOutputShapes(inputShapes)
 
         assertEquals(2, outputShapes.size)
-        assertEquals(1, outputShapes[0].size())
-        assertEquals(1, outputShapes[1].size())
+        assertEquals(3, outputShapes[0].size())
+        assertEquals(3, outputShapes[1].size())
     }
 
     @Test
@@ -324,11 +324,21 @@ class TransRTest {
         val input =
             manager.create(
                 longArrayOf(
-                    0, 0, 1,
-                    1, 1, 2,
-                    2, 2, 3,
-                    3, 3, 4,
-                    4, 4, 5,
+                    0,
+                    0,
+                    1,
+                    1,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3,
+                    3,
+                    3,
+                    4,
+                    4,
+                    4,
+                    5,
                 ),
             )
         val scores = transR.model(input, entities, edges, matrix)

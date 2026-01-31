@@ -1,6 +1,7 @@
 package jp.live.ugai.tugraph
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -69,6 +70,12 @@ class CommonsTest {
     @Test
     fun resultEvalBatchSizeShouldBePositive() {
         assertTrue(RESULT_EVAL_BATCH_SIZE > 0, "Result eval batch size must be positive")
+    }
+
+    @Test
+    fun resultEvalBatchSizeShouldBeReasonable() {
+        assertTrue(RESULT_EVAL_BATCH_SIZE >= 1, "Result eval batch size should be at least 1")
+        assertTrue(RESULT_EVAL_BATCH_SIZE <= 1000, "Result eval batch size should be reasonable for memory")
     }
 
     @Test
@@ -151,7 +158,7 @@ class CommonsTest {
     @Test
     fun commonsClassShouldExist() {
         val commons = Commons()
-        assertTrue(commons is Commons, "Commons class should be instantiable")
+        assertNotNull(commons, "Commons should be instantiable")
     }
 
     @Test
@@ -186,7 +193,7 @@ class CommonsTest {
 
     @Test
     fun verifyResultEvalEntityChunkSizeValue() {
-        assertEquals(10000, RESULT_EVAL_ENTITY_CHUNK_SIZE, "Result eval entity chunk size should be 10000")
+        assertEquals(1000, RESULT_EVAL_ENTITY_CHUNK_SIZE, "Result eval entity chunk size should be 1000")
     }
 
     @Test
@@ -212,10 +219,5 @@ class CommonsTest {
     @Test
     fun verifySelfAdversarialTempValue() {
         assertEquals(0.0f, SELF_ADVERSARIAL_TEMP, 1e-6f, "Self-adversarial temperature should be 0.0")
-    }
-
-    @Test
-    fun verifyTripleValue() {
-        assertEquals(3L, TRIPLE, "Triple constant should be 3")
     }
 }

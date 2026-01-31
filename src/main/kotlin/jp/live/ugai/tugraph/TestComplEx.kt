@@ -46,12 +46,12 @@ fun main() {
             }
         val predictor = model.newPredictor(NoopTranslator())
 
-        val lrt = Tracker.fixed(LEARNING_RATE)
-        val sgd = Optimizer.sgd().setLearningRateTracker(lrt).build()
+        val lrt = Tracker.fixed(ADAGRAD_LEARNING_RATE)
+        val adagrad = DenseAdagrad.builder().optLearningRateTracker(lrt).build()
 
         val config =
             DefaultTrainingConfig(Loss.l1Loss()) // Placeholder loss; EmbeddingTrainer computes its own.
-                .optOptimizer(sgd) // Optimizer (loss function)
+                .optOptimizer(adagrad) // Optimizer (loss function)
                 .optDevices(manager.engine.getDevices(1)) // single GPU
                 .addTrainingListeners(EpochTrainingListener(), HingeLossLoggingListener()) // Hinge loss logging
 
