@@ -5,6 +5,9 @@ package jp.live.ugai.tugraph
 /** Default learning rate used in training examples. */
 const val LEARNING_RATE = 0.005f
 
+/** Default Adagrad learning rate for embedding models. */
+const val ADAGRAD_LEARNING_RATE = 0.1f
+
 /** Default embedding dimension for example models. */
 const val DIMENSION = 200L
 
@@ -40,6 +43,18 @@ const val SELF_ADVERSARIAL_TEMP = 0.0f
 
 /** Number of values in a knowledge graph triple. */
 const val TRIPLE = 3L
+
+/** Matryoshka dimensions for RotatE (total embedding size). */
+val MATRYOSHKA_ROTATE_DIMS = longArrayOf(DIMENSION, DIMENSION * 2)
+
+/** Matryoshka weights for RotatE (must align with MATRYOSHKA_ROTATE_DIMS). */
+val MATRYOSHKA_ROTATE_WEIGHTS = floatArrayOf(0.3f, 0.7f)
+
+/** Matryoshka dimensions for QuatE (total embedding size). */
+val MATRYOSHKA_QUATE_DIMS = longArrayOf(DIMENSION, DIMENSION * 2, DIMENSION * 4)
+
+/** Matryoshka weights for QuatE (must align with MATRYOSHKA_QUATE_DIMS). */
+val MATRYOSHKA_QUATE_WEIGHTS = floatArrayOf(0.2f, 0.3f, 0.5f)
 
 // const val NUM_ENTITIES = 202487L
 // const val NUM_ENTITIES = 7658L

@@ -80,17 +80,16 @@ class DistMult(
     }
 
     /**
-     * Compute DistMult scores for a batch of triples.
+     * Compute scalar DistMult scores for each triple of (head, relation, tail) indices.
      *
      * The input must contain triples of indices in the order [head, relation, tail] for each triple;
-     * it may be shaped (numTriples, 3) or flattened as a multiple of 3. Each returned value is the
-     * scalar DistMult score for the corresponding triple.
+     * it may be shaped (numTriples, 3) or flattened as a multiple of 3. Embeddings are looked up
+     * by row index from the provided `entities` and `edges` matrices.
      *
-     * @param input NDArray containing triple indices (head, relation, tail) as described above.
-     * @param entities Entity embedding matrix with shape (numEnt, dim); rows map entity IDs to embeddings.
-     * @param edges Relation embedding matrix with shape (numEdge, dim); rows map relation IDs to embeddings.
-     * @return An NDArray of shape (numTriples) where each entry is the sum over the elementwise product
-     *         of the head, relation, and tail embeddings for that triple.
+     * @param input NDArray containing triple indices in row-major order (shape (numTriples, 3) or flattened as a multiple of 3).
+     * @param entities Entity embedding matrix with shape (numEnt, dim); each row is an entity embedding.
+     * @param edges Relation embedding matrix with shape (numEdge, dim); each row is a relation embedding.
+     * @return An NDArray of shape (numTriples) where each entry is the sum over the elementwise product of the head, relation, and tail embeddings for the corresponding triple.
      */
     fun model(
         input: NDArray,
@@ -98,39 +97,22 @@ class DistMult(
         edges: NDArray,
     ): NDArray {
         val numTriples = input.size() / TRIPLE
-        var triples: NDArray? = null
-        var headIds: NDArray? = null
-        var relationIds: NDArray? = null
-        var tailIds: NDArray? = null
-        var heads: NDArray? = null
-        var relations: NDArray? = null
-        var tails: NDArray? = null
-        var prod: NDArray? = null
-        var prod2: NDArray? = null
-        try {
-            triples = input.reshape(numTriples, TRIPLE)
-            headIds = triples.get(headIndex)
-            relationIds = triples.get(relationIndex)
-            tailIds = triples.get(tailIndex)
+        val parent = input.manager
+        return parent.newSubManager().use { sm ->
+            val triples = input.reshape(numTriples, TRIPLE).also { it.attach(sm) }
+            val headIds = triples.get(headIndex).also { it.attach(sm) }
+            val relationIds = triples.get(relationIndex).also { it.attach(sm) }
+            val tailIds = triples.get(tailIndex).also { it.attach(sm) }
 
-            heads = entities.get(headIds)
-            relations = edges.get(relationIds)
-            tails = entities.get(tailIds)
+            val heads = entities.get(headIds).also { it.attach(sm) }
+            val relations = edges.get(relationIds).also { it.attach(sm) }
+            val tails = entities.get(tailIds).also { it.attach(sm) }
 
             // DistMult: <h, r, t>
-            prod = heads.mul(relations)
-            prod2 = prod.mul(tails)
-            return prod2.sum(sumAxis)
-        } finally {
-            prod2?.close()
-            prod?.close()
-            tails?.close()
-            relations?.close()
-            heads?.close()
-            tailIds?.close()
-            relationIds?.close()
-            headIds?.close()
-            triples?.close()
+            val prod = heads.mul(relations).also { it.attach(sm) }
+            val prod2 = prod.mul(tails).also { it.attach(sm) }
+            val result = prod2.sum(sumAxis).also { it.attach(parent) }
+            result
         }
     }
 

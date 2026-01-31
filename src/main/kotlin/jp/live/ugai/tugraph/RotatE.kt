@@ -12,13 +12,13 @@ import ai.djl.util.PairList
 import kotlin.math.sqrt
 
 /**
- * A class representing the ComplEx model.
+ * A class representing the RotatE model.
  *
  * @property numEnt The number of entities.
  * @property numEdge The number of edges.
  * @property dim The dimensionality of the embeddings (per real/imag component).
  */
-class ComplEx(
+class RotatE(
     /** Number of entities in the graph. */
     val numEnt: Long,
     /** Number of relations in the graph. */
@@ -51,21 +51,23 @@ class ComplEx(
                 Parameter.builder()
                     .setName("edges")
                     .setType(Parameter.Type.WEIGHT)
-                    .optShape(Shape(numEdge, dim * 2))
+                    .optShape(Shape(numEdge, dim))
                     .build(),
             )
     }
 
     /**
-     * Computes the forward pass of the ComplEx model.
+     * Compute RotatE scores for one or two batches of triples.
      *
-     * @param parameterStore The parameter store.
-     * @param inputs The input NDList.
-     * @param training Whether the model is in training mode.
-     * @param params Additional parameters.
-     * @return The output NDList.
+     * Processes the first element of `inputs` as the positive triple batch and, if present,
+     * the second element as an additional batch. Returns an NDList containing one 1-D score
+     * array per input batch, with each element holding per-triple scores.
+     *
+     * @param inputs NDList whose first element is a batch of triples (head, relation, tail) and
+     *               whose optional second element is an additional batch of triples.
+     * @return An NDList where each element is a 1-D NDArray of per-triple scores corresponding
+     *         to the input batches.
      */
-    @Override
     override fun forwardInternal(
         parameterStore: ParameterStore,
         inputs: NDList,
@@ -84,19 +86,45 @@ class ComplEx(
     }
 
     /**
-     * Compute ComplEx scores for a batch of triples using the provided entity and relation embeddings.
+     * Compute RotatE scores for a batch of triples using the provided entity and relation embeddings.
+     *
+     * Scores are L1 distances between rotated head embeddings and tail embeddings (lower is better).
      *
      * @param input NDArray of triples where each row is (head, relation, tail) indices.
      * @param entities NDArray of entity embeddings with real and imaginary components concatenated.
-     * @param edges NDArray of relation embeddings with real and imaginary components concatenated.
-     * @return An NDArray of shape (numTriples) containing the ComplEx score for each triple.
+     * @param edges NDArray of relation phase embeddings (radians).
+     * @return An NDArray of shape (numTriples) containing the RotatE score for each triple.
      */
     fun model(
         input: NDArray,
         entities: NDArray,
         edges: NDArray,
     ): NDArray {
+        return score(input, entities, edges, dim * 2)
+    }
+
+    /**
+     * Compute RotatE scores for a batch of triples with a configurable total embedding dimension.
+     *
+     * The score is the L1 distance ||h ∘ r - t|| where r is a phase rotation (lower is better).
+     *
+     * @param input NDArray of triples where each row is (head, relation, tail) indices.
+     * @param entities NDArray of entity embeddings with real and imaginary components concatenated.
+     * @param edges NDArray of relation phase embeddings (radians).
+     * @param totalDim Total number of entity embedding dimensions to use (must be even).
+     * @return An NDArray of shape (numTriples) containing the RotatE score for each triple.
+     */
+    fun score(
+        input: NDArray,
+        entities: NDArray,
+        edges: NDArray,
+        totalDim: Long,
+    ): NDArray {
+        require(totalDim % 2L == 0L) { "RotatE totalDim must be even, was $totalDim." }
         val numTriples = input.size() / TRIPLE
+        val realDim = totalDim / 2L
+        val realIndex = NDIndex(":, 0:$realDim")
+        val imagIndex = NDIndex(":, $realDim:$totalDim")
         val parent = input.manager
         return parent.newSubManager().use { sm ->
             val triples = input.reshape(numTriples, TRIPLE).also { it.attach(sm) }
@@ -110,32 +138,30 @@ class ComplEx(
 
             val hRe = heads.get(realIndex).also { it.attach(sm) }
             val hIm = heads.get(imagIndex).also { it.attach(sm) }
-            val rRe = relations.get(realIndex).also { it.attach(sm) }
-            val rIm = relations.get(imagIndex).also { it.attach(sm) }
             val tRe = tails.get(realIndex).also { it.attach(sm) }
             val tIm = tails.get(imagIndex).also { it.attach(sm) }
 
-            // ComplEx: Re(<h, r, conj(t)>)
-            val term1 = hRe.mul(rRe).sub(hIm.mul(rIm)).also { it.attach(sm) }
-            val term2 = hRe.mul(rIm).add(hIm.mul(rRe)).also { it.attach(sm) }
-            val sum1 = term1.mul(tRe).also { it.attach(sm) }
-            val sum2 = term2.mul(tIm).also { it.attach(sm) }
-            val sum = sum1.add(sum2).also { it.attach(sm) }
+            val rPhase = relations.get(NDIndex(":, 0:$realDim")).also { it.attach(sm) }
+            val rCos = rPhase.cos().also { it.attach(sm) }
+            val rSin = rPhase.sin().also { it.attach(sm) }
+            val rotRe = hRe.mul(rCos).sub(hIm.mul(rSin)).also { it.attach(sm) }
+            val rotIm = hRe.mul(rSin).add(hIm.mul(rCos)).also { it.attach(sm) }
+            val diffRe = rotRe.sub(tRe).also { it.attach(sm) }
+            val diffIm = rotIm.sub(tIm).also { it.attach(sm) }
+            val absRe = diffRe.abs().also { it.attach(sm) }
+            val absIm = diffIm.abs().also { it.attach(sm) }
+            val sum = absRe.add(absIm).also { it.attach(sm) }
             val result = sum.sum(sumAxis).also { it.attach(parent) }
             result
         }
     }
 
     /**
-     * Infer the output Shape(s) from the supplied input Shapes by computing the number of triples
-     * present in the first input.
+     * Determine the output tensor shapes produced by this block for the given input shapes.
      *
-     * @param inputs Array of input Shapes; the number of triples is computed from inputs[0].size() /
-     *     TRIPLE.
-     * @return An array containing one Shape (number of triples). If two inputs are provided, returns two
-     *     identical Shapes.
+     * @param inputs Array of input Shapes; the first element represents a flattened list of triple IDs (length is 3 * numTriples).
+     * @return An array of one or two Shape objects, each a 1-D Shape of length numTriples (number of triples derived from inputs[0]).
      */
-    @Override
     override fun getOutputShapes(inputs: Array<Shape>): Array<Shape> {
         val numTriples = inputs[0].size() / TRIPLE
         val outShape = Shape(numTriples)
@@ -147,18 +173,18 @@ class ComplEx(
     }
 
     /**
-     * Retrieve the entities embeddings array.
+     * Access the entities embedding parameter array.
      *
-     * @return The entities embeddings NDArray with shape (numEnt, dim * 2).
+     * @return The NDArray containing entity embeddings with shape (numEnt, dim * 2).
      */
     fun getEntities(): NDArray {
         return getParameters().get("entities").array
     }
 
     /**
-     * Gets relation (edge) embeddings.
+     * Retrieve the relation (edge) embedding parameters.
      *
-     * @return NDArray of shape (numEdge, dim * 2) containing concatenated real and imaginary parts for each relation.
+     * @return NDArray of shape (numEdge, dim) containing the relation phase embeddings.
      */
     fun getEdges(): NDArray {
         return getParameters().get("edges").array

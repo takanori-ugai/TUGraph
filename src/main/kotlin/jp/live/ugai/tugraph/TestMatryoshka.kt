@@ -9,17 +9,15 @@ import ai.djl.ndarray.types.Shape
 import ai.djl.training.DefaultTrainingConfig
 import ai.djl.training.listener.EpochTrainingListener
 import ai.djl.training.loss.Loss
-import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /**
- * Entry point that trains and evaluates a DistMult knowledge-graph embedding model from CSV triples.
+ * Runs a self-contained demonstration that trains and evaluates a QuatE model augmented with Matryoshka embeddings.
  *
- * Reads triples from "data/sample.csv", constructs entity and relation counts, initializes and trains a
- * DistMult model using an EmbeddingTrainer, then prints training results, model embeddings, a sample
- * prediction, and head/tail evaluation results. All resources (NDManager, trainer, predictor, evaluator,
- * and model) are closed before exit.
+ * Reads triples from data/sample.csv, prepares entity and relation counts, initializes and trains embeddings,
+ * computes Matryoshka dot scores for a small batch, runs a predictor on a test triple, and prints head/tail
+ * evaluation results and diagnostics.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->
@@ -48,21 +46,22 @@ fun main() {
             }
         val numEntities = maxOf(headMax, tailMax) + 1
         val numEdges = relMax + 1
-        val distMult =
-            DistMult(numEntities, numEdges, DIMENSION).also {
+
+        val quate =
+            QuatE(numEntities, numEdges, DIMENSION).also {
                 it.initialize(manager, DataType.FLOAT32, input.shape)
             }
         val model =
-            Model.newInstance("distmult").also {
-                it.block = distMult
+            Model.newInstance("quate-matryoshka").also {
+                it.block = quate
             }
 
-        val lrt = Tracker.fixed(LEARNING_RATE)
-        val sgd = Optimizer.sgd().setLearningRateTracker(lrt).build()
+        val lrt = Tracker.fixed(ADAGRAD_LEARNING_RATE)
+        val adagrad = DenseAdagrad.builder().optLearningRateTracker(lrt).build()
 
         val config =
             DefaultTrainingConfig(Loss.l1Loss()) // Placeholder loss; EmbeddingTrainer computes its own.
-                .optOptimizer(sgd) // Optimizer
+                .optOptimizer(adagrad) // Optimizer
                 .optDevices(manager.engine.getDevices(1)) // single GPU
                 .addTrainingListeners(EpochTrainingListener(), HingeLossLoggingListener()) // Hinge loss logging
 
@@ -77,10 +76,35 @@ fun main() {
         eTrainer.close()
         println(trainer.trainingResult)
 
-        println(distMult.getEdges())
-        println(distMult.getEntities())
-
         val predictor = model.newPredictor(NoopTranslator())
+
+        // Matryoshka scores using nested dimensions on entity embeddings.
+        val matryoshkaDims = MATRYOSHKA_QUATE_DIMS
+        val matryoshka = Matryoshka(matryoshkaDims)
+        val firstBatch = input.get("0:${minOf(4, numOfTriples.toInt())}, :")
+        firstBatch.use { batch ->
+            val heads = batch.get(":, 0")
+            val tails = batch.get(":, 2")
+            try {
+                val ent = quate.getEntities()
+                val headEmb = ent.get(heads)
+                val tailEmb = ent.get(tails)
+                try {
+                    val scores = matryoshka.dotScores(headEmb, tailEmb)
+                    for (i in scores.indices) {
+                        println("Matryoshka dot score (dim=${matryoshkaDims[i]}): ${scores[i]}")
+                        scores[i].close()
+                    }
+                } finally {
+                    headEmb.close()
+                    tailEmb.close()
+                }
+            } finally {
+                heads.close()
+                tails.close()
+            }
+        }
+
         val test = manager.create(longArrayOf(1, 1, 2))
         test.use {
             println(predictor.predict(NDList(it)).singletonOrThrow())
@@ -93,7 +117,7 @@ fun main() {
                 predictor,
                 numEntities,
                 higherIsBetter = true,
-                distMult = distMult,
+                quatE = quate,
             )
         println("Tail")
         result.getTailResult().forEach {
@@ -109,5 +133,5 @@ fun main() {
     }
 }
 
-/** Marker class for TestDistMult example. */
-class TestDistMult
+/** Marker class for TestMatryoshka example. */
+class TestMatryoshka
