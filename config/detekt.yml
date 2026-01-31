@@ -3,7 +3,7 @@ build:
 
 complexity:
   CyclomaticComplexMethod:
-    threshold: 100
+    threshold: 50
   TooManyFunctions:
     thresholdInFiles: 20
     thresholdInClasses: 20
