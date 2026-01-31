@@ -13,12 +13,6 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /**
- * Trains and evaluates a RotatE knowledge-graph embedding model using triples loaded from "data/sample.csv".
- *
- * Reads triples from the CSV, constructs and initializes a RotatE model and trainer, runs embedding training,
- * prints training results and learned parameters, runs a sample prediction, and evaluates head/tail predictions.
- */
-/**
  * Runs an end-to-end example that reads triples from data/sample.csv, trains a RotatE knowledge-graph
  * embedding model, performs a sample prediction, evaluates head/tail predictions, prints results, and
  * cleans up resources.

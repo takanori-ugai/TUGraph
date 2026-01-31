@@ -30,6 +30,7 @@ class EmbeddingTrainer(
         val entities: NDArray,
         val edges: NDArray,
     )
+
     private val margin = 1.0f
     private val logger = org.slf4j.LoggerFactory.getLogger(EmbeddingTrainer::class.java)
 
@@ -581,5 +582,4 @@ class EmbeddingTrainer(
             throw e
         }
     }
-
 }

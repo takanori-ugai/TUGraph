@@ -14,12 +14,6 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /**
- * Trains and evaluates a DistMult knowledge-graph embedding model using triples loaded from "data/sample.csv".
- *
- * Reads triples from the CSV, constructs and initializes a DistMult model and trainer, runs embedding training,
- * prints training results and learned parameters, runs a sample prediction, and evaluates head/tail predictions.
- */
-/**
  * Entry point that trains and evaluates a DistMult knowledge-graph embedding model from CSV triples.
  *
  * Reads triples from "data/sample.csv", constructs entity and relation counts, initializes and trains a

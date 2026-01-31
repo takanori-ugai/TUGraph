@@ -102,26 +102,26 @@ class DenseAdagrad(
         }
 
         /**
- * Provide the current builder instance for method chaining.
- *
- * @return This builder instance.
- */
-override fun self(): Builder = this
+         * Provide the current builder instance for method chaining.
+         *
+         * @return This builder instance.
+         */
+        override fun self(): Builder = this
 
         /**
- * Create a DenseAdagrad optimizer configured with the builder's current settings.
- *
- * @return A new DenseAdagrad instance configured with the builder's learningRateTracker and epsilon.
- */
-fun build(): DenseAdagrad = DenseAdagrad(learningRateTracker, epsilon, this)
+         * Create a DenseAdagrad optimizer configured with the builder's current settings.
+         *
+         * @return A new DenseAdagrad instance configured with the builder's learningRateTracker and epsilon.
+         */
+        fun build(): DenseAdagrad = DenseAdagrad(learningRateTracker, epsilon, this)
     }
 
     companion object {
         /**
- * Create a new Builder for configuring and constructing a DenseAdagrad optimizer.
- *
- * @return A new Builder instance.
- */
-fun builder(): Builder = Builder()
+         * Create a new Builder for configuring and constructing a DenseAdagrad optimizer.
+         *
+         * @return A new Builder instance.
+         */
+        fun builder(): Builder = Builder()
     }
 }

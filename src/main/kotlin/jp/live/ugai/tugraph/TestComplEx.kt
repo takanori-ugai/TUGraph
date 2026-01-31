@@ -12,18 +12,12 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /**
- * Orchestrates data loading, model construction, training, evaluation, and a sample prediction within a managed
- * NDManager scope.
+ * Entry point that loads triples from "data/sample.csv", trains a ComplEx embedding model, evaluates it, and prints
+ * training and evaluation outputs.
  *
- * Reads triple data from "data/sample.csv"; builds and initializes a ComplEx knowledge-graph embedding model;
- * configures training (optimizer, devices, listeners) and runs embedding training for a fixed number of epochs;
- * prints training results and the model's learned entities/edges; runs a single sample prediction; evaluates and
- * prints head and tail ranking results.
- */
-/**
- * Entry point that loads triples from "data/sample.csv", trains a ComplEx embedding model, evaluates it, and prints training and evaluation outputs.
- *
- * This function manages NDManager resources, constructs and initializes the ComplEx model and DJL components, configures training with a DenseAdagrad optimizer, runs embedding training, performs a sample prediction, and computes head/tail evaluation results which are printed to stdout.
+ * This function manages NDManager resources, constructs and initializes the ComplEx model and DJL components,
+ * configures training with a DenseAdagrad optimizer, runs embedding training, performs a sample prediction, and
+ * computes head/tail evaluation results which are printed to stdout.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->

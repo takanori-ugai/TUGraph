@@ -73,6 +73,7 @@ class ResultEval(
      * @param buildBatch Callback that builds an EvalBatch for inputs in the half-open range [start, end).
      * @return A list of 1-based ranks (one element per input) where each rank is the position of the true entity
      *         among all candidate entities according to TransE scores.
+     */
     private fun computeRanksTransE(
         evalBatchSize: Int,
         entityChunkSize: Int,
@@ -432,18 +433,22 @@ class ResultEval(
                         val tI = tEmb.get(iIndex).also { it.attach(batchManager) }
                         val tJ = tEmb.get(jIndex).also { it.attach(batchManager) }
                         val tK = tEmb.get(kIndex).also { it.attach(batchManager) }
-                        aR = rR.mul(tR).add(rI.mul(tI)).add(rJ.mul(tJ)).add(rK.mul(tK)).also {
-                            it.attach(batchManager)
-                        }
-                        aI = rR.mul(tI).sub(rI.mul(tR)).add(rJ.mul(tK)).sub(rK.mul(tJ)).also {
-                            it.attach(batchManager)
-                        }
-                        aJ = rR.mul(tJ).sub(rJ.mul(tR)).add(rK.mul(tI)).sub(rI.mul(tK)).also {
-                            it.attach(batchManager)
-                        }
-                        aK = rR.mul(tK).sub(rK.mul(tR)).add(rI.mul(tJ)).sub(rJ.mul(tI)).also {
-                            it.attach(batchManager)
-                        }
+                        aR =
+                            rR.mul(tR).add(rI.mul(tI)).add(rJ.mul(tJ)).add(rK.mul(tK)).also {
+                                it.attach(batchManager)
+                            }
+                        aI =
+                            rR.mul(tI).sub(rI.mul(tR)).add(rJ.mul(tK)).sub(rK.mul(tJ)).also {
+                                it.attach(batchManager)
+                            }
+                        aJ =
+                            rR.mul(tJ).sub(rJ.mul(tR)).add(rK.mul(tI)).sub(rI.mul(tK)).also {
+                                it.attach(batchManager)
+                            }
+                        aK =
+                            rR.mul(tK).sub(rK.mul(tR)).add(rI.mul(tJ)).sub(rJ.mul(tI)).also {
+                                it.attach(batchManager)
+                            }
                     }
                     val trueScore =
                         if (mode == EvalMode.TAIL) {
@@ -726,7 +731,9 @@ class ResultEval(
                                                                                         chunkStart + chunkSize,
                                                                                         numEntities.toInt(),
                                                                                     )
-                                                                                entities.get(NDIndex("$chunkStart:$chunkEnd, :")).use { entityChunk ->
+                                                                                entities.get(
+                                                                                    NDIndex("$chunkStart:$chunkEnd, :"),
+                                                                                ).use { entityChunk ->
                                                                                     val projChunk = entityChunk.matMul(mT)
                                                                                     projChunk.use { pChunk ->
                                                                                         val baseExp = b.expandDims(1)
@@ -744,9 +751,13 @@ class ResultEval(
                                                                                                     scores.use { sc ->
                                                                                                         val countBetterNd =
                                                                                                             if (higherIsBetter) {
-                                                                                                                sc.gt(ts2d).sum(intArrayOf(1))
+                                                                                                                sc.gt(
+                                                                                                                    ts2d,
+                                                                                                                ).sum(intArrayOf(1))
                                                                                                             } else {
-                                                                                                                sc.lt(ts2d).sum(intArrayOf(1))
+                                                                                                                sc.lt(
+                                                                                                                    ts2d,
+                                                                                                                ).sum(intArrayOf(1))
                                                                                                             }
                                                                                                         countBetter.addi(countBetterNd)
                                                                                                         countBetterNd.close()

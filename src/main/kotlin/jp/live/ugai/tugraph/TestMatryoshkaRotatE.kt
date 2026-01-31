@@ -13,9 +13,6 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /**
- * Demonstrates combining Matryoshka embeddings with a RotatE model on "data/sample.csv".
- */
-/**
  * Runs a self-contained demonstration that trains RotatE entity embeddings, scores them with
  * Matryoshka projections, performs a sample prediction, and prints evaluation results.
  *

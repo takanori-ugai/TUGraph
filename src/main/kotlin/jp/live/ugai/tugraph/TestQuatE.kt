@@ -13,12 +13,6 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /**
- * Trains and evaluates a QuatE knowledge-graph embedding model using triples loaded from "data/sample.csv".
- *
- * Reads triples from the CSV, constructs and initializes a QuatE model and trainer, runs embedding training,
- * prints training results and learned parameters, runs a sample prediction, and evaluates head/tail predictions.
- */
-/**
  * Runs an end-to-end QuatE workflow: loads triples from data/sample.csv, trains embeddings,
  * performs a sample prediction, and evaluates head/tail prediction results.
  *
