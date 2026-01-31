@@ -80,17 +80,16 @@ class DistMult(
     }
 
     /**
-     * Compute DistMult scores for a batch of triples.
+     * Compute scalar DistMult scores for each triple of (head, relation, tail) indices.
      *
      * The input must contain triples of indices in the order [head, relation, tail] for each triple;
-     * it may be shaped (numTriples, 3) or flattened as a multiple of 3. Each returned value is the
-     * scalar DistMult score for the corresponding triple.
+     * it may be shaped (numTriples, 3) or flattened as a multiple of 3. Embeddings are looked up
+     * by row index from the provided `entities` and `edges` matrices.
      *
-     * @param input NDArray containing triple indices (head, relation, tail) as described above.
-     * @param entities Entity embedding matrix with shape (numEnt, dim); rows map entity IDs to embeddings.
-     * @param edges Relation embedding matrix with shape (numEdge, dim); rows map relation IDs to embeddings.
-     * @return An NDArray of shape (numTriples) where each entry is the sum over the elementwise product
-     *         of the head, relation, and tail embeddings for that triple.
+     * @param input NDArray containing triple indices in row-major order (shape (numTriples, 3) or flattened as a multiple of 3).
+     * @param entities Entity embedding matrix with shape (numEnt, dim); each row is an entity embedding.
+     * @param edges Relation embedding matrix with shape (numEdge, dim); each row is a relation embedding.
+     * @return An NDArray of shape (numTriples) where each entry is the sum over the elementwise product of the head, relation, and tail embeddings for the corresponding triple.
      */
     fun model(
         input: NDArray,

@@ -20,6 +20,11 @@ import ai.djl.translate.NoopTranslator
  * prints training results and the model's learned entities/edges; runs a single sample prediction; evaluates and
  * prints head and tail ranking results.
  */
+/**
+ * Entry point that loads triples from "data/sample.csv", trains a ComplEx embedding model, evaluates it, and prints training and evaluation outputs.
+ *
+ * This function manages NDManager resources, constructs and initializes the ComplEx model and DJL components, configures training with a DenseAdagrad optimizer, runs embedding training, performs a sample prediction, and computes head/tail evaluation results which are printed to stdout.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)

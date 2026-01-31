@@ -17,6 +17,20 @@ class DenseAdagrad(
 ) : Optimizer(builder) {
     private val history: MutableMap<String, MutableMap<Device, NDArray>> = ConcurrentHashMap()
 
+    /**
+     * Updates the given parameter `weight` in-place using the Dense Adagrad optimizer with the provided `grad`.
+     *
+     * The method:
+     * - Validates the computed learning rate and configured weight decay and throws IllegalStateException if either is NaN or infinite.
+     * - Optionally rescales and clips `grad`, and optionally adds a weight-decay term before applying updates.
+     * - Updates the optimizer's per-parameter, per-device accumulated squared-gradient state.
+     * - Computes the denominator as sqrt(accumulated_state) + epsilon and applies the Adagrad update: weight -= (lr * processedGrad) / denom.
+     *
+     * @param name Identifier for the parameter; used to read and update the optimizer state for this parameter and device.
+     * @param weight The parameter NDArray to update in-place.
+     * @param grad The gradient NDArray for the parameter.
+     * @throws IllegalStateException if the learning rate or weight decay is NaN or infinite.
+     */
     override fun update(
         name: String,
         weight: NDArray,
@@ -65,22 +79,49 @@ class DenseAdagrad(
         private var learningRateTracker: ParameterTracker = Tracker.fixed(0.001f)
         private var epsilon: Float = 1.0e-8f
 
+        /**
+         * Sets the tracker used to obtain per-parameter learning rates.
+         *
+         * @param tracker The ParameterTracker to use for learning rate scheduling.
+         * @return This Builder instance.
+         */
         fun optLearningRateTracker(tracker: ParameterTracker): Builder {
             this.learningRateTracker = tracker
             return this
         }
 
+        /**
+         * Sets the epsilon used for numerical stability in denominator computations.
+         *
+         * @param value The epsilon value added to the denominator to avoid division by zero.
+         * @return This Builder.
+         */
         fun optEpsilon(value: Float): Builder {
             this.epsilon = value
             return this
         }
 
-        override fun self(): Builder = this
+        /**
+ * Provide the current builder instance for method chaining.
+ *
+ * @return This builder instance.
+ */
+override fun self(): Builder = this
 
-        fun build(): DenseAdagrad = DenseAdagrad(learningRateTracker, epsilon, this)
+        /**
+ * Create a DenseAdagrad optimizer configured with the builder's current settings.
+ *
+ * @return A new DenseAdagrad instance configured with the builder's learningRateTracker and epsilon.
+ */
+fun build(): DenseAdagrad = DenseAdagrad(learningRateTracker, epsilon, this)
     }
 
     companion object {
-        fun builder(): Builder = Builder()
+        /**
+ * Create a new Builder for configuring and constructing a DenseAdagrad optimizer.
+ *
+ * @return A new Builder instance.
+ */
+fun builder(): Builder = Builder()
     }
 }

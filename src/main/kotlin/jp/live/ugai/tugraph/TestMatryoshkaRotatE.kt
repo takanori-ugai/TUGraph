@@ -15,6 +15,14 @@ import ai.djl.translate.NoopTranslator
 /**
  * Demonstrates combining Matryoshka embeddings with a RotatE model on "data/sample.csv".
  */
+/**
+ * Runs a self-contained demonstration that trains RotatE entity embeddings, scores them with
+ * Matryoshka projections, performs a sample prediction, and prints evaluation results.
+ *
+ * Reads triples from "data/sample.csv", constructs model and trainer resources, runs embedding
+ * training, computes Matryoshka dot scores for a small batch of triples, performs a single
+ * prediction, and prints head/tail evaluation metrics and training results.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)

@@ -21,11 +21,11 @@ class Matryoshka(
     }
 
     /**
-     * Returns a view of the first [dim] dimensions of the given embedding.
+     * Create a view containing the first prefix dimensions of an embedding.
      *
-     * @param embedding NDArray of shape (N, D).
-     * @param dim The prefix dimension to keep.
-     * @return NDArray view with shape (N, dim).
+     * @param embedding NDArray with shape (N, D) where D is the embedding width.
+     * @param dim Prefix dimension to keep; must be greater than 0 and less than or equal to D.
+     * @return An NDArray view with shape (N, dim) containing the first `dim` features for each item.
      */
     fun slice(
         embedding: NDArray,
