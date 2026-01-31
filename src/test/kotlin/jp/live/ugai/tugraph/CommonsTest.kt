@@ -220,4 +220,151 @@ class CommonsTest {
     fun verifySelfAdversarialTempValue() {
         assertEquals(0.0f, SELF_ADVERSARIAL_TEMP, 1e-6f, "Self-adversarial temperature should be 0.0")
     }
+
+    @Test
+    fun testMatryoshkaRotateDimensionsArraySize() {
+        assertTrue(MATRYOSHKA_ROTATE_DIMS.isNotEmpty(), "Matryoshka RotatE dims should not be empty")
+        assertEquals(
+            MATRYOSHKA_ROTATE_DIMS.size,
+            MATRYOSHKA_ROTATE_WEIGHTS.size,
+            "Matryoshka RotatE dims and weights should have same size",
+        )
+    }
+
+    @Test
+    fun testMatryoshkaRotateWeightsSumToOne() {
+        val sum = MATRYOSHKA_ROTATE_WEIGHTS.sum()
+        assertEquals(1.0f, sum, 0.01f, "Matryoshka RotatE weights should approximately sum to 1")
+    }
+
+    @Test
+    fun testMatryoshkaRotateDimensionsIncreasing() {
+        for (i in 1 until MATRYOSHKA_ROTATE_DIMS.size) {
+            assertTrue(
+                MATRYOSHKA_ROTATE_DIMS[i] > MATRYOSHKA_ROTATE_DIMS[i - 1],
+                "Matryoshka RotatE dimensions should be strictly increasing",
+            )
+        }
+    }
+
+    @Test
+    fun testMatryoshkaQuatEDimensionsArraySize() {
+        assertTrue(MATRYOSHKA_QUATE_DIMS.isNotEmpty(), "Matryoshka QuatE dims should not be empty")
+        assertEquals(
+            MATRYOSHKA_QUATE_DIMS.size,
+            MATRYOSHKA_QUATE_WEIGHTS.size,
+            "Matryoshka QuatE dims and weights should have same size",
+        )
+    }
+
+    @Test
+    fun testMatryoshkaQuatEWeightsSumToOne() {
+        val sum = MATRYOSHKA_QUATE_WEIGHTS.sum()
+        assertEquals(1.0f, sum, 0.01f, "Matryoshka QuatE weights should approximately sum to 1")
+    }
+
+    @Test
+    fun testMatryoshkaQuatEDimensionsIncreasing() {
+        for (i in 1 until MATRYOSHKA_QUATE_DIMS.size) {
+            assertTrue(
+                MATRYOSHKA_QUATE_DIMS[i] > MATRYOSHKA_QUATE_DIMS[i - 1],
+                "Matryoshka QuatE dimensions should be strictly increasing",
+            )
+        }
+    }
+
+    @Test
+    fun testMatryoshkaRotateWeightsArePositive() {
+        for (weight in MATRYOSHKA_ROTATE_WEIGHTS) {
+            assertTrue(weight > 0.0f, "All Matryoshka RotatE weights should be positive")
+        }
+    }
+
+    @Test
+    fun testMatryoshkaQuatEWeightsArePositive() {
+        for (weight in MATRYOSHKA_QUATE_WEIGHTS) {
+            assertTrue(weight > 0.0f, "All Matryoshka QuatE weights should be positive")
+        }
+    }
+
+    @Test
+    fun testMatryoshkaRotateDimensionsArePositive() {
+        for (dim in MATRYOSHKA_ROTATE_DIMS) {
+            assertTrue(dim > 0, "All Matryoshka RotatE dimensions should be positive")
+        }
+    }
+
+    @Test
+    fun testMatryoshkaQuatEDimensionsArePositive() {
+        for (dim in MATRYOSHKA_QUATE_DIMS) {
+            assertTrue(dim > 0, "All Matryoshka QuatE dimensions should be positive")
+        }
+    }
+
+    @Test
+    fun testAdagradLearningRateShouldBePositive() {
+        assertTrue(ADAGRAD_LEARNING_RATE > 0.0f, "Adagrad learning rate must be positive")
+    }
+
+    @Test
+    fun testAdagradLearningRateShouldBeReasonable() {
+        assertTrue(ADAGRAD_LEARNING_RATE <= 1.0f, "Adagrad learning rate should typically be <= 1.0")
+        assertTrue(ADAGRAD_LEARNING_RATE >= 1e-6f, "Adagrad learning rate should be >= 1e-6")
+    }
+
+    @Test
+    fun verifyAdagradLearningRateValue() {
+        assertEquals(0.1f, ADAGRAD_LEARNING_RATE, 1e-6f, "Adagrad learning rate should be 0.1")
+    }
+
+    @Test
+    fun testMatryoshkaRotateFirstDimReasonable() {
+        assertTrue(
+            MATRYOSHKA_ROTATE_DIMS[0] >= DIMENSION,
+            "First Matryoshka RotatE dim should be >= base dimension",
+        )
+    }
+
+    @Test
+    fun testMatryoshkaQuatEFirstDimReasonable() {
+        assertTrue(
+            MATRYOSHKA_QUATE_DIMS[0] >= DIMENSION,
+            "First Matryoshka QuatE dim should be >= base dimension",
+        )
+    }
+
+    @Test
+    fun testResultEvalBatchSizeSmallEnoughForMemory() {
+        assertTrue(
+            RESULT_EVAL_BATCH_SIZE <= 1000,
+            "Result eval batch size should be small enough to avoid memory issues",
+        )
+    }
+
+    @Test
+    fun testEvalEveryLessThanEpochs() {
+        assertTrue(EVAL_EVERY <= NEPOCH, "Eval frequency should be <= total epochs")
+    }
+
+    @Test
+    fun testMatryoshkaRotateDimensionsEven() {
+        for (dim in MATRYOSHKA_ROTATE_DIMS) {
+            assertEquals(
+                0,
+                dim % 2,
+                "RotatE dimensions should be even (real + imaginary)",
+            )
+        }
+    }
+
+    @Test
+    fun testMatryoshkaQuatEDimensionsDivisibleByFour() {
+        for (dim in MATRYOSHKA_QUATE_DIMS) {
+            assertEquals(
+                0,
+                dim % 4,
+                "QuatE dimensions should be divisible by 4 (quaternion)",
+            )
+        }
+    }
 }
