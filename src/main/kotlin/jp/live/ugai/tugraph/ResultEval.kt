@@ -79,15 +79,21 @@ class ResultEval(
         entityChunkSize: Int,
         mode: EvalMode,
         buildBatch: (start: Int, end: Int) -> EvalBatch,
-    ): List<Int> {
-        val transe = transE ?: return emptyList()
-        val ranks = mutableListOf<Int>()
+    ): IntArray {
+        val transe = transE ?: return IntArray(0)
+        val totalSize = inputList.size
+        if (totalSize == 0) {
+            return IntArray(0)
+        }
+        val ranks = IntArray(totalSize)
+        var outIndex = 0
         val entities = transe.getEntities()
         val edges = transe.getEdges()
         val chunkSize = maxOf(1, entityChunkSize)
+        val numEntitiesInt = numEntities.toInt()
         var start = 0
-        while (start < inputList.size) {
-            val end = minOf(start + evalBatchSize, inputList.size)
+        while (start < totalSize) {
+            val end = minOf(start + evalBatchSize, totalSize)
             val batch = buildBatch(start, end)
             batch.use {
                 val basePair = batch.basePair
@@ -118,8 +124,8 @@ class ResultEval(
                     val countBetter = batchManager.zeros(Shape(batchSize.toLong()), DataType.INT64)
                     val baseEmbExp = baseEmb.expandDims(1).also { it.attach(batchManager) }
                     var chunkStart = 0
-                    while (chunkStart < numEntities.toInt()) {
-                        val chunkEnd = minOf(chunkStart + chunkSize, numEntities.toInt())
+                    while (chunkStart < numEntitiesInt) {
+                        val chunkEnd = minOf(chunkStart + chunkSize, numEntitiesInt)
                         entities.get(NDIndex("$chunkStart:$chunkEnd, :")).use { entityChunk ->
                             val entityExp = entityChunk.expandDims(0)
                             entityExp.use { ent ->
@@ -145,13 +151,13 @@ class ResultEval(
                     val batchRanks = ranksNd.toLongArray()
                     ranksNd.close()
                     for (rank in batchRanks) {
-                        ranks.add(rank.toInt())
+                        ranks[outIndex++] = rank.toInt()
                     }
                 }
             }
             start = end
         }
-        return ranks
+        return if (outIndex == totalSize) ranks else ranks.copyOf(outIndex)
     }
 
     private enum class EvalMode {
@@ -178,15 +184,21 @@ class ResultEval(
         entityChunkSize: Int,
         mode: EvalMode,
         buildBatch: (start: Int, end: Int) -> EvalBatch,
-    ): List<Int> {
-        val model = distMult ?: return emptyList()
-        val ranks = mutableListOf<Int>()
+    ): IntArray {
+        val model = distMult ?: return IntArray(0)
+        val totalSize = inputList.size
+        if (totalSize == 0) {
+            return IntArray(0)
+        }
+        val ranks = IntArray(totalSize)
+        var outIndex = 0
         val entities = model.getEntities()
         val edges = model.getEdges()
         val chunkSize = maxOf(1, entityChunkSize)
+        val numEntitiesInt = numEntities.toInt()
         var start = 0
-        while (start < inputList.size) {
-            val end = minOf(start + evalBatchSize, inputList.size)
+        while (start < totalSize) {
+            val end = minOf(start + evalBatchSize, totalSize)
             val batch = buildBatch(start, end)
             batch.use {
                 val basePair = batch.basePair
@@ -208,8 +220,8 @@ class ResultEval(
                             .also { it.attach(batchManager) }
                     val countBetter = batchManager.zeros(Shape(batchSize.toLong()), DataType.INT64)
                     var chunkStart = 0
-                    while (chunkStart < numEntities.toInt()) {
-                        val chunkEnd = minOf(chunkStart + chunkSize, numEntities.toInt())
+                    while (chunkStart < numEntitiesInt) {
+                        val chunkEnd = minOf(chunkStart + chunkSize, numEntitiesInt)
                         entities.get(NDIndex("$chunkStart:$chunkEnd, :")).use { entityChunk ->
                             entityChunk.transpose().use { entityChunkT ->
                                 val scores = baseMul.matMul(entityChunkT)
@@ -231,13 +243,13 @@ class ResultEval(
                     val batchRanks = ranksNd.toLongArray()
                     ranksNd.close()
                     for (rank in batchRanks) {
-                        ranks.add(rank.toInt())
+                        ranks[outIndex++] = rank.toInt()
                     }
                 }
             }
             start = end
         }
-        return ranks
+        return if (outIndex == totalSize) ranks else ranks.copyOf(outIndex)
     }
 
     /**
@@ -261,9 +273,14 @@ class ResultEval(
         entityChunkSize: Int,
         mode: EvalMode,
         buildBatch: (start: Int, end: Int) -> EvalBatch,
-    ): List<Int> {
-        val model = rotatE ?: return emptyList()
-        val ranks = mutableListOf<Int>()
+    ): IntArray {
+        val model = rotatE ?: return IntArray(0)
+        val totalSize = inputList.size
+        if (totalSize == 0) {
+            return IntArray(0)
+        }
+        val ranks = IntArray(totalSize)
+        var outIndex = 0
         val entities = model.getEntities()
         val edges = model.getEdges()
         val embDim2 = entities.shape[1].toInt()
@@ -272,9 +289,10 @@ class ResultEval(
         val realIndex = NDIndex(":, 0:$halfDim")
         val imagIndex = NDIndex(":, $halfDim:")
         val chunkSize = maxOf(1, entityChunkSize)
+        val numEntitiesInt = numEntities.toInt()
         var start = 0
-        while (start < inputList.size) {
-            val end = minOf(start + evalBatchSize, inputList.size)
+        while (start < totalSize) {
+            val end = minOf(start + evalBatchSize, totalSize)
             val batch = buildBatch(start, end)
             batch.use {
                 val basePair = batch.basePair
@@ -314,8 +332,8 @@ class ResultEval(
                             .also { it.attach(batchManager) }
                     val countBetter = batchManager.zeros(Shape(batchSize.toLong()), DataType.INT64)
                     var chunkStart = 0
-                    while (chunkStart < numEntities.toInt()) {
-                        val chunkEnd = minOf(chunkStart + chunkSize, numEntities.toInt())
+                    while (chunkStart < numEntitiesInt) {
+                        val chunkEnd = minOf(chunkStart + chunkSize, numEntitiesInt)
                         entities.get(NDIndex("$chunkStart:$chunkEnd, :")).use { entityChunk ->
                             val eRe = entityChunk.get(realIndex)
                             val eIm = entityChunk.get(imagIndex)
@@ -347,13 +365,13 @@ class ResultEval(
                     val batchRanks = ranksNd.toLongArray()
                     ranksNd.close()
                     for (rank in batchRanks) {
-                        ranks.add(rank.toInt())
+                        ranks[outIndex++] = rank.toInt()
                     }
                 }
             }
             start = end
         }
-        return ranks
+        return if (outIndex == totalSize) ranks else ranks.copyOf(outIndex)
     }
 
     /**
@@ -376,9 +394,14 @@ class ResultEval(
         entityChunkSize: Int,
         mode: EvalMode,
         buildBatch: (start: Int, end: Int) -> EvalBatch,
-    ): List<Int> {
-        val model = quatE ?: return emptyList()
-        val ranks = mutableListOf<Int>()
+    ): IntArray {
+        val model = quatE ?: return IntArray(0)
+        val totalSize = inputList.size
+        if (totalSize == 0) {
+            return IntArray(0)
+        }
+        val ranks = IntArray(totalSize)
+        var outIndex = 0
         val entities = model.getEntities()
         val edges = model.getEdges()
         val embDim4 = entities.shape[1].toInt()
@@ -389,9 +412,10 @@ class ResultEval(
         val jIndex = NDIndex(":, ${quarterDim * 2}:${quarterDim * 3}")
         val kIndex = NDIndex(":, ${quarterDim * 3}:")
         val chunkSize = maxOf(1, entityChunkSize)
+        val numEntitiesInt = numEntities.toInt()
         var start = 0
-        while (start < inputList.size) {
-            val end = minOf(start + evalBatchSize, inputList.size)
+        while (start < totalSize) {
+            val end = minOf(start + evalBatchSize, totalSize)
             val batch = buildBatch(start, end)
             batch.use {
                 val basePair = batch.basePair
@@ -406,116 +430,75 @@ class ResultEval(
                     val fixedIds = if (mode == EvalMode.TAIL) baseCol0 else baseCol1
                     val rels = edges.get(relIds).also { it.attach(batchManager) }
                     val fixed = entities.get(fixedIds).also { it.attach(batchManager) }
-                    val rR = rels.get(rIndex).also { it.attach(batchManager) }
-                    val rI = rels.get(iIndex).also { it.attach(batchManager) }
-                    val rJ = rels.get(jIndex).also { it.attach(batchManager) }
-                    val rK = rels.get(kIndex).also { it.attach(batchManager) }
-                    val fR = fixed.get(rIndex).also { it.attach(batchManager) }
-                    val fI = fixed.get(iIndex).also { it.attach(batchManager) }
-                    val fJ = fixed.get(jIndex).also { it.attach(batchManager) }
-                    val fK = fixed.get(kIndex).also { it.attach(batchManager) }
-                    val aR: NDArray
-                    val aI: NDArray
-                    val aJ: NDArray
-                    val aK: NDArray
-                    if (mode == EvalMode.TAIL) {
-                        val hrR = fR.mul(rR).sub(fI.mul(rI)).sub(fJ.mul(rJ)).sub(fK.mul(rK))
-                        val hrI = fR.mul(rI).add(fI.mul(rR)).add(fJ.mul(rK)).sub(fK.mul(rJ))
-                        val hrJ = fR.mul(rJ).sub(fI.mul(rK)).add(fJ.mul(rR)).add(fK.mul(rI))
-                        val hrK = fR.mul(rK).add(fI.mul(rJ)).sub(fJ.mul(rI)).add(fK.mul(rR))
-                        aR = hrR.also { it.attach(batchManager) }
-                        aI = hrI.also { it.attach(batchManager) }
-                        aJ = hrJ.also { it.attach(batchManager) }
-                        aK = hrK.also { it.attach(batchManager) }
-                    } else {
-                        val tEmb = entities.get(trueIdsFlat).also { it.attach(batchManager) }
-                        val tR = tEmb.get(rIndex).also { it.attach(batchManager) }
-                        val tI = tEmb.get(iIndex).also { it.attach(batchManager) }
-                        val tJ = tEmb.get(jIndex).also { it.attach(batchManager) }
-                        val tK = tEmb.get(kIndex).also { it.attach(batchManager) }
-                        aR =
-                            rR.mul(tR).add(rI.mul(tI)).add(rJ.mul(tJ)).add(rK.mul(tK)).also {
-                                it.attach(batchManager)
-                            }
-                        aI =
-                            rR.mul(tI).sub(rI.mul(tR)).add(rJ.mul(tK)).sub(rK.mul(tJ)).also {
-                                it.attach(batchManager)
-                            }
-                        aJ =
-                            rR.mul(tJ).sub(rJ.mul(tR)).add(rK.mul(tI)).sub(rI.mul(tK)).also {
-                                it.attach(batchManager)
-                            }
-                        aK =
-                            rR.mul(tK).sub(rK.mul(tR)).add(rI.mul(tJ)).sub(rJ.mul(tI)).also {
-                                it.attach(batchManager)
-                            }
-                    }
+                    val rel = EvalQuatE.sliceQuat(rels, rIndex, iIndex, jIndex, kIndex, batchManager)
+                    val a =
+                        if (mode == EvalMode.TAIL) {
+                            val fixedParts =
+                                EvalQuatE.sliceQuat(fixed, rIndex, iIndex, jIndex, kIndex, batchManager)
+                            EvalQuatE.computeATail(fixedParts, rel, batchManager)
+                        } else {
+                            EvalQuatE.computeAHead(
+                                rel,
+                                trueIdsFlat,
+                                entities,
+                                rIndex,
+                                iIndex,
+                                jIndex,
+                                kIndex,
+                                batchManager,
+                            )
+                        }
                     val trueScore =
                         if (mode == EvalMode.TAIL) {
-                            val trueEmb = entities.get(trueIdsFlat).also { it.attach(batchManager) }
-                            val tR = trueEmb.get(rIndex).also { it.attach(batchManager) }
-                            val tI = trueEmb.get(iIndex).also { it.attach(batchManager) }
-                            val tJ = trueEmb.get(jIndex).also { it.attach(batchManager) }
-                            val tK = trueEmb.get(kIndex).also { it.attach(batchManager) }
-                            aR.mul(tR).add(aI.mul(tI)).add(aJ.mul(tJ)).add(aK.mul(tK)).sum(intArrayOf(1))
-                                .reshape(batchSize.toLong(), 1)
-                                .also { it.attach(batchManager) }
+                            EvalQuatE.computeTrueScoreTail(
+                                a,
+                                trueIdsFlat,
+                                entities,
+                                rIndex,
+                                iIndex,
+                                jIndex,
+                                kIndex,
+                                batchSize,
+                                batchManager,
+                            )
                         } else {
-                            val trueEmb = entities.get(trueIdsFlat).also { it.attach(batchManager) }
-                            val hR = trueEmb.get(rIndex).also { it.attach(batchManager) }
-                            val hI = trueEmb.get(iIndex).also { it.attach(batchManager) }
-                            val hJ = trueEmb.get(jIndex).also { it.attach(batchManager) }
-                            val hK = trueEmb.get(kIndex).also { it.attach(batchManager) }
-                            aR.mul(hR).add(aI.mul(hI)).add(aJ.mul(hJ)).add(aK.mul(hK)).sum(intArrayOf(1))
-                                .reshape(batchSize.toLong(), 1)
-                                .also { it.attach(batchManager) }
+                            EvalQuatE.computeTrueScoreHead(
+                                a,
+                                trueIdsFlat,
+                                entities,
+                                rIndex,
+                                iIndex,
+                                jIndex,
+                                kIndex,
+                                batchSize,
+                                batchManager,
+                            )
                         }
                     val countBetter = batchManager.zeros(Shape(batchSize.toLong()), DataType.INT64)
-                    var chunkStart = 0
-                    while (chunkStart < numEntities.toInt()) {
-                        val chunkEnd = minOf(chunkStart + chunkSize, numEntities.toInt())
-                        entities.get(NDIndex("$chunkStart:$chunkEnd, :")).use { entityChunk ->
-                            val eR = entityChunk.get(rIndex)
-                            val eI = entityChunk.get(iIndex)
-                            val eJ = entityChunk.get(jIndex)
-                            val eK = entityChunk.get(kIndex)
-                            eR.use { er ->
-                                eI.use { ei ->
-                                    eJ.use { ej ->
-                                        eK.use { ek ->
-                                            val scores =
-                                                aR.matMul(er.transpose())
-                                                    .add(aI.matMul(ei.transpose()))
-                                                    .add(aJ.matMul(ej.transpose()))
-                                                    .add(aK.matMul(ek.transpose()))
-                                            scores.use { sc ->
-                                                val countBetterNd =
-                                                    if (higherIsBetter) {
-                                                        sc.gt(trueScore).sum(intArrayOf(1))
-                                                    } else {
-                                                        sc.lt(trueScore).sum(intArrayOf(1))
-                                                    }
-                                                countBetter.addi(countBetterNd)
-                                                countBetterNd.close()
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        chunkStart = chunkEnd
-                    }
+                    EvalQuatE.accumulateCountBetter(
+                        entities,
+                        rIndex,
+                        iIndex,
+                        jIndex,
+                        kIndex,
+                        a,
+                        trueScore,
+                        countBetter,
+                        higherIsBetter,
+                        chunkSize,
+                        numEntitiesInt,
+                    )
                     val ranksNd = countBetter.add(1)
                     val batchRanks = ranksNd.toLongArray()
                     ranksNd.close()
                     for (rank in batchRanks) {
-                        ranks.add(rank.toInt())
+                        ranks[outIndex++] = rank.toInt()
                     }
                 }
             }
             start = end
         }
-        return ranks
+        return if (outIndex == totalSize) ranks else ranks.copyOf(outIndex)
     }
 
     /**
@@ -537,9 +520,14 @@ class ResultEval(
         entityChunkSize: Int,
         mode: EvalMode,
         buildBatch: (start: Int, end: Int) -> EvalBatch,
-    ): List<Int> {
-        val model = complEx ?: return emptyList()
-        val ranks = mutableListOf<Int>()
+    ): IntArray {
+        val model = complEx ?: return IntArray(0)
+        val totalSize = inputList.size
+        if (totalSize == 0) {
+            return IntArray(0)
+        }
+        val ranks = IntArray(totalSize)
+        var outIndex = 0
         val entities = model.getEntities()
         val edges = model.getEdges()
         val embDim2 = entities.shape[1].toInt()
@@ -548,9 +536,10 @@ class ResultEval(
         val realIndex = NDIndex(":, 0:$halfDim")
         val imagIndex = NDIndex(":, $halfDim:")
         val chunkSize = maxOf(1, entityChunkSize)
+        val numEntitiesInt = numEntities.toInt()
         var start = 0
-        while (start < inputList.size) {
-            val end = minOf(start + evalBatchSize, inputList.size)
+        while (start < totalSize) {
+            val end = minOf(start + evalBatchSize, totalSize)
             val batch = buildBatch(start, end)
             batch.use {
                 val basePair = batch.basePair
@@ -587,8 +576,8 @@ class ResultEval(
                             .also { it.attach(batchManager) }
                     val countBetter = batchManager.zeros(Shape(batchSize.toLong()), DataType.INT64)
                     var chunkStart = 0
-                    while (chunkStart < numEntities.toInt()) {
-                        val chunkEnd = minOf(chunkStart + chunkSize, numEntities.toInt())
+                    while (chunkStart < numEntitiesInt) {
+                        val chunkEnd = minOf(chunkStart + chunkSize, numEntitiesInt)
                         entities.get(NDIndex("$chunkStart:$chunkEnd, :")).use { entityChunk ->
                             val eRe = entityChunk.get(realIndex)
                             val eIm = entityChunk.get(imagIndex)
@@ -618,13 +607,13 @@ class ResultEval(
                     val batchRanks = ranksNd.toLongArray()
                     ranksNd.close()
                     for (rank in batchRanks) {
-                        ranks.add(rank.toInt())
+                        ranks[outIndex++] = rank.toInt()
                     }
                 }
             }
             start = end
         }
-        return ranks
+        return if (outIndex == totalSize) ranks else ranks.copyOf(outIndex)
     }
 
     /**
@@ -645,16 +634,22 @@ class ResultEval(
         entityChunkSize: Int,
         mode: EvalMode,
         buildBatch: (start: Int, end: Int) -> EvalBatch,
-    ): List<Int> {
-        val model = transR ?: return emptyList()
-        val ranks = mutableListOf<Int>()
+    ): IntArray {
+        val model = transR ?: return IntArray(0)
+        val totalSize = inputList.size
+        if (totalSize == 0) {
+            return IntArray(0)
+        }
+        val ranks = IntArray(totalSize)
+        var outIndex = 0
         val entities = model.getEntities()
         val edges = model.getEdges()
         val matrix = model.getMatrix()
         val chunkSize = maxOf(1, entityChunkSize)
+        val numEntitiesInt = numEntities.toInt()
         var start = 0
-        while (start < inputList.size) {
-            val end = minOf(start + evalBatchSize, inputList.size)
+        while (start < totalSize) {
+            val end = minOf(start + evalBatchSize, totalSize)
             val batch = buildBatch(start, end)
             batch.use {
                 val basePair = batch.basePair
@@ -725,11 +720,11 @@ class ResultEval(
                                                                                     DataType.INT64,
                                                                                 )
                                                                             var chunkStart = 0
-                                                                            while (chunkStart < numEntities.toInt()) {
+                                                                            while (chunkStart < numEntitiesInt) {
                                                                                 val chunkEnd =
                                                                                     minOf(
                                                                                         chunkStart + chunkSize,
-                                                                                        numEntities.toInt(),
+                                                                                        numEntitiesInt,
                                                                                     )
                                                                                 entities.get(
                                                                                     NDIndex("$chunkStart:$chunkEnd, :"),
@@ -789,13 +784,13 @@ class ResultEval(
                         }
                     }
                     for (count in countBetterAll) {
-                        ranks.add((count + 1L).toInt())
+                        ranks[outIndex++] = (count + 1L).toInt()
                     }
                 }
             }
             start = end
         }
-        return ranks
+        return if (outIndex == totalSize) ranks else ranks.copyOf(outIndex)
     }
 
     /**
@@ -819,11 +814,17 @@ class ResultEval(
         buildBatch: (start: Int, end: Int) -> EvalBatch,
         buildTrueInput: (basePair: NDArray, trueEntityCol: NDArray) -> NDArray,
         buildChunkInput: (basePair: NDArray, entityChunk: NDArray) -> ChunkInput,
-    ): List<Int> {
-        val ranks = mutableListOf<Int>()
+    ): IntArray {
+        val totalSize = inputList.size
+        if (totalSize == 0) {
+            return IntArray(0)
+        }
+        val ranks = IntArray(totalSize)
+        var outIndex = 0
+        val numEntitiesInt = numEntities.toInt()
         var start = 0
-        while (start < inputList.size) {
-            val end = minOf(start + evalBatchSize, inputList.size)
+        while (start < totalSize) {
+            val end = minOf(start + evalBatchSize, totalSize)
             val batch = buildBatch(start, end)
             batch.use {
                 val trueInput = buildTrueInput(batch.basePair, batch.trueEntityCol)
@@ -833,8 +834,8 @@ class ResultEval(
                 try {
                     val chunkSize = maxOf(1, entityChunkSize)
                     var chunkStart = 0
-                    while (chunkStart < numEntities.toInt()) {
-                        val chunkEnd = minOf(chunkStart + chunkSize, numEntities.toInt())
+                    while (chunkStart < numEntitiesInt) {
+                        val chunkEnd = minOf(chunkStart + chunkSize, numEntitiesInt)
                         val entityChunk =
                             manager.arange(chunkStart, chunkEnd, 1, DataType.INT64)
                                 .reshape((chunkEnd - chunkStart).toLong(), 1)
@@ -867,7 +868,7 @@ class ResultEval(
                     try {
                         val batchRanks = ranksNd.toLongArray()
                         for (rank in batchRanks) {
-                            ranks.add(rank.toInt())
+                            ranks[outIndex++] = rank.toInt()
                         }
                     } finally {
                         ranksNd.close()
@@ -881,7 +882,7 @@ class ResultEval(
             }
             start = end
         }
-        return ranks
+        return if (outIndex == totalSize) ranks else ranks.copyOf(outIndex)
     }
 
     /**
@@ -894,7 +895,7 @@ class ResultEval(
      *  - "HIT@100": proportion of ranks <= 100,
      *  - "MRR": mean reciprocal rank (mean of 1 / rank).
      */
-    private fun computeMetrics(ranks: List<Int>): Map<String, Float> {
+    private fun computeMetrics(ranks: IntArray): Map<String, Float> {
         val total = ranks.size.toFloat()
         if (total == 0f) {
             return mapOf(
@@ -904,11 +905,21 @@ class ResultEval(
                 "MRR" to 0f,
             )
         }
+        var hit1 = 0
+        var hit10 = 0
+        var hit100 = 0
+        var mrr = 0.0
+        for (rank in ranks) {
+            if (rank <= 1) hit1++
+            if (rank <= 10) hit10++
+            if (rank <= 100) hit100++
+            mrr += 1.0 / rank
+        }
         return mapOf(
-            "HIT@1" to ranks.count { it <= 1 } / total,
-            "HIT@10" to ranks.count { it <= 10 } / total,
-            "HIT@100" to ranks.count { it <= 100 } / total,
-            "MRR" to ranks.sumOf { 1.0 / it }.toFloat() / total,
+            "HIT@1" to hit1 / total,
+            "HIT@10" to hit10 / total,
+            "HIT@100" to hit100 / total,
+            "MRR" to (mrr / total).toFloat(),
         )
     }
 

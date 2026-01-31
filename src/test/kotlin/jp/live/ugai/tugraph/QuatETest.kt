@@ -74,6 +74,7 @@ class QuatETest {
 
         assertNotNull(prediction)
         assertEquals(1, prediction.size)
+        prediction.close()
 
         testTriple.close()
         predictor.close()
@@ -115,6 +116,7 @@ class QuatETest {
 
         val scores = prediction.singletonOrThrow().toFloatArray()
         assertEquals(3, scores.size)
+        prediction.close()
 
         testTriples.close()
         predictor.close()
@@ -283,8 +285,13 @@ class QuatETest {
 
         val testTriple = manager.create(longArrayOf(0, 0, 1))
 
-        val prediction1 = predictor.predict(NDList(testTriple)).singletonOrThrow().toFloatArray()[0]
-        val prediction2 = predictor.predict(NDList(testTriple)).singletonOrThrow().toFloatArray()[0]
+        val result1 = predictor.predict(NDList(testTriple))
+        val prediction1 = result1.singletonOrThrow().toFloatArray()[0]
+        result1.close()
+
+        val result2 = predictor.predict(NDList(testTriple))
+        val prediction2 = result2.singletonOrThrow().toFloatArray()[0]
+        result2.close()
 
         assertEquals(prediction1, prediction2, 1e-6f, "Predictions should be consistent")
 
@@ -451,10 +458,12 @@ class QuatETest {
         val testTriple1 = manager.create(longArrayOf(0, 0, 0)) // Same head and tail
         val prediction1 = predictor.predict(NDList(testTriple1))
         assertNotNull(prediction1)
+        prediction1.close()
 
         val testTriple2 = manager.create(longArrayOf(numEntities - 1, numEdges - 1, numEntities - 1))
         val prediction2 = predictor.predict(NDList(testTriple2))
         assertNotNull(prediction2)
+        prediction2.close()
 
         testTriple1.close()
         testTriple2.close()
