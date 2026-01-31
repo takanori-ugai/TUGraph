@@ -64,6 +64,15 @@ class ResultEval(
         }
     }
 
+    /**
+     * Compute per-example ranks under the TransE scoring model for either head or tail prediction.
+     *
+     * @param evalBatchSize Number of input triples processed per outer evaluation batch.
+     * @param entityChunkSize Maximum number of candidate entities evaluated per inner chunk.
+     * @param mode Whether to score candidates for the tail (EvalMode.TAIL) or the head (EvalMode.HEAD).
+     * @param buildBatch Callback that builds an EvalBatch for inputs in the half-open range [start, end).
+     * @return A list of 1-based ranks (one element per input) where each rank is the position of the true entity
+     *         among all candidate entities according to TransE scores.
     private fun computeRanksTransE(
         evalBatchSize: Int,
         entityChunkSize: Int,
@@ -149,6 +158,20 @@ class ResultEval(
         HEAD,
     }
 
+    /**
+     * Compute 1-based ranks for each input triple using the DistMult scoring model.
+     *
+     * Processes inputList in outer batches and evaluates candidate entities in inner chunks;
+     * for each triple it counts how many candidate entities score better than the true entity
+     * and produces rank = countBetter + 1.
+     *
+     * @param evalBatchSize Number of triples evaluated per outer batch.
+     * @param entityChunkSize Maximum number of entities evaluated per inner chunk.
+     * @param mode Evaluation mode indicating whether to predict TAIL or HEAD.
+     * @param buildBatch Callback that constructs an EvalBatch for the half-open range [start, end).
+     * @return A list of 1-based ranks (one per input triple) where each rank equals the count
+     *         of candidate entities with a strictly better score than the true entity plus one.
+     */
     private fun computeRanksDistMult(
         evalBatchSize: Int,
         entityChunkSize: Int,
@@ -216,6 +239,22 @@ class ResultEval(
         return ranks
     }
 
+    /**
+     * Compute 1-based ranks for each input triple using the RotatE embedding model.
+     *
+     * This evaluates inputs in outer batches of size [evalBatchSize] and processes candidate entities
+     * in inner chunks of size [entityChunkSize]. For each input, it rotates the fixed entity by the
+     * relation and counts how many candidate entities have a "better" score according to the
+     * instance's `higherIsBetter` flag; the rank is `countBetter + 1`. If `rotatE` is null, returns
+     * an empty list.
+     *
+     * @param evalBatchSize Number of input triples processed per outer batch.
+     * @param entityChunkSize Number of candidate entities evaluated per inner chunk.
+     * @param mode Whether to predict TAIL (fix head+rel) or HEAD (fix rel+tail).
+     * @param buildBatch Callback that constructs an EvalBatch for inputs in the half-open range [start, end).
+     * @return A list of 1-based ranks (one rank per input triple) where `1` indicates the best rank.
+     * @throws IllegalArgumentException if the RotatE embedding dimension is not even.
+     */
     private fun computeRanksRotatE(
         evalBatchSize: Int,
         entityChunkSize: Int,
@@ -316,6 +355,21 @@ class ResultEval(
         return ranks
     }
 
+    /**
+     * Computes ranking positions for each input triple using the QuatE embedding model.
+     *
+     * For each item in the evaluation input list this builds a batch of base (head,relation) or
+     * (relation,tail) pairs depending on [mode], scores all candidate entities in chunks, and
+     * returns the 1-based rank of the true entity for each item (1 means best).
+     *
+     * @param evalBatchSize Number of input triples processed per outer batch.
+     * @param entityChunkSize Number of entity embeddings processed per inner chunk.
+     * @param mode Whether to predict TAIL or HEAD for each base pair.
+     * @param buildBatch Callback that constructs an EvalBatch for inputs in the range [start, end).
+     * @return A list of 1-based ranks (one rank per input triple). If the class property `quatE` is null,
+     *         an empty list is returned.
+     * @throws IllegalArgumentException If the QuatE entity embedding dimension is not divisible by 4.
+     */
     private fun computeRanksQuatE(
         evalBatchSize: Int,
         entityChunkSize: Int,
@@ -459,6 +513,20 @@ class ResultEval(
         return ranks
     }
 
+    /**
+     * Compute per-instance ranks for the ComplEx model over the class's inputList.
+     *
+     * This evaluates each example by scoring the true entity against all candidate entities
+     * (processed in chunks) and counting how many candidates score better, producing a
+     * 1-based rank for each example.
+     *
+     * @param evalBatchSize Number of examples processed together in an outer batch.
+     * @param entityChunkSize Number of candidate entities processed per inner chunk.
+     * @param mode Whether to predict TAIL or HEAD for each input (affects which columns are fixed).
+     * @param buildBatch Callback that builds an EvalBatch for the half-open index range [start, end).
+     * @throws IllegalArgumentException If the model's entity embedding dimension is not even.
+     * @return A list of 1-based ranks (one entry per inputList item) where a value of `1` means the true entity ranked first.
+     */
     private fun computeRanksComplEx(
         evalBatchSize: Int,
         entityChunkSize: Int,
@@ -554,6 +622,19 @@ class ResultEval(
         return ranks
     }
 
+    /**
+     * Compute ranked positions of true entities using the TransR model for the current input list.
+     *
+     * For each input item this projects entities with the relation-specific matrix, scores all candidate
+     * entities in chunks, counts how many candidates score strictly better (or worse when
+     * `higherIsBetter` is true) than the true entity, and produces a one-based rank.
+     *
+     * @param evalBatchSize Number of input triples processed per outer batch.
+     * @param entityChunkSize Number of candidate entities evaluated per inner chunk.
+     * @param mode Whether to evaluate HEAD or TAIL prediction.
+     * @param buildBatch Callback that builds an EvalBatch for the input slice [start, end).
+     * @return A list of one-based ranks (count of strictly better-scoring candidates + 1) corresponding to each input triple.
+     */
     private fun computeRanksTransR(
         evalBatchSize: Int,
         entityChunkSize: Int,
@@ -707,15 +788,19 @@ class ResultEval(
     }
 
     /**
-     * Computes rank positions of the true entity for each input triple across batches.
+     * Computes the rank of the true entity for each input triple by comparing its score
+     * against scores of all candidate entities in chunks.
      *
      * The rank for an item is 1 plus the number of candidate entities whose score is strictly
      * better than the true entity's score. "Strictly better" means greater than the true score
      * when `higherIsBetter` is true, or less than the true score when `higherIsBetter` is false.
      *
-     * @param evalBatchSize Maximum number of input triples processed per batch.
-     * @param buildBatch Function that builds an EvalBatch for the half-open range [start, end).
-     * @return A list of ranks (one per input triple in inputList order).
+     * @param evalBatchSize Maximum number of input triples processed per outer batch.
+     * @param entityChunkSize Maximum number of candidate entities evaluated per inner chunk.
+     * @param buildBatch Builds an EvalBatch for the half-open range [start, end).
+     * @param buildTrueInput Constructs the model input used to compute the true-entity scores from a base pair and the column of true entity IDs.
+     * @param buildChunkInput Constructs the per-chunk model input from a base pair and a column of candidate entity IDs.
+     * @return A list of ranks (one Int per input triple, in inputList order).
      */
     private fun computeRanksChunked(
         evalBatchSize: Int,
@@ -788,6 +873,16 @@ class ResultEval(
         return ranks
     }
 
+    /**
+     * Compute standard link-prediction metrics from a list of ranks.
+     *
+     * @param ranks List of 1-based ranks where each element is the rank of the true entity for a query.
+     * @return A map with keys:
+     *  - "HIT@1": proportion of ranks <= 1,
+     *  - "HIT@10": proportion of ranks <= 10,
+     *  - "HIT@100": proportion of ranks <= 100,
+     *  - "MRR": mean reciprocal rank (mean of 1 / rank).
+     */
     private fun computeMetrics(ranks: List<Int>): Map<String, Float> {
         val total = ranks.size.toFloat()
         if (total == 0f) {

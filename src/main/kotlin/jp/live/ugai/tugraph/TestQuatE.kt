@@ -18,6 +18,14 @@ import ai.djl.translate.NoopTranslator
  * Reads triples from the CSV, constructs and initializes a QuatE model and trainer, runs embedding training,
  * prints training results and learned parameters, runs a sample prediction, and evaluates head/tail predictions.
  */
+/**
+ * Runs an end-to-end QuatE workflow: loads triples from data/sample.csv, trains embeddings,
+ * performs a sample prediction, and evaluates head/tail prediction results.
+ *
+ * The function reads CSV triples, prepares entity and relation counts, initializes a QuatE model
+ * and DJL trainer, executes embedding training, prints learned parameters and a sample prediction,
+ * evaluates tail and head ranking results, and closes all resources.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)

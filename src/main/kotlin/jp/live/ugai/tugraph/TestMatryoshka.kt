@@ -15,6 +15,13 @@ import ai.djl.translate.NoopTranslator
 /**
  * Demonstrates combining Matryoshka embeddings with a QuatE model on "data/sample.csv".
  */
+/**
+ * Runs a self-contained demonstration that trains and evaluates a QuatE model augmented with Matryoshka embeddings.
+ *
+ * Reads triples from data/sample.csv, prepares entity and relation counts, initializes and trains embeddings,
+ * computes Matryoshka dot scores for a small batch, runs a predictor on a test triple, and prints head/tail
+ * evaluation results and diagnostics.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)

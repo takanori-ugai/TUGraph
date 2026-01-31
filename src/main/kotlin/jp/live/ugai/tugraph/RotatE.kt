@@ -57,13 +57,16 @@ class RotatE(
     }
 
     /**
-     * Computes the forward pass of the RotatE model.
+     * Compute RotatE scores for one or two batches of triples.
      *
-     * @param parameterStore The parameter store.
-     * @param inputs The input NDList.
-     * @param training Whether the model is in training mode.
-     * @param params Additional parameters.
-     * @return The output NDList.
+     * Processes the first element of `inputs` as the positive triple batch and, if present,
+     * the second element as an additional batch. Returns an NDList containing one 1-D score
+     * array per input batch, with each element holding per-triple scores.
+     *
+     * @param inputs NDList whose first element is a batch of triples (head, relation, tail) and
+     *               whose optional second element is an additional batch of triples.
+     * @return An NDList where each element is a 1-D NDArray of per-triple scores corresponding
+     *         to the input batches.
      */
     override fun forwardInternal(
         parameterStore: ParameterStore,
@@ -154,10 +157,10 @@ class RotatE(
     }
 
     /**
-     * Computes output shapes for the provided input shapes.
+     * Determine the output tensor shapes produced by this block for the given input shapes.
      *
-     * @param inputs Input shapes for the block.
-     * @return Output shapes for the block.
+     * @param inputs Array of input Shapes; the first element represents a flattened list of triple IDs (length is 3 * numTriples).
+     * @return An array of one or two Shape objects, each a 1-D Shape of length numTriples (number of triples derived from inputs[0]).
      */
     override fun getOutputShapes(inputs: Array<Shape>): Array<Shape> {
         val numTriples = inputs[0].size() / TRIPLE
@@ -170,18 +173,18 @@ class RotatE(
     }
 
     /**
-     * Retrieve the entities embeddings array.
+     * Access the entities embedding parameter array.
      *
-     * @return The entities embeddings NDArray with shape (numEnt, dim * 2).
+     * @return The NDArray containing entity embeddings with shape (numEnt, dim * 2).
      */
     fun getEntities(): NDArray {
         return getParameters().get("entities").array
     }
 
     /**
-     * Gets relation (edge) embeddings.
+     * Retrieve the relation (edge) embedding parameters.
      *
-     * @return NDArray of shape (numEdge, dim) containing relation phases.
+     * @return NDArray of shape (numEdge, dim) containing the relation phase embeddings.
      */
     fun getEdges(): NDArray {
         return getParameters().get("edges").array

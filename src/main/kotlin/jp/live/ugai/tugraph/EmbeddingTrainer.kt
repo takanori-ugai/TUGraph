@@ -444,6 +444,24 @@ class EmbeddingTrainer(
         return manager.create(negatives, Shape(totalNegatives, TRIPLE))
     }
 
+    /**
+     * Computes per-sample loss from positive and negative scores using either a similarity-based
+     * objective or a hinge (margin) objective.
+     *
+     * When `useSimilarityLoss` is true, each sample's loss is
+     * `log(1 + exp(-pos)) + agg(log(1 + exp(neg)))`, where `agg` is either the mean across negatives
+     * or a self-adversarial weighted sum using a softmax over `neg` scaled by `SELF_ADVERSARIAL_TEMP`.
+     * When `useSimilarityLoss` is false, the hinge loss `mean(max(0, pos - neg + margin))` is used
+     * across negatives.
+     *
+     * @param pos NDArray of positive scores with shape (batchSize,).
+     * @param neg NDArray of negative scores with shape (batchSize * numNegatives,) or a shape that
+     *            can be aligned with `pos` when reshaped as (batchSize, numNegatives).
+     * @param useSimilarityLoss If true, use the similarity-based softplus loss; otherwise use hinge loss.
+     * @param useSelfAdversarial If true and `useSimilarityLoss` is true, apply self-adversarial weighting
+     *                           to negative losses via a softmax over scaled negative scores.
+     * @return 1D NDArray of per-sample losses with length equal to `batchSize`.
+     */
     private fun computeLossFromScores(
         pos: NDArray,
         neg: NDArray,
@@ -468,6 +486,25 @@ class EmbeddingTrainer(
         }
     }
 
+    /**
+     * Computes a Matryoshka-weighted loss by aggregating per-dimension scores from a RotatE or QuatE block.
+     *
+     * For each configured Matryoshka dimension that is valid for the block's entity embedding size, this function
+     * computes positive and negative scores at that dimension, derives a per-dimension loss via
+     * computeLossFromScores(...), multiplies it by the corresponding weight, and returns the sum across dimensions.
+     *
+     * @param block The model block used for scoring; must be a RotatE or QuatE instance.
+     * @param sample NDArray of positive triples (shape [batchSize, 3]).
+     * @param negativeSample NDArray of negative triples (shape [batchSize * numNegatives, 3]).
+     * @param numNegatives Number of negative samples per positive triple.
+     * @param useSimilarityLoss If true, compute similarity-based loss for each dimension; otherwise use hinge loss.
+     * @param useSelfAdversarial If true and using similarity loss, apply self-adversarial weighting to negatives.
+     * @return An NDArray containing the aggregated, weighted Matryoshka loss across all valid dimensions.
+     *
+     * @throws IllegalStateException if the provided block is not supported for Matryoshka scoring.
+     * @throws IllegalArgumentException if dims and weights lengths differ or no valid Matryoshka dimension exists
+     *                                  for the block's embedding size.
+     */
     private fun computeMatryoshkaLoss(
         block: Any,
         sample: NDArray,

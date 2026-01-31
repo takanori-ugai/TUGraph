@@ -59,13 +59,13 @@ class QuatE(
     }
 
     /**
-     * Computes the forward pass of the QuatE model.
+     * Compute QuatE scores for one or two batches of triples and return them as an NDList.
      *
-     * @param parameterStore The parameter store.
-     * @param inputs The input NDList.
-     * @param training Whether the model is in training mode.
-     * @param params Additional parameters.
-     * @return The output NDList.
+     * @param inputs NDList whose first element is a batch of triples; if a second element is present it is treated as an additional batch to score.
+     * @param parameterStore Parameter store used to retrieve model parameters.
+     * @param training Whether parameters should be fetched in training mode.
+     * @param params Additional parameters (unused by this implementation).
+     * @return An NDList containing one NDArray of scores for the first input batch, and a second NDArray if a second input batch was provided.
      */
     @Override
     override fun forwardInternal(
@@ -104,15 +104,14 @@ class QuatE(
     }
 
     /**
-     * Compute QuatE scores for a batch of triples with a configurable total embedding dimension.
-     *
-     * The score is the inner product between (h ⊗ r) and t (higher is better).
+     * Compute per-triple QuatE scores by applying the Hamilton product between head and relation quaternions and
+     * taking the inner product with tail quaternions.
      *
      * @param input NDArray of triples where each row is (head, relation, tail) indices.
-     * @param entities NDArray of entity embeddings with quaternion components concatenated.
-     * @param edges NDArray of relation embeddings with quaternion components concatenated.
-     * @param totalDim Total number of entity embedding dimensions to use (must be divisible by 4).
-     * @return An NDArray of shape (numTriples) containing the QuatE score for each triple.
+     * @param entities NDArray of entity embeddings with quaternion components concatenated (R,I,J,K).
+     * @param edges NDArray of relation embeddings with quaternion components concatenated (R,I,J,K).
+     * @param totalDim Total number of embedding columns to use from `entities`/`edges`; must be divisible by 4.
+     * @return An NDArray of shape (numTriples) containing the scalar QuatE score for each triple.
      */
     fun score(
         input: NDArray,
@@ -168,10 +167,13 @@ class QuatE(
     }
 
     /**
-     * Computes output shapes for the provided input shapes.
+     * Compute the output shape(s) for the given input shapes, producing one output shape per input.
      *
-     * @param inputs Input shapes for the block.
-     * @return Output shapes for the block.
+     * The output shape for each input is a one-dimensional Shape whose size equals the number of triples
+     * represented by the first input (computed as inputs[0].size() / TRIPLE).
+     *
+     * @param inputs Array of input shapes; the first element represents triples with width TRIPLE.
+     * @return An array of output Shape objects — one Shape per input — each equal to the number of triples.
      */
     @Override
     override fun getOutputShapes(inputs: Array<Shape>): Array<Shape> {
