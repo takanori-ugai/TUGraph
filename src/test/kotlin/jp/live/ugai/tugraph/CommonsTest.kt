@@ -220,4 +220,5 @@ class CommonsTest {
     fun verifySelfAdversarialTempValue() {
         assertEquals(0.0f, SELF_ADVERSARIAL_TEMP, 1e-6f, "Self-adversarial temperature should be 0.0")
     }
+
 }
