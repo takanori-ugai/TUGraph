@@ -206,7 +206,7 @@ class MatryoshkaTest {
         val matryoshka = Matryoshka(dims)
 
         // Create embedding with specific pattern
-        val embedding = manager.arange(0, 128).reshape(1, 128)
+        val embedding = manager.arange(0, 128, 1, ai.djl.ndarray.types.DataType.FLOAT32).reshape(1, 128)
 
         val sliced32 = matryoshka.slice(embedding, 32)
         val sliced32Values = sliced32.toFloatArray()
@@ -267,8 +267,8 @@ class MatryoshkaTest {
         assertNotNull(scores)
         assertEquals(3, scores.size)
 
-        // For dim=32, both have first 32 as 1 and 0, so dot product = 32
-        assertEquals(32.0f, scores[0].toFloatArray()[0], 0.01f)
+        // For dim=32, left has ones in first 32, right has zeros in first 32, so dot product = 0
+        assertEquals(0.0f, scores[0].toFloatArray()[0], 0.01f)
 
         // For dim=64, left has first 64 as 1, right has first 64 as 0, so dot product = 0
         assertEquals(0.0f, scores[1].toFloatArray()[0], 0.01f)
@@ -393,8 +393,16 @@ class MatryoshkaTest {
         val dims = longArrayOf(16, 32, 64)
         val matryoshka = Matryoshka(dims)
 
-        val left = manager.create(floatArrayOf(1f, 2f, 3f, 4f), Shape(1, 4)).repeat(0, 3).broadcast(Shape(3, 64))
-        val right = manager.create(floatArrayOf(2f, 3f, 4f, 5f), Shape(1, 4)).repeat(0, 3).broadcast(Shape(3, 64))
+        val left =
+            manager
+                .create(floatArrayOf(1f, 2f, 3f, 4f), Shape(1, 4))
+                .repeat(0, 3)
+                .repeat(1, 16)
+        val right =
+            manager
+                .create(floatArrayOf(2f, 3f, 4f, 5f), Shape(1, 4))
+                .repeat(0, 3)
+                .repeat(1, 16)
 
         val scores = matryoshka.dotScores(left, right)
 

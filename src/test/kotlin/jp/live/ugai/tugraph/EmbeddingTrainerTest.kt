@@ -312,7 +312,7 @@ class EmbeddingTrainerTest {
 
     @Test
     fun testEmbeddingTrainerWithSingleTriple() {
-        val triples = manager.create(longArrayOf(0, 0, 1))
+        val triples = manager.create(longArrayOf(0, 0, 1), Shape(1, TRIPLE))
 
         val numEntities = 2L
         val numEdges = 1L
@@ -335,7 +335,7 @@ class EmbeddingTrainerTest {
 
         val trainer =
             model.newTrainer(config).also {
-                it.initialize(triples.shape)
+                it.initialize(Shape(1, TRIPLE))
                 it.metrics = Metrics()
             }
 

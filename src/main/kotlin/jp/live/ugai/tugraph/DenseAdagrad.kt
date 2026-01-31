@@ -39,8 +39,8 @@ class DenseAdagrad(
         val count = updateCount(name)
         val lr = learningRateTracker.getNewValue(name, count)
         val wd = weightDecay
-        if (lr.isNaN() || wd.isNaN() || lr.isInfinite() || wd.isInfinite()) {
-            throw IllegalStateException("learning rate or weight decay is nan or infinite")
+        check(!(lr.isNaN() || wd.isNaN() || lr.isInfinite() || wd.isInfinite())) {
+            "learning rate or weight decay is nan or infinite"
         }
 
         grad.manager.newSubManager().use { tempManager ->

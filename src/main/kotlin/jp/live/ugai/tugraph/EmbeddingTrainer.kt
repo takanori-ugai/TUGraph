@@ -19,11 +19,13 @@ import kotlin.math.min
  */
 class EmbeddingTrainer(
     private val manager: NDManager,
-    private val triples: NDArray,
+    rawTriples: NDArray,
     private val numOfEntities: Long,
     private val trainer: Trainer,
     private val epoch: Int,
 ) {
+    private val triples: NDArray
+
     private data class MatryoshkaConfig(
         val dims: LongArray,
         val weights: FloatArray,
@@ -36,7 +38,7 @@ class EmbeddingTrainer(
 
     /** Per-epoch loss values collected during training. */
     val lossList = mutableListOf<Float>()
-    private val numOfTriples = triples.shape[0]
+    private val numOfTriples: Long
 
     /** Materialized triples used for negative sampling. */
     val inputList = mutableListOf<LongArray>()
@@ -47,6 +49,17 @@ class EmbeddingTrainer(
     private val bernoulliProb: Map<Long, Float>
 
     init {
+        val tripleCount = rawTriples.size() / TRIPLE
+        require(tripleCount * TRIPLE == rawTriples.size()) {
+            "Triples NDArray size must be a multiple of TRIPLE; size=${rawTriples.size()}."
+        }
+        numOfTriples = tripleCount
+        triples =
+            if (rawTriples.shape.dimension() == 1 || rawTriples.shape[1] != TRIPLE) {
+                rawTriples.reshape(tripleCount, TRIPLE).also { it.attach(manager) }
+            } else {
+                rawTriples
+            }
         require(numOfTriples <= Int.MAX_VALUE.toLong()) {
             "Dataset exceeds Int.MAX_VALUE triples; Long indexing required (numOfTriples=$numOfTriples)."
         }
@@ -530,7 +543,7 @@ class EmbeddingTrainer(
                         block.getEntities(),
                         block.getEdges(),
                     )
-                else -> throw IllegalStateException("Matryoshka loss used with unsupported block.")
+                else -> error("Matryoshka loss used with unsupported block.")
             }
         require(dims.size == weights.size) { "Matryoshka dims and weights must have the same length." }
 
@@ -551,13 +564,13 @@ class EmbeddingTrainer(
                     when (block) {
                         is RotatE -> block.score(sample, entities, edges, dim)
                         is QuatE -> block.score(sample, entities, edges, dim)
-                        else -> throw IllegalStateException("Matryoshka loss used with unsupported block.")
+                        else -> error("Matryoshka loss used with unsupported block.")
                     }
                 val negScores =
                     when (block) {
                         is RotatE -> block.score(negativeSample, entities, edges, dim)
                         is QuatE -> block.score(negativeSample, entities, edges, dim)
-                        else -> throw IllegalStateException("Matryoshka loss used with unsupported block.")
+                        else -> error("Matryoshka loss used with unsupported block.")
                     }
                 val negReshaped = negScores.reshape(posScores.shape[0], numNegatives.toLong())
                 val loss = computeLossFromScores(posScores, negReshaped, useSimilarityLoss, useSelfAdversarial)
@@ -576,10 +589,11 @@ class EmbeddingTrainer(
                         sum
                     }
             }
-            return requireNotNull(total) { "Matryoshka loss total is null." }
-        } catch (e: Exception) {
+            val result = requireNotNull(total) { "Matryoshka loss total is null." }
+            total = null
+            return result
+        } finally {
             total?.close()
-            throw e
         }
     }
 }

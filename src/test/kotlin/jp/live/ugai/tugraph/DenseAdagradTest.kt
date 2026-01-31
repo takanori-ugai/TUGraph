@@ -111,11 +111,8 @@ class DenseAdagradTest {
         val grad1 = manager.ones(Shape(5, 3))
         val grad2 = manager.ones(Shape(5, 3))
 
-        val weightsAfterFirst = weight.duplicate()
         optimizer.update("test_param", weight, grad1)
-        weightsAfterFirst.close()
-        weightsAfterFirst.attach(weight.manager)
-        weight.toFloatArray().copyInto(weightsAfterFirst.toFloatArray())
+        val weightsAfterFirst = weight.toFloatArray().clone()
 
         val weightsBeforeSecond = weight.toFloatArray().clone()
         optimizer.update("test_param", weight, grad2)
@@ -124,8 +121,8 @@ class DenseAdagradTest {
         // The second update should result in smaller changes due to accumulated history
         var firstStepDiff = 0.0f
         var secondStepDiff = 0.0f
-        for (i in weightsAfterFirst.toFloatArray().indices) {
-            firstStepDiff += kotlin.math.abs(1.0f - weightsAfterFirst.toFloatArray()[i])
+        for (i in weightsAfterFirst.indices) {
+            firstStepDiff += kotlin.math.abs(1.0f - weightsAfterFirst[i])
             secondStepDiff += kotlin.math.abs(weightsBeforeSecond[i] - weightsAfterSecond[i])
         }
 
@@ -137,7 +134,6 @@ class DenseAdagradTest {
         weight.close()
         grad1.close()
         grad2.close()
-        weightsAfterFirst.close()
     }
 
     @Test
@@ -186,7 +182,9 @@ class DenseAdagradTest {
                 .build()
 
         val weight = manager.ones(Shape(5, 5))
-        val grad = manager.create(5.0f, Shape(5, 5)) // Large gradients
+        val gradBase = manager.ones(Shape(5, 5))
+        val grad = gradBase.mul(5.0f) // Large gradients
+        gradBase.close()
 
         val initialWeights = weight.toFloatArray().clone()
 
@@ -217,8 +215,8 @@ class DenseAdagradTest {
         val optimizer =
             DenseAdagrad.builder()
                 .optLearningRateTracker(tracker)
+                .setRescaleGrad(rescaleGrad)
                 .build()
-        optimizer.rescaleGrad = rescaleGrad
 
         val weight = manager.ones(Shape(5, 5))
         val grad = manager.ones(Shape(5, 5))
@@ -350,7 +348,9 @@ class DenseAdagradTest {
                 .build()
 
         val weight = manager.ones(Shape(5, 5))
-        val grad = manager.create(100.0f, Shape(5, 5))
+        val gradBase = manager.ones(Shape(5, 5))
+        val grad = gradBase.mul(100.0f)
+        gradBase.close()
 
         val initialWeights = weight.toFloatArray().clone()
 
