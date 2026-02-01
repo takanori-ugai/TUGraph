@@ -439,7 +439,7 @@ class ResultEval(
                         } else {
                             EvalQuatE.computeAHead(
                                 rel,
-                                trueIdsFlat,
+                                fixedIds,
                                 entities,
                                 rIndex,
                                 iIndex,
