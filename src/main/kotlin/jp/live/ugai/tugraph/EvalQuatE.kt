@@ -55,18 +55,22 @@ internal object EvalQuatE {
     ): Parts {
         val tEmb = entities.get(trueIdsFlat).also { it.attach(batchManager) }
         val t = sliceQuat(tEmb, rIndex, iIndex, jIndex, kIndex, batchManager)
-        val aR = rel.r.mul(t.r).add(rel.i.mul(t.i)).add(rel.j.mul(t.j)).add(rel.k.mul(t.k)).also {
-            it.attach(batchManager)
-        }
-        val aI = rel.r.mul(t.i).sub(rel.i.mul(t.r)).add(rel.j.mul(t.k)).sub(rel.k.mul(t.j)).also {
-            it.attach(batchManager)
-        }
-        val aJ = rel.r.mul(t.j).sub(rel.j.mul(t.r)).add(rel.k.mul(t.i)).sub(rel.i.mul(t.k)).also {
-            it.attach(batchManager)
-        }
-        val aK = rel.r.mul(t.k).sub(rel.k.mul(t.r)).add(rel.i.mul(t.j)).sub(rel.j.mul(t.i)).also {
-            it.attach(batchManager)
-        }
+        val aR =
+            rel.r.mul(t.r).add(rel.i.mul(t.i)).add(rel.j.mul(t.j)).add(rel.k.mul(t.k)).also {
+                it.attach(batchManager)
+            }
+        val aI =
+            rel.r.mul(t.i).sub(rel.i.mul(t.r)).add(rel.j.mul(t.k)).sub(rel.k.mul(t.j)).also {
+                it.attach(batchManager)
+            }
+        val aJ =
+            rel.r.mul(t.j).sub(rel.j.mul(t.r)).add(rel.k.mul(t.i)).sub(rel.i.mul(t.k)).also {
+                it.attach(batchManager)
+            }
+        val aK =
+            rel.r.mul(t.k).sub(rel.k.mul(t.r)).add(rel.i.mul(t.j)).sub(rel.j.mul(t.i)).also {
+                it.attach(batchManager)
+            }
         return Parts(aR, aI, aJ, aK)
     }
 

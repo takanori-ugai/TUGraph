@@ -39,9 +39,129 @@ class ResultEval(
     val quatE: QuatE? = null,
     /** Optional ComplEx block for embedding-based evaluation. */
     val complEx: ComplEx? = null,
+    /** Whether to perform filtered evaluation by removing other true triples from candidate sets. */
+    val filtered: Boolean = false,
 ) {
     private val col0Index = NDIndex(":, 0")
     private val col1Index = NDIndex(":, 1")
+
+    private data class PairKey(val a: Long, val b: Long)
+
+    private val tailFilter: Map<PairKey, IntArray> by lazy {
+        val map = mutableMapOf<PairKey, MutableSet<Int>>()
+        for (triple in inputList) {
+            val head = triple[0]
+            val rel = triple[1]
+            val tail = triple[2].toInt()
+            map.getOrPut(PairKey(head, rel)) { mutableSetOf() }.add(tail)
+        }
+        map.mapValues { (_, v) -> v.toIntArray() }
+    }
+
+    private val headFilter: Map<PairKey, IntArray> by lazy {
+        val map = mutableMapOf<PairKey, MutableSet<Int>>()
+        for (triple in inputList) {
+            val rel = triple[1]
+            val tail = triple[2]
+            val head = triple[0].toInt()
+            map.getOrPut(PairKey(rel, tail)) { mutableSetOf() }.add(head)
+        }
+        map.mapValues { (_, v) -> v.toIntArray() }
+    }
+
+    private fun applyFilteredTail(rawRanks: IntArray): IntArray {
+        if (!filtered) return rawRanks
+        val adjusted = rawRanks.copyOf()
+        for (i in inputList.indices) {
+            val triple = inputList[i]
+            val head = triple[0]
+            val rel = triple[1]
+            val tail = triple[2].toInt()
+            val candidates = tailFilter[PairKey(head, rel)] ?: continue
+            if (candidates.size <= 1) continue
+            manager.newSubManager().use { sm ->
+                val trueInput = sm.create(longArrayOf(head, rel, tail.toLong())).reshape(1, 3)
+                val trueScore = predictor.predict(NDList(trueInput)).singletonOrThrow()
+                val trueVal = trueScore.getFloat()
+                trueScore.close()
+                trueInput.close()
+                var count = 0
+                val filteredCount = candidates.count { it != tail }
+                if (filteredCount > 0) {
+                    val data = LongArray(filteredCount * 3)
+                    var idx = 0
+                    for (cand in candidates) {
+                        if (cand == tail) continue
+                        data[idx] = head
+                        data[idx + 1] = rel
+                        data[idx + 2] = cand.toLong()
+                        idx += 3
+                    }
+                    val candInput = sm.create(data, Shape(filteredCount.toLong(), 3))
+                    val candScores = predictor.predict(NDList(candInput)).singletonOrThrow()
+                    val scores = candScores.toFloatArray()
+                    for (score in scores) {
+                        if (higherIsBetter) {
+                            if (score > trueVal) count++
+                        } else {
+                            if (score < trueVal) count++
+                        }
+                    }
+                    candScores.close()
+                    candInput.close()
+                }
+                adjusted[i] = maxOf(1, adjusted[i] - count)
+            }
+        }
+        return adjusted
+    }
+
+    private fun applyFilteredHead(rawRanks: IntArray): IntArray {
+        if (!filtered) return rawRanks
+        val adjusted = rawRanks.copyOf()
+        for (i in inputList.indices) {
+            val triple = inputList[i]
+            val head = triple[0].toInt()
+            val rel = triple[1]
+            val tail = triple[2]
+            val candidates = headFilter[PairKey(rel, tail)] ?: continue
+            if (candidates.size <= 1) continue
+            manager.newSubManager().use { sm ->
+                val trueInput = sm.create(longArrayOf(head.toLong(), rel, tail)).reshape(1, 3)
+                val trueScore = predictor.predict(NDList(trueInput)).singletonOrThrow()
+                val trueVal = trueScore.getFloat()
+                trueScore.close()
+                trueInput.close()
+                var count = 0
+                val filteredCount = candidates.count { it != head }
+                if (filteredCount > 0) {
+                    val data = LongArray(filteredCount * 3)
+                    var idx = 0
+                    for (cand in candidates) {
+                        if (cand == head) continue
+                        data[idx] = cand.toLong()
+                        data[idx + 1] = rel
+                        data[idx + 2] = tail
+                        idx += 3
+                    }
+                    val candInput = sm.create(data, Shape(filteredCount.toLong(), 3))
+                    val candScores = predictor.predict(NDList(candInput)).singletonOrThrow()
+                    val scores = candScores.toFloatArray()
+                    for (score in scores) {
+                        if (higherIsBetter) {
+                            if (score > trueVal) count++
+                        } else {
+                            if (score < trueVal) count++
+                        }
+                    }
+                    candScores.close()
+                    candInput.close()
+                }
+                adjusted[i] = maxOf(1, adjusted[i] - count)
+            }
+        }
+        return adjusted
+    }
 
     private data class EvalBatch(
         val basePair: NDArray,
@@ -1006,7 +1126,8 @@ class ResultEval(
                     )
             }
 
-        return computeMetrics(ranks)
+        val finalRanks = applyFilteredTail(ranks)
+        return computeMetrics(finalRanks)
     }
 
     /**
@@ -1092,7 +1213,8 @@ class ResultEval(
                     )
             }
 
-        return computeMetrics(ranks)
+        val finalRanks = applyFilteredHead(ranks)
+        return computeMetrics(finalRanks)
     }
 
     /**

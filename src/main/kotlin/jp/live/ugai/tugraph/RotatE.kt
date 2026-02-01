@@ -9,6 +9,7 @@ import ai.djl.nn.Parameter
 import ai.djl.training.ParameterStore
 import ai.djl.training.initializer.UniformInitializer
 import ai.djl.util.PairList
+import kotlin.math.PI
 import kotlin.math.sqrt
 
 /**
@@ -51,6 +52,8 @@ class RotatE(
                 Parameter.builder()
                     .setName("edges")
                     .setType(Parameter.Type.WEIGHT)
+                    // Standard RotatE uses relation phases in [-pi, pi].
+                    .optInitializer(UniformInitializer(PI.toFloat()))
                     .optShape(Shape(numEdge, dim))
                     .build(),
             )

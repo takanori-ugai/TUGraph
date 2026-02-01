@@ -117,6 +117,11 @@ class EmbeddingTrainer(
                 is ComplEx, is DistMult -> true
                 else -> false
             }
+        val higherIsBetter =
+            when (block) {
+                is ComplEx, is DistMult, is QuatE -> true
+                else -> false
+            }
         val useSelfAdversarial =
             when (block) {
                 is ComplEx, is DistMult -> true
@@ -173,9 +178,16 @@ class EmbeddingTrainer(
                                         numNegatives,
                                         useSimilarityLoss,
                                         useSelfAdversarial,
+                                        higherIsBetter,
                                     )
                                 } else {
-                                    computeLossFromScores(pos, neg, useSimilarityLoss, useSelfAdversarial)
+                                    computeLossFromScores(
+                                        pos,
+                                        neg,
+                                        useSimilarityLoss,
+                                        useSelfAdversarial,
+                                        higherIsBetter,
+                                    )
                                 }
                             if (regWeight > 0.0f) {
                                 block.parameters.valueAt(0).array.pow(2).use { pow1 ->
@@ -247,6 +259,7 @@ class EmbeddingTrainer(
                         useBernoulli,
                         useSimilarityLoss,
                         useSelfAdversarial,
+                        higherIsBetter,
                         regWeight,
                     )
             }
@@ -307,6 +320,7 @@ class EmbeddingTrainer(
         useBernoulli: Boolean,
         useSimilarityLoss: Boolean,
         useSelfAdversarial: Boolean,
+        higherIsBetter: Boolean,
         regWeight: Float,
     ): Float {
         var lossSum = 0f
@@ -331,21 +345,7 @@ class EmbeddingTrainer(
                     val pos = f0[0]
                     val neg = f0[1].reshape(pos.shape[0], numNegatives.toLong())
                     var lossValue =
-                        if (useSimilarityLoss) {
-                            val posLoss = pos.neg().exp().add(1f).log()
-                            val negLoss = neg.exp().add(1f).log()
-                            val negAgg =
-                                if (useSelfAdversarial) {
-                                    val weights = neg.mul(SELF_ADVERSARIAL_TEMP).softmax(1)
-                                    weights.mul(negLoss).sum(intArrayOf(1))
-                                } else {
-                                    negLoss.mean(intArrayOf(1))
-                                }
-                            posLoss.add(negAgg)
-                        } else {
-                            val hinge = pos.expandDims(1).sub(neg).add(margin).maximum(0f)
-                            hinge.mean(intArrayOf(1))
-                        }
+                        computeLossFromScores(pos, neg, useSimilarityLoss, useSelfAdversarial, higherIsBetter)
                     if (regWeight > 0.0f) {
                         trainer.model.block.parameters.valueAt(0).array.pow(2).use { pow1 ->
                             pow1.sum().use { reg1 ->
@@ -481,6 +481,7 @@ class EmbeddingTrainer(
         neg: NDArray,
         useSimilarityLoss: Boolean,
         useSelfAdversarial: Boolean,
+        higherIsBetter: Boolean,
     ): NDArray {
         return if (useSimilarityLoss) {
             // softplus(-pos) + softplus(neg)
@@ -495,7 +496,12 @@ class EmbeddingTrainer(
                 }
             posLoss.add(negAgg)
         } else {
-            val hinge = pos.expandDims(1).sub(neg).add(margin).maximum(0f)
+            val hinge =
+                if (higherIsBetter) {
+                    neg.sub(pos.expandDims(1)).add(margin).maximum(0f)
+                } else {
+                    pos.expandDims(1).sub(neg).add(margin).maximum(0f)
+                }
             hinge.mean(intArrayOf(1))
         }
     }
@@ -526,6 +532,7 @@ class EmbeddingTrainer(
         numNegatives: Int,
         useSimilarityLoss: Boolean,
         useSelfAdversarial: Boolean,
+        higherIsBetter: Boolean,
     ): NDArray {
         val (dims, weights, entities, edges) =
             when (block) {
@@ -573,7 +580,14 @@ class EmbeddingTrainer(
                         else -> error("Matryoshka loss used with unsupported block.")
                     }
                 val negReshaped = negScores.reshape(posScores.shape[0], numNegatives.toLong())
-                val loss = computeLossFromScores(posScores, negReshaped, useSimilarityLoss, useSelfAdversarial)
+                val loss =
+                    computeLossFromScores(
+                        posScores,
+                        negReshaped,
+                        useSimilarityLoss,
+                        useSelfAdversarial,
+                        higherIsBetter,
+                    )
                 val weighted = loss.mul(weight)
                 loss.close()
                 negReshaped.close()
