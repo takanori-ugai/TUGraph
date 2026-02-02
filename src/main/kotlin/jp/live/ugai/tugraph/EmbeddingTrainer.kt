@@ -5,6 +5,7 @@ import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.Shape
+import ai.djl.training.ParameterStore
 import ai.djl.training.Trainer
 import kotlin.math.min
 
@@ -19,17 +20,26 @@ import kotlin.math.min
  */
 class EmbeddingTrainer(
     private val manager: NDManager,
-    private val triples: NDArray,
+    rawTriples: NDArray,
     private val numOfEntities: Long,
     private val trainer: Trainer,
     private val epoch: Int,
 ) {
+    private val triples: NDArray
+
+    private data class MatryoshkaConfig(
+        val dims: LongArray,
+        val weights: FloatArray,
+        val entities: NDArray,
+        val edges: NDArray,
+    )
+
     private val margin = 1.0f
     private val logger = org.slf4j.LoggerFactory.getLogger(EmbeddingTrainer::class.java)
 
     /** Per-epoch loss values collected during training. */
     val lossList = mutableListOf<Float>()
-    private val numOfTriples = triples.shape[0]
+    private val numOfTriples: Long
 
     /** Materialized triples used for negative sampling. */
     val inputList = mutableListOf<LongArray>()
@@ -40,6 +50,17 @@ class EmbeddingTrainer(
     private val bernoulliProb: Map<Long, Float>
 
     init {
+        val tripleCount = rawTriples.size() / TRIPLE
+        require(tripleCount * TRIPLE == rawTriples.size()) {
+            "Triples NDArray size must be a multiple of TRIPLE; size=${rawTriples.size()}."
+        }
+        numOfTriples = tripleCount
+        triples =
+            if (rawTriples.shape.dimension() == 1 || rawTriples.shape[1] != TRIPLE) {
+                rawTriples.reshape(tripleCount, TRIPLE).also { it.attach(manager) }
+            } else {
+                rawTriples
+            }
         require(numOfTriples <= Int.MAX_VALUE.toLong()) {
             "Dataset exceeds Int.MAX_VALUE triples; Long indexing required (numOfTriples=$numOfTriples)."
         }
@@ -97,12 +118,22 @@ class EmbeddingTrainer(
                 is ComplEx, is DistMult -> true
                 else -> false
             }
+        val higherIsBetter =
+            when (block) {
+                is ComplEx, is DistMult, is QuatE -> true
+                else -> false
+            }
         val useSelfAdversarial =
             when (block) {
                 is ComplEx, is DistMult -> true
                 else -> false
             } &&
                 SELF_ADVERSARIAL_TEMP > 0.0f
+        val useMatryoshka =
+            when (block) {
+                is RotatE, is QuatE -> true
+                else -> false
+            }
         val useBernoulli =
             when (block) {
                 is TransE, is TransR -> true
@@ -140,21 +171,24 @@ class EmbeddingTrainer(
                             val pos = f0[0]
                             val neg = f0[1].reshape(pos.shape[0], numNegatives.toLong())
                             var lossValue =
-                                if (useSimilarityLoss) {
-                                    // softplus(-pos) + softplus(neg)
-                                    val posLoss = pos.neg().exp().add(1f).log()
-                                    val negLoss = neg.exp().add(1f).log()
-                                    val negAgg =
-                                        if (useSelfAdversarial) {
-                                            val weights = neg.mul(SELF_ADVERSARIAL_TEMP).softmax(1)
-                                            weights.mul(negLoss).sum(intArrayOf(1))
-                                        } else {
-                                            negLoss.mean(intArrayOf(1))
-                                        }
-                                    posLoss.add(negAgg)
+                                if (useMatryoshka) {
+                                    computeMatryoshkaLoss(
+                                        block,
+                                        sample,
+                                        negativeSample,
+                                        numNegatives,
+                                        useSimilarityLoss,
+                                        useSelfAdversarial,
+                                        higherIsBetter,
+                                    )
                                 } else {
-                                    val hinge = pos.expandDims(1).sub(neg).add(margin).maximum(0f)
-                                    hinge.mean(intArrayOf(1))
+                                    computeLossFromScores(
+                                        pos,
+                                        neg,
+                                        useSimilarityLoss,
+                                        useSelfAdversarial,
+                                        higherIsBetter,
+                                    )
                                 }
                             if (regWeight > 0.0f) {
                                 block.parameters.valueAt(0).array.pow(2).use { pow1 ->
@@ -226,6 +260,7 @@ class EmbeddingTrainer(
                         useBernoulli,
                         useSimilarityLoss,
                         useSelfAdversarial,
+                        higherIsBetter,
                         regWeight,
                     )
             }
@@ -286,6 +321,7 @@ class EmbeddingTrainer(
         useBernoulli: Boolean,
         useSimilarityLoss: Boolean,
         useSelfAdversarial: Boolean,
+        higherIsBetter: Boolean,
         regWeight: Float,
     ): Float {
         var lossSum = 0f
@@ -310,21 +346,7 @@ class EmbeddingTrainer(
                     val pos = f0[0]
                     val neg = f0[1].reshape(pos.shape[0], numNegatives.toLong())
                     var lossValue =
-                        if (useSimilarityLoss) {
-                            val posLoss = pos.neg().exp().add(1f).log()
-                            val negLoss = neg.exp().add(1f).log()
-                            val negAgg =
-                                if (useSelfAdversarial) {
-                                    val weights = neg.mul(SELF_ADVERSARIAL_TEMP).softmax(1)
-                                    weights.mul(negLoss).sum(intArrayOf(1))
-                                } else {
-                                    negLoss.mean(intArrayOf(1))
-                                }
-                            posLoss.add(negAgg)
-                        } else {
-                            val hinge = pos.expandDims(1).sub(neg).add(margin).maximum(0f)
-                            hinge.mean(intArrayOf(1))
-                        }
+                        computeLossFromScores(pos, neg, useSimilarityLoss, useSelfAdversarial, higherIsBetter)
                     if (regWeight > 0.0f) {
                         trainer.model.block.parameters.valueAt(0).array.pow(2).use { pow1 ->
                             pow1.sum().use { reg1 ->
@@ -435,5 +457,161 @@ class EmbeddingTrainer(
             }
         }
         return manager.create(negatives, Shape(totalNegatives, TRIPLE))
+    }
+
+    /**
+     * Computes per-sample loss from positive and negative scores using either a similarity-based
+     * objective or a hinge (margin) objective.
+     *
+     * When `useSimilarityLoss` is true, each sample's loss is
+     * `log(1 + exp(-pos)) + agg(log(1 + exp(neg)))`, where `agg` is either the mean across negatives
+     * or a self-adversarial weighted sum using a softmax over `neg` scaled by `SELF_ADVERSARIAL_TEMP`.
+     * When `useSimilarityLoss` is false, the hinge loss `mean(max(0, pos - neg + margin))` is used
+     * across negatives.
+     *
+     * @param pos NDArray of positive scores with shape (batchSize,).
+     * @param neg NDArray of negative scores with shape (batchSize * numNegatives,) or a shape that
+     *            can be aligned with `pos` when reshaped as (batchSize, numNegatives).
+     * @param useSimilarityLoss If true, use the similarity-based softplus loss; otherwise use hinge loss.
+     * @param useSelfAdversarial If true and `useSimilarityLoss` is true, apply self-adversarial weighting
+     *                           to negative losses via a softmax over scaled negative scores.
+     * @return 1D NDArray of per-sample losses with length equal to `batchSize`.
+     */
+    private fun computeLossFromScores(
+        pos: NDArray,
+        neg: NDArray,
+        useSimilarityLoss: Boolean,
+        useSelfAdversarial: Boolean,
+        higherIsBetter: Boolean,
+    ): NDArray {
+        return if (useSimilarityLoss) {
+            // softplus(-pos) + softplus(neg)
+            val posLoss = pos.neg().exp().add(1f).log()
+            val negLoss = neg.exp().add(1f).log()
+            val negAgg =
+                if (useSelfAdversarial) {
+                    val weights = neg.mul(SELF_ADVERSARIAL_TEMP).softmax(1)
+                    weights.mul(negLoss).sum(intArrayOf(1))
+                } else {
+                    negLoss.mean(intArrayOf(1))
+                }
+            posLoss.add(negAgg)
+        } else {
+            val hinge =
+                if (higherIsBetter) {
+                    neg.sub(pos.expandDims(1)).add(margin).maximum(0f)
+                } else {
+                    pos.expandDims(1).sub(neg).add(margin).maximum(0f)
+                }
+            hinge.mean(intArrayOf(1))
+        }
+    }
+
+    /**
+     * Computes a Matryoshka-weighted loss by aggregating per-dimension scores from a RotatE or QuatE block.
+     *
+     * For each configured Matryoshka dimension that is valid for the block's entity embedding size, this function
+     * computes positive and negative scores at that dimension, derives a per-dimension loss via
+     * computeLossFromScores(...), multiplies it by the corresponding weight, and returns the sum across dimensions.
+     *
+     * @param block The model block used for scoring; must be a RotatE or QuatE instance.
+     * @param sample NDArray of positive triples (shape [batchSize, 3]).
+     * @param negativeSample NDArray of negative triples (shape [batchSize * numNegatives, 3]).
+     * @param numNegatives Number of negative samples per positive triple.
+     * @param useSimilarityLoss If true, compute similarity-based loss for each dimension; otherwise use hinge loss.
+     * @param useSelfAdversarial If true and using similarity loss, apply self-adversarial weighting to negatives.
+     * @return An NDArray containing the aggregated, weighted Matryoshka loss across all valid dimensions.
+     *
+     * @throws IllegalStateException if the provided block is not supported for Matryoshka scoring.
+     * @throws IllegalArgumentException if dims and weights lengths differ or no valid Matryoshka dimension exists
+     *                                  for the block's embedding size.
+     */
+    private fun computeMatryoshkaLoss(
+        block: Any,
+        sample: NDArray,
+        negativeSample: NDArray,
+        numNegatives: Int,
+        useSimilarityLoss: Boolean,
+        useSelfAdversarial: Boolean,
+        higherIsBetter: Boolean,
+    ): NDArray {
+        val device = sample.device
+        // Create a local ParameterStore since Trainer no longer exposes it publicly.
+        val parameterStore = ParameterStore(trainer.manager, true)
+        val (dims, weights, entities, edges) =
+            when (block) {
+                is RotatE ->
+                    MatryoshkaConfig(
+                        MATRYOSHKA_ROTATE_DIMS,
+                        MATRYOSHKA_ROTATE_WEIGHTS,
+                        block.getEntities(parameterStore, device, true),
+                        block.getEdges(parameterStore, device, true),
+                    )
+                is QuatE ->
+                    MatryoshkaConfig(
+                        MATRYOSHKA_QUATE_DIMS,
+                        MATRYOSHKA_QUATE_WEIGHTS,
+                        block.getEntities(parameterStore, device, true),
+                        block.getEdges(parameterStore, device, true),
+                    )
+                else -> error("Matryoshka loss used with unsupported block.")
+            }
+        require(dims.size == weights.size) { "Matryoshka dims and weights must have the same length." }
+
+        val embDim = entities.shape[1]
+        val usable = ArrayList<Pair<Long, Float>>(dims.size)
+        for (i in dims.indices) {
+            val d = dims[i]
+            if (d > 0 && d <= embDim) {
+                usable.add(d to weights[i])
+            }
+        }
+        require(usable.isNotEmpty()) { "No valid Matryoshka dims for embedding size $embDim." }
+
+        var total: NDArray? = null
+        try {
+            for ((dim, weight) in usable) {
+                val posScores =
+                    when (block) {
+                        is RotatE -> block.score(sample, entities, edges, dim)
+                        is QuatE -> block.score(sample, entities, edges, dim)
+                        else -> error("Matryoshka loss used with unsupported block.")
+                    }
+                val negScores =
+                    when (block) {
+                        is RotatE -> block.score(negativeSample, entities, edges, dim)
+                        is QuatE -> block.score(negativeSample, entities, edges, dim)
+                        else -> error("Matryoshka loss used with unsupported block.")
+                    }
+                val negReshaped = negScores.reshape(posScores.shape[0], numNegatives.toLong())
+                val loss =
+                    computeLossFromScores(
+                        posScores,
+                        negReshaped,
+                        useSimilarityLoss,
+                        useSelfAdversarial,
+                        higherIsBetter,
+                    )
+                val weighted = loss.mul(weight)
+                loss.close()
+                negReshaped.close()
+                posScores.close()
+                negScores.close()
+                total =
+                    if (total == null) {
+                        weighted
+                    } else {
+                        val sum = total.add(weighted)
+                        total.close()
+                        weighted.close()
+                        sum
+                    }
+            }
+            val result = requireNotNull(total) { "Matryoshka loss total is null." }
+            total = null
+            return result
+        } finally {
+            total?.close()
+        }
     }
 }

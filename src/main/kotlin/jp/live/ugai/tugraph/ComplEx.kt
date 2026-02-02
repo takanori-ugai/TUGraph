@@ -97,79 +97,32 @@ class ComplEx(
         edges: NDArray,
     ): NDArray {
         val numTriples = input.size() / TRIPLE
-        var triples: NDArray? = null
-        var headIds: NDArray? = null
-        var relationIds: NDArray? = null
-        var tailIds: NDArray? = null
-        var heads: NDArray? = null
-        var relations: NDArray? = null
-        var tails: NDArray? = null
-        var hRe: NDArray? = null
-        var hIm: NDArray? = null
-        var rRe: NDArray? = null
-        var rIm: NDArray? = null
-        var tRe: NDArray? = null
-        var tIm: NDArray? = null
-        var term1Mul: NDArray? = null
-        var term1: NDArray? = null
-        var term2Mul: NDArray? = null
-        var term2: NDArray? = null
-        var term1b: NDArray? = null
-        var term2b: NDArray? = null
-        var sum1: NDArray? = null
-        var sum2: NDArray? = null
-        var sum: NDArray? = null
-        try {
-            triples = input.reshape(numTriples, TRIPLE)
-            headIds = triples.get(headIndex)
-            relationIds = triples.get(relationIndex)
-            tailIds = triples.get(tailIndex)
+        val parent = input.manager
+        return parent.newSubManager().use { sm ->
+            val triples = input.reshape(numTriples, TRIPLE).also { it.attach(sm) }
+            val headIds = triples.get(headIndex).also { it.attach(sm) }
+            val relationIds = triples.get(relationIndex).also { it.attach(sm) }
+            val tailIds = triples.get(tailIndex).also { it.attach(sm) }
 
-            heads = entities.get(headIds)
-            relations = edges.get(relationIds)
-            tails = entities.get(tailIds)
+            val heads = entities.get(headIds).also { it.attach(sm) }
+            val relations = edges.get(relationIds).also { it.attach(sm) }
+            val tails = entities.get(tailIds).also { it.attach(sm) }
 
-            hRe = heads.get(realIndex)
-            hIm = heads.get(imagIndex)
-            rRe = relations.get(realIndex)
-            rIm = relations.get(imagIndex)
-            tRe = tails.get(realIndex)
-            tIm = tails.get(imagIndex)
+            val hRe = heads.get(realIndex).also { it.attach(sm) }
+            val hIm = heads.get(imagIndex).also { it.attach(sm) }
+            val rRe = relations.get(realIndex).also { it.attach(sm) }
+            val rIm = relations.get(imagIndex).also { it.attach(sm) }
+            val tRe = tails.get(realIndex).also { it.attach(sm) }
+            val tIm = tails.get(imagIndex).also { it.attach(sm) }
 
             // ComplEx: Re(<h, r, conj(t)>)
-            term1Mul = hRe.mul(rRe)
-            term1b = hIm.mul(rIm)
-            term1 = term1Mul.sub(term1b)
-            term2Mul = hRe.mul(rIm)
-            term2b = hIm.mul(rRe)
-            term2 = term2Mul.add(term2b)
-            sum1 = term1.mul(tRe)
-            sum2 = term2.mul(tIm)
-            sum = sum1.add(sum2)
-            return sum.sum(sumAxis)
-        } finally {
-            sum?.close()
-            sum2?.close()
-            sum1?.close()
-            term2b?.close()
-            term2?.close()
-            term2Mul?.close()
-            term1b?.close()
-            term1?.close()
-            term1Mul?.close()
-            tIm?.close()
-            tRe?.close()
-            rIm?.close()
-            rRe?.close()
-            hIm?.close()
-            hRe?.close()
-            tails?.close()
-            relations?.close()
-            heads?.close()
-            tailIds?.close()
-            relationIds?.close()
-            headIds?.close()
-            triples?.close()
+            val term1 = hRe.mul(rRe).sub(hIm.mul(rIm)).also { it.attach(sm) }
+            val term2 = hRe.mul(rIm).add(hIm.mul(rRe)).also { it.attach(sm) }
+            val sum1 = term1.mul(tRe).also { it.attach(sm) }
+            val sum2 = term2.mul(tIm).also { it.attach(sm) }
+            val sum = sum1.add(sum2).also { it.attach(sm) }
+            val result = sum.sum(sumAxis).also { it.attach(parent) }
+            result
         }
     }
 

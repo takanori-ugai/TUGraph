@@ -2,12 +2,33 @@ build:
   maxIssues: 200
 
 complexity:
+  CyclomaticComplexMethod:
+    threshold: 50
+  TooManyFunctions:
+    thresholdInFiles: 20
+    thresholdInClasses: 20
+    thresholdInInterfaces: 20
+    thresholdInObjects: 20
+    thresholdInEnums: 20
+  ComplexCondition:
+    threshold: 10
+  LongParameterList:
+    functionThreshold: 20
+    constructorThreshold: 20
   LongMethod:
-    threshold: 150
+    threshold: 200
+  LargeClass:
+    active: false
   NestedBlockDepth:
     active: false
 
 style:
+  MaxLineLength:
+    maxLineLength: 300
+  DestructuringDeclarationWithTooManyEntries:
+    maxDestructuringEntries: 10
+  ThrowsCount:
+    max: 10
   MagicNumber:
     active: false
   LoopWithTooManyJumpStatements:
