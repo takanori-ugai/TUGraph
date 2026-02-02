@@ -1,5 +1,6 @@
 package jp.live.ugai.tugraph
 
+import ai.djl.Device
 import ai.djl.ndarray.NDArray
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.index.NDIndex
@@ -196,11 +197,33 @@ class QuatE(
     }
 
     /**
+     * Retrieve the entities embeddings on the requested device.
+     */
+    fun getEntities(
+        parameterStore: ParameterStore,
+        device: Device,
+        training: Boolean,
+    ): NDArray {
+        return parameterStore.getValue(entities, device, training)
+    }
+
+    /**
      * Gets relation (edge) embeddings.
      *
      * @return NDArray of shape (numEdge, dim * 4) containing quaternion relation embeddings.
      */
     fun getEdges(): NDArray {
         return getParameters().get("edges").array
+    }
+
+    /**
+     * Gets relation (edge) embeddings on the requested device.
+     */
+    fun getEdges(
+        parameterStore: ParameterStore,
+        device: Device,
+        training: Boolean,
+    ): NDArray {
+        return parameterStore.getValue(edges, device, training)
     }
 }

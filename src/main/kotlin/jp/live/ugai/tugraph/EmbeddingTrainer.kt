@@ -5,6 +5,7 @@ import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.Shape
+import ai.djl.training.ParameterStore
 import ai.djl.training.Trainer
 import kotlin.math.min
 
@@ -534,21 +535,24 @@ class EmbeddingTrainer(
         useSelfAdversarial: Boolean,
         higherIsBetter: Boolean,
     ): NDArray {
+        val device = sample.device
+        // Create a local ParameterStore since Trainer no longer exposes it publicly.
+        val parameterStore = ParameterStore(trainer.manager, true)
         val (dims, weights, entities, edges) =
             when (block) {
                 is RotatE ->
                     MatryoshkaConfig(
                         MATRYOSHKA_ROTATE_DIMS,
                         MATRYOSHKA_ROTATE_WEIGHTS,
-                        block.getEntities(),
-                        block.getEdges(),
+                        block.getEntities(parameterStore, device, true),
+                        block.getEdges(parameterStore, device, true),
                     )
                 is QuatE ->
                     MatryoshkaConfig(
                         MATRYOSHKA_QUATE_DIMS,
                         MATRYOSHKA_QUATE_WEIGHTS,
-                        block.getEntities(),
-                        block.getEdges(),
+                        block.getEntities(parameterStore, device, true),
+                        block.getEdges(parameterStore, device, true),
                     )
                 else -> error("Matryoshka loss used with unsupported block.")
             }

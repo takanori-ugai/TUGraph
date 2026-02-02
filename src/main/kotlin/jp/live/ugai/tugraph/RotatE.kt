@@ -1,5 +1,6 @@
 package jp.live.ugai.tugraph
 
+import ai.djl.Device
 import ai.djl.ndarray.NDArray
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.index.NDIndex
@@ -185,11 +186,33 @@ class RotatE(
     }
 
     /**
+     * Access the entities embedding parameter array on the requested device.
+     */
+    fun getEntities(
+        parameterStore: ParameterStore,
+        device: Device,
+        training: Boolean,
+    ): NDArray {
+        return parameterStore.getValue(entities, device, training)
+    }
+
+    /**
      * Retrieve the relation (edge) embedding parameters.
      *
      * @return NDArray of shape (numEdge, dim) containing the relation phase embeddings.
      */
     fun getEdges(): NDArray {
         return getParameters().get("edges").array
+    }
+
+    /**
+     * Retrieve the relation (edge) embeddings on the requested device.
+     */
+    fun getEdges(
+        parameterStore: ParameterStore,
+        device: Device,
+        training: Boolean,
+    ): NDArray {
+        return parameterStore.getValue(edges, device, training)
     }
 }

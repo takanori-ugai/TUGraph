@@ -451,6 +451,8 @@ class ResultEval(
                             .reshape(batchSize.toLong(), 1)
                             .also { it.attach(batchManager) }
                     val countBetter = batchManager.zeros(Shape(batchSize.toLong()), DataType.INT64)
+                    val rotReExp = rotRe.expandDims(1).also { it.attach(batchManager) }
+                    val rotImExp = rotIm.expandDims(1).also { it.attach(batchManager) }
                     var chunkStart = 0
                     while (chunkStart < numEntitiesInt) {
                         val chunkEnd = minOf(chunkStart + chunkSize, numEntitiesInt)
@@ -459,20 +461,24 @@ class ResultEval(
                             val eIm = entityChunk.get(imagIndex)
                             eRe.use { re ->
                                 eIm.use { im ->
-                                    val diffRe = rotRe.expandDims(1).sub(re.expandDims(0))
-                                    val diffIm = rotIm.expandDims(1).sub(im.expandDims(0))
-                                    diffRe.use { dr ->
-                                        diffIm.use { di ->
-                                            val scores = dr.abs().add(di.abs()).sum(intArrayOf(2))
-                                            scores.use { sc ->
-                                                val countBetterNd =
-                                                    if (higherIsBetter) {
-                                                        sc.gt(trueScore).sum(intArrayOf(1))
-                                                    } else {
-                                                        sc.lt(trueScore).sum(intArrayOf(1))
+                                    re.expandDims(0).use { reExp ->
+                                        im.expandDims(0).use { imExp ->
+                                            val diffRe = rotReExp.sub(reExp)
+                                            val diffIm = rotImExp.sub(imExp)
+                                            diffRe.use { dr ->
+                                                diffIm.use { di ->
+                                                    val scores = dr.abs().add(di.abs()).sum(intArrayOf(2))
+                                                    scores.use { sc ->
+                                                        val countBetterNd =
+                                                            if (higherIsBetter) {
+                                                                sc.gt(trueScore).sum(intArrayOf(1))
+                                                            } else {
+                                                                sc.lt(trueScore).sum(intArrayOf(1))
+                                                            }
+                                                        countBetter.addi(countBetterNd)
+                                                        countBetterNd.close()
                                                     }
-                                                countBetter.addi(countBetterNd)
-                                                countBetterNd.close()
+                                                }
                                             }
                                         }
                                     }
@@ -705,8 +711,8 @@ class ResultEval(
                                 eIm.use { ei ->
                                     er.transpose().use { erT ->
                                         ei.transpose().use { eiT ->
-                                            val scores = a.matMul(erT).add(b.matMul(eiT))
-                                            scores.use { sc ->
+                                            a.matMul(erT).use { sc ->
+                                                b.matMul(eiT).use { sc.addi(it) }
                                                 val countBetterNd =
                                                     if (higherIsBetter) {
                                                         sc.gt(trueScore).sum(intArrayOf(1))
