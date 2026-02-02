@@ -98,6 +98,7 @@ fun main() {
         }
         result.close()
         predictor.close()
+        trainer.close()
         model.close()
     }
 }

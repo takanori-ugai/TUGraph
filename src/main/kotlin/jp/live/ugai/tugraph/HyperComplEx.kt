@@ -2,6 +2,7 @@ package jp.live.ugai.tugraph
 
 import ai.djl.Device
 import ai.djl.ndarray.NDArray
+import ai.djl.ndarray.NDArrays
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.DataType
@@ -15,17 +16,21 @@ import ai.djl.util.PairList
 import kotlin.math.sqrt
 
 /**
- * A class representing the HyperComplEx model.
+ * HyperComplEx knowledge-graph embedding model.
  *
- * HyperComplEx combines hyperbolic, complex, and Euclidean spaces with relation-specific attention
- * weights to score triples. Scores are higher for more plausible triples.
+ * The model blends three scoring spaces—hyperbolic, complex, and Euclidean—then combines them with
+ * relation-specific attention weights. Higher scores indicate more plausible triples.
  *
- * @property numEnt The number of entities.
- * @property numEdge The number of edges.
- * @property dimH The dimensionality of the hyperbolic embeddings.
- * @property dimC The dimensionality of the complex embeddings (per real/imag component).
- * @property dimE The dimensionality of the Euclidean embeddings.
- * @property curvature Hyperbolic curvature (positive).
+ * @property numEnt Number of entities in the graph.
+ * @property numEdge Number of relations in the graph.
+ * @property dimH Dimensionality of the hyperbolic embeddings.
+ * @property dimC Dimensionality of the complex embeddings (per real/imag component).
+ * @property dimE Dimensionality of the Euclidean embeddings.
+ * @property curvature Positive curvature used for the Poincaré ball.
+ * @property entityShards Number of shards used to store entity embeddings.
+ * @property relationShards Number of shards used to store relation embeddings.
+ * @property mixedPrecision Whether forward passes cast to FP16 for speed.
+ * @property lossScale Mixed-precision loss scale used by training utilities.
  */
 class HyperComplEx(
     /** Number of entities in the graph. */
@@ -65,7 +70,7 @@ class HyperComplEx(
     private val relationShardOffsets: LongArray
     private val relationShardSizes: LongArray
 
-    /** Convenience constructor with a shared dimension across spaces. */
+    /** Convenience constructor that uses the same dimension for all three spaces. */
     constructor(
         numEnt: Long,
         numEdge: Long,
@@ -129,7 +134,6 @@ class HyperComplEx(
                 Parameter.builder()
                     .setName("attnW")
                     .setType(Parameter.Type.WEIGHT)
-                    .optInitializer(UniformInitializer(1.0f))
                     .optShape(Shape(numEdge, 3))
                     .build(),
             )
@@ -155,13 +159,16 @@ class HyperComplEx(
     }
 
     /**
-     * Compute HyperComplEx scores for one or two batches of triples and return them as an NDList.
+     * Compute scores for one or two batches of triples.
      *
-     * @param inputs NDList whose first element is a batch of triples; if a second element is present it is treated as an additional batch to score.
-     * @param parameterStore Parameter store used to retrieve model parameters.
+     * The first NDArray in `inputs` must be shaped `(N, TRIPLE)` or `(N * TRIPLE)`. If a second
+     * NDArray is present, it is scored independently and appended to the output list.
+     *
+     * @param inputs First element is a batch of triples; optional second element is another batch.
+     * @param parameterStore Parameter store used to fetch embeddings.
      * @param training Whether parameters should be fetched in training mode.
-     * @param params Additional parameters (unused by this implementation).
-     * @return An NDList containing one NDArray of scores for the first input batch, and a second NDArray if a second input batch was provided.
+     * @param params Additional parameters (unused).
+     * @return An NDList containing one score vector per input batch.
      */
     @Override
     override fun forwardInternal(
@@ -187,7 +194,10 @@ class HyperComplEx(
     )
 
     /**
-     * Compute HyperComplEx scores for a batch of triples using the provided embeddings.
+     * Compute total and per-space scores for a batch of triples.
+     *
+     * @param input Triples with shape `(N, TRIPLE)` or `(N * TRIPLE)`.
+     * @return Aggregate scores plus the individual hyperbolic, complex, and Euclidean components.
      */
     fun scoreParts(
         input: NDArray,
@@ -421,7 +431,9 @@ class HyperComplEx(
     }
 
     /**
-     * Project hyperbolic embeddings back into the Poincare ball to enforce stability.
+     * Project hyperbolic embeddings back into the Poincaré ball for numerical stability.
+     *
+     * This should be called after updates to keep norms within the valid hyperbolic radius.
      */
     fun projectHyperbolic() {
         val maxNorm = (1.0f - 1.0e-5f) / sqrt(curvature.toDouble()).toFloat()
@@ -438,22 +450,24 @@ class HyperComplEx(
         maxNorm: Float,
     ) {
         val norms = x.pow(2).sum(sumAxis).sqrt().reshape(x.shape[0], 1)
-        val ratio = norms.mul(0f).add(maxNorm).div(norms)
+        val maxNormTensor = x.manager.full(norms.shape, maxNorm, norms.dataType, norms.device)
+        val ratio = maxNormTensor.div(norms)
         val scale = ratio.minimum(1f)
         x.muli(scale)
         norms.close()
+        maxNormTensor.close()
         ratio.close()
         scale.close()
     }
 
     /**
-     * Compute the output shape(s) for the given input shapes, producing one output shape per input.
+     * Compute output shapes for the provided input shapes.
      *
-     * The output shape for each input is a one-dimensional Shape whose size equals the number of triples
-     * represented by the first input (computed as inputs[0].size() / TRIPLE).
+     * Each output is a 1D shape with length equal to the number of triples, computed as
+     * `inputs[0].size() / TRIPLE`. A second output shape is returned only when a second input exists.
      *
-     * @param inputs Array of input shapes; the first element represents triples with width TRIPLE.
-     * @return An array of output Shape objects — one Shape per input — each equal to the number of triples.
+     * @param inputs Array of input shapes; the first element represents triples of width `TRIPLE`.
+     * @return Output shapes, one per input.
      */
     @Override
     override fun getOutputShapes(inputs: Array<Shape>): Array<Shape> {
@@ -466,25 +480,25 @@ class HyperComplEx(
         }
     }
 
-    /** Retrieve the hyperbolic entity embeddings array. */
+    /** Retrieve the hyperbolic entity embeddings array (caller must close). */
     fun getEntitiesH(): NDArray = concatParamShards(entH)
 
-    /** Retrieve the complex entity embeddings array. */
+    /** Retrieve the complex entity embeddings array (caller must close). */
     fun getEntitiesC(): NDArray = concatParamShards(entC)
 
-    /** Retrieve the Euclidean entity embeddings array. */
+    /** Retrieve the Euclidean entity embeddings array (caller must close). */
     fun getEntitiesE(): NDArray = concatParamShards(entE)
 
-    /** Retrieve the hyperbolic relation embeddings array. */
+    /** Retrieve the hyperbolic relation embeddings array (caller must close). */
     fun getEdgesH(): NDArray = concatParamShards(relH)
 
-    /** Retrieve the complex relation embeddings array. */
+    /** Retrieve the complex relation embeddings array (caller must close). */
     fun getEdgesC(): NDArray = concatParamShards(relC)
 
-    /** Retrieve the Euclidean relation embeddings array. */
+    /** Retrieve the Euclidean relation embeddings array (caller must close). */
     fun getEdgesE(): NDArray = concatParamShards(relE)
 
-    /** Retrieve attention weights for relations. */
+    /** Retrieve relation attention weights (caller must close). */
     fun getAttention(): NDArray = getParameters().get("attnW").array
 
     /** Retrieve hyperbolic entity embeddings on the requested device. */
@@ -538,6 +552,8 @@ class HyperComplEx(
 
     /**
      * Compute L2 regularization loss over all embeddings.
+     *
+     * The loss is averaged by `(numEnt + numEdge)` to make it scale-invariant with graph size.
      */
     fun l2RegLoss(
         parameterStore: ParameterStore,
@@ -696,16 +712,12 @@ class HyperComplEx(
     }
 
     private fun concatNdShards(shards: List<NDArray>): NDArray {
-        var out: NDArray? = null
-        for (arr in shards) {
-            out =
-                if (out == null) {
-                    arr
-                } else {
-                    out.concat(arr, 0)
-                }
+        require(shards.isNotEmpty()) { "No shards to concat." }
+        return if (shards.size == 1) {
+            shards[0]
+        } else {
+            NDArrays.concat(NDList(shards), 0)
         }
-        return requireNotNull(out) { "No shards to concat." }
     }
 
     private fun concatParamShards(shards: List<Parameter>): NDArray {

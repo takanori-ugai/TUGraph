@@ -14,12 +14,11 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /**
- * Runs an end-to-end HyperComplEx workflow: loads triples from data/sample.csv, trains embeddings,
- * performs a sample prediction, and evaluates head/tail prediction results.
+ * Runs an end-to-end HyperComplEx demo.
  *
- * The function reads CSV triples, prepares entity and relation counts, initializes a HyperComplEx model
- * and DJL trainer, executes embedding training, prints learned parameters and a sample prediction,
- * evaluates tail and head ranking results, and closes all resources.
+ * The demo loads triples from `data/sample.csv`, builds a model and trainer, runs embedding training,
+ * prints learned parameters and a sample prediction, evaluates head/tail ranking metrics, and then
+ * closes all resources.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->
@@ -85,12 +84,12 @@ fun main() {
         eTrainer.close()
         println(trainer.trainingResult)
 
-        println(hyperComplEx.getEdgesH())
-        println(hyperComplEx.getEdgesC())
-        println(hyperComplEx.getEdgesE())
-        println(hyperComplEx.getEntitiesH())
-        println(hyperComplEx.getEntitiesC())
-        println(hyperComplEx.getEntitiesE())
+        hyperComplEx.getEdgesH().use { println(it) }
+        hyperComplEx.getEdgesC().use { println(it) }
+        hyperComplEx.getEdgesE().use { println(it) }
+        hyperComplEx.getEntitiesH().use { println(it) }
+        hyperComplEx.getEntitiesC().use { println(it) }
+        hyperComplEx.getEntitiesE().use { println(it) }
 
         val predictor = model.newPredictor(NoopTranslator())
         val test = manager.create(longArrayOf(1, 1, 2))
@@ -116,9 +115,10 @@ fun main() {
         }
         result.close()
         predictor.close()
+        trainer.close()
         model.close()
     }
 }
 
-/** Marker class for TestHyperComplEx example. */
+/** Marker class for the HyperComplEx demo entry point. */
 class TestHyperComplEx
