@@ -113,6 +113,7 @@ class EmbeddingTrainer(
         require(numTriplesInt > 0) { "No triples available for training (numOfTriples=0)." }
         var firstNanReported = false
         val block = trainer.model.block
+        val useHyperComplEx = block is HyperComplEx
         val useSimilarityLoss =
             when (block) {
                 is ComplEx, is DistMult -> true
@@ -120,7 +121,7 @@ class EmbeddingTrainer(
             }
         val higherIsBetter =
             when (block) {
-                is ComplEx, is DistMult, is QuatE -> true
+                is ComplEx, is DistMult, is QuatE, is HyperComplEx -> true
                 else -> false
             }
         val useSelfAdversarial =
@@ -166,69 +167,16 @@ class EmbeddingTrainer(
                             useBernoulli,
                         )
                     trainer.newGradientCollector().use { gc ->
-                        trainer.forward(NDList(sample, negativeSample)).use { f0 ->
-                            f0.forEach { it.attach(batchManager) }
-                            val pos = f0[0]
-                            val neg = f0[1].reshape(pos.shape[0], numNegatives.toLong())
-                            var lossValue =
-                                if (useMatryoshka) {
-                                    computeMatryoshkaLoss(
-                                        block,
-                                        sample,
-                                        negativeSample,
-                                        numNegatives,
-                                        useSimilarityLoss,
-                                        useSelfAdversarial,
-                                        higherIsBetter,
-                                    )
-                                } else {
-                                    computeLossFromScores(
-                                        pos,
-                                        neg,
-                                        useSimilarityLoss,
-                                        useSelfAdversarial,
-                                        higherIsBetter,
-                                    )
-                                }
-                            if (regWeight > 0.0f) {
-                                block.parameters.valueAt(0).array.pow(2).use { pow1 ->
-                                    pow1.sum().use { reg1 ->
-                                        block.parameters.valueAt(1).array.pow(2).use { pow2 ->
-                                            pow2.sum().use { reg2 ->
-                                                reg1.add(reg2).use { regSum ->
-                                                    regSum.mul(regWeight).use { reg ->
-                                                        lossValue = lossValue.add(reg)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            if (!firstNanReported && logger.isWarnEnabled) {
-                                pos.isNaN().any().use { posNaNArr ->
-                                    neg.isNaN().any().use { negNaNArr ->
-                                        lossValue.isNaN().any().use { lossNaNArr ->
-                                            val posNaN = posNaNArr.getBoolean()
-                                            val negNaN = negNaNArr.getBoolean()
-                                            val lossNaN = lossNaNArr.getBoolean()
-                                            if (posNaN || negNaN || lossNaN) {
-                                                logger.warn(
-                                                    "NaN detected in batch {}:{} (pos={}, neg={}, loss={})",
-                                                    start,
-                                                    end,
-                                                    posNaN,
-                                                    negNaN,
-                                                    lossNaN,
-                                                )
-                                                logger.warn("Sample: {}", sample)
-                                                logger.warn("Negative sample: {}", negativeSample)
-                                                firstNanReported = true
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                        if (useHyperComplEx) {
+                            val hyperBlock = block as HyperComplEx
+                            val lossValue =
+                                computeHyperComplExLoss(
+                                    hyperBlock,
+                                    sample,
+                                    negativeSample,
+                                    numNegatives,
+                                    training = true,
+                                )
                             lossValue.mean().use { meanLoss ->
                                 val batchLoss = meanLoss.getFloat()
                                 lossValue.sum().use { lossSum ->
@@ -236,7 +184,96 @@ class EmbeddingTrainer(
                                 }
                                 trainer.metrics?.addMetric("train_loss", batchLoss)
                                 trainer.metrics?.addMetric("train_L1Loss", batchLoss)
-                                gc.backward(meanLoss)
+                                val lossForBackward =
+                                    if (hyperBlock.mixedPrecision) {
+                                        meanLoss.mul(hyperBlock.lossScale)
+                                    } else {
+                                        meanLoss
+                                    }
+                                try {
+                                    gc.backward(lossForBackward)
+                                } finally {
+                                    if (lossForBackward !== meanLoss) {
+                                        lossForBackward.close()
+                                    }
+                                }
+                                if (hyperBlock.mixedPrecision) {
+                                    hyperBlock.unscaleGradients(hyperBlock.lossScale)
+                                }
+                            }
+                        } else {
+                            trainer.forward(NDList(sample, negativeSample)).use { f0 ->
+                                f0.forEach { it.attach(batchManager) }
+                                val pos = f0[0]
+                                val neg = f0[1].reshape(pos.shape[0], numNegatives.toLong())
+                                var lossValue =
+                                    if (useMatryoshka) {
+                                        computeMatryoshkaLoss(
+                                            block,
+                                            sample,
+                                            negativeSample,
+                                            numNegatives,
+                                            useSimilarityLoss,
+                                            useSelfAdversarial,
+                                            higherIsBetter,
+                                        )
+                                    } else {
+                                        computeLossFromScores(
+                                            pos,
+                                            neg,
+                                            useSimilarityLoss,
+                                            useSelfAdversarial,
+                                            higherIsBetter,
+                                        )
+                                    }
+                                if (regWeight > 0.0f) {
+                                    block.parameters.valueAt(0).array.pow(2).use { pow1 ->
+                                        pow1.sum().use { reg1 ->
+                                            block.parameters.valueAt(1).array.pow(2).use { pow2 ->
+                                                pow2.sum().use { reg2 ->
+                                                    reg1.add(reg2).use { regSum ->
+                                                        regSum.mul(regWeight).use { reg ->
+                                                            lossValue = lossValue.add(reg)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                if (!firstNanReported && logger.isWarnEnabled) {
+                                    pos.isNaN().any().use { posNaNArr ->
+                                        neg.isNaN().any().use { negNaNArr ->
+                                            lossValue.isNaN().any().use { lossNaNArr ->
+                                                val posNaN = posNaNArr.getBoolean()
+                                                val negNaN = negNaNArr.getBoolean()
+                                                val lossNaN = lossNaNArr.getBoolean()
+                                                if (posNaN || negNaN || lossNaN) {
+                                                    logger.warn(
+                                                        "NaN detected in batch {}:{} (pos={}, neg={}, loss={})",
+                                                        start,
+                                                        end,
+                                                        posNaN,
+                                                        negNaN,
+                                                        lossNaN,
+                                                    )
+                                                    logger.warn("Sample: {}", sample)
+                                                    logger.warn("Negative sample: {}", negativeSample)
+                                                    firstNanReported = true
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                lossValue.mean().use { meanLoss ->
+                                    val batchLoss = meanLoss.getFloat()
+                                    lossValue.sum().use { lossSum ->
+                                        epochLoss += lossSum.getFloat()
+                                    }
+                                    trainer.metrics?.addMetric("train_loss", batchLoss)
+                                    trainer.metrics?.addMetric("train_L1Loss", batchLoss)
+                                    gc.backward(meanLoss)
+                                }
                             }
                         }
                     }
@@ -245,6 +282,7 @@ class EmbeddingTrainer(
                 when (val block = trainer.model.block) {
                     is TransE -> block.normalize()
                     is TransR -> block.normalize()
+                    is HyperComplEx -> block.projectHyperbolic()
                 }
                 start = end
             }
@@ -262,6 +300,7 @@ class EmbeddingTrainer(
                         useSelfAdversarial,
                         higherIsBetter,
                         regWeight,
+                        useHyperComplEx,
                     )
             }
             val logEvery = maxOf(1, epoch / 500L)
@@ -323,6 +362,7 @@ class EmbeddingTrainer(
         useSelfAdversarial: Boolean,
         higherIsBetter: Boolean,
         regWeight: Float,
+        useHyperComplEx: Boolean,
     ): Float {
         var lossSum = 0f
         var start = 0
@@ -341,29 +381,43 @@ class EmbeddingTrainer(
                         numNegatives,
                         useBernoulli,
                     )
-                trainer.evaluate(NDList(sample, negativeSample)).use { f0 ->
-                    f0.forEach { it.attach(batchManager) }
-                    val pos = f0[0]
-                    val neg = f0[1].reshape(pos.shape[0], numNegatives.toLong())
-                    var lossValue =
-                        computeLossFromScores(pos, neg, useSimilarityLoss, useSelfAdversarial, higherIsBetter)
-                    if (regWeight > 0.0f) {
-                        trainer.model.block.parameters.valueAt(0).array.pow(2).use { pow1 ->
-                            pow1.sum().use { reg1 ->
-                                trainer.model.block.parameters.valueAt(1).array.pow(2).use { pow2 ->
-                                    pow2.sum().use { reg2 ->
-                                        reg1.add(reg2).use { regSum ->
-                                            regSum.mul(regWeight).use { reg ->
-                                                lossValue = lossValue.add(reg)
+                if (useHyperComplEx) {
+                    val lossValue =
+                        computeHyperComplExLoss(
+                            trainer.model.block as HyperComplEx,
+                            sample,
+                            negativeSample,
+                            numNegatives,
+                            training = false,
+                        )
+                    lossValue.sum().use { lossSumNd ->
+                        lossSum += lossSumNd.getFloat()
+                    }
+                } else {
+                    trainer.evaluate(NDList(sample, negativeSample)).use { f0 ->
+                        f0.forEach { it.attach(batchManager) }
+                        val pos = f0[0]
+                        val neg = f0[1].reshape(pos.shape[0], numNegatives.toLong())
+                        var lossValue =
+                            computeLossFromScores(pos, neg, useSimilarityLoss, useSelfAdversarial, higherIsBetter)
+                        if (regWeight > 0.0f) {
+                            trainer.model.block.parameters.valueAt(0).array.pow(2).use { pow1 ->
+                                pow1.sum().use { reg1 ->
+                                    trainer.model.block.parameters.valueAt(1).array.pow(2).use { pow2 ->
+                                        pow2.sum().use { reg2 ->
+                                            reg1.add(reg2).use { regSum ->
+                                                regSum.mul(regWeight).use { reg ->
+                                                    lossValue = lossValue.add(reg)
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
                         }
-                    }
-                    lossValue.sum().use { lossSumNd ->
-                        lossSum += lossSumNd.getFloat()
+                        lossValue.sum().use { lossSumNd ->
+                            lossSum += lossSumNd.getFloat()
+                        }
                     }
                 }
             }
@@ -505,6 +559,56 @@ class EmbeddingTrainer(
                 }
             hinge.mean(intArrayOf(1))
         }
+    }
+
+    /**
+     * Computes HyperComplEx loss as the sum of self-adversarial ranking loss, multi-space consistency loss,
+     * and L2 regularization.
+     */
+    private fun computeHyperComplExLoss(
+        block: HyperComplEx,
+        sample: NDArray,
+        negativeSample: NDArray,
+        numNegatives: Int,
+        training: Boolean,
+    ): NDArray {
+        val device = sample.device
+        val parameterStore = ParameterStore(trainer.manager, true)
+        val posParts = block.scoreParts(sample, parameterStore, training)
+        val negParts = block.scoreParts(negativeSample, parameterStore, training)
+
+        val posScores = posParts.total
+        val negScores = negParts.total.reshape(posScores.shape[0], numNegatives.toLong())
+
+        val gamma = HYPERCOMPLEX_GAMMA
+        val beta = HYPERCOMPLEX_BETA
+        val posLogSig = sigmoid(posScores.neg().add(gamma)).log()
+        val negLogSig = sigmoid(negScores.sub(gamma)).log()
+        val weights = negScores.mul(beta).softmax(1)
+        val posLoss = posLogSig.neg()
+        val negLoss = weights.mul(negLogSig).sum(intArrayOf(1)).neg()
+        val rankLoss = posLoss.add(negLoss)
+
+        val consistency =
+            computeConsistencyLoss(posParts).add(computeConsistencyLoss(negParts))
+
+        val regLoss = block.l2RegLoss(parameterStore, device, training)
+        return rankLoss.add(consistency.mul(HYPERCOMPLEX_LAMBDA1)).add(regLoss.mul(HYPERCOMPLEX_LAMBDA2))
+    }
+
+    private fun computeConsistencyLoss(parts: HyperComplEx.ScoreParts): NDArray {
+        val diffHC = parts.hyperbolic.sub(parts.complex)
+        val diffHE = parts.hyperbolic.sub(parts.euclidean)
+        val diffCE = parts.complex.sub(parts.euclidean)
+        return diffHC.pow(2).add(diffHE.pow(2)).add(diffCE.pow(2))
+    }
+
+    private fun sigmoid(x: NDArray): NDArray {
+        // 1 / (1 + exp(-x))
+        val denom = x.neg().exp().add(1f)
+        val out = denom.pow(-1)
+        denom.close()
+        return out
     }
 
     /**
