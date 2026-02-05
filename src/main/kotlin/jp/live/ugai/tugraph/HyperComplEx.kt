@@ -564,7 +564,7 @@ class HyperComplEx(
 
         fun addParam(param: Parameter) {
             val arr = parameterStore.getValue(param, device, training)
-            val term = arr.pow(2).sum()
+            val term = arr.pow(2).use { it.sum() }
             sum =
                 if (sum == null) {
                     term
