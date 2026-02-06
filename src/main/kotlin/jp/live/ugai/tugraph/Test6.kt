@@ -77,7 +77,7 @@ fun main() {
         println(predictor.predict(NDList(test)).singletonOrThrow().toFloatArray()[0])
         test.close()
 
-        val result = ResultEval(inputList, manager.newSubManager(), predictor, numEntities, transE = transe)
+        val result = ResultEvalTransE(inputList, manager.newSubManager(), predictor, numEntities, transE = transe)
         println("Tail")
         result.getTailResult().forEach {
             println("${it.key} : ${it.value}")

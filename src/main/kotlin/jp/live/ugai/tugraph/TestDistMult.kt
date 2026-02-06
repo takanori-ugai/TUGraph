@@ -87,13 +87,13 @@ fun main() {
         }
 
         val result =
-            ResultEval(
+            ResultEvalDistMult(
                 inputList,
                 manager.newSubManager(),
                 predictor,
                 numEntities,
-                higherIsBetter = true,
                 distMult = distMult,
+                higherIsBetter = true,
             )
         println("Tail")
         result.getTailResult().forEach {

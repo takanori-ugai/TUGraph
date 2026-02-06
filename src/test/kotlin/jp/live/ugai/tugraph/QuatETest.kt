@@ -245,7 +245,7 @@ class QuatETest {
             )
 
         val resultEval =
-            ResultEval(
+            ResultEvalQuatE(
                 inputList,
                 manager.newSubManager(),
                 predictor,

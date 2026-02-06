@@ -58,7 +58,7 @@ class ResultEvalTest {
             )
 
         val resultEval =
-            ResultEval(
+            ResultEvalTransE(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -116,7 +116,7 @@ class ResultEvalTest {
             )
 
         val resultEval =
-            ResultEval(
+            ResultEvalDistMult(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -163,7 +163,7 @@ class ResultEvalTest {
             )
 
         val resultEval =
-            ResultEval(
+            ResultEvalComplEx(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -211,7 +211,7 @@ class ResultEvalTest {
             )
 
         val resultEval =
-            ResultEval(
+            ResultEvalTransR(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -250,7 +250,7 @@ class ResultEvalTest {
         val inputList = listOf(longArrayOf(0, 0, 1))
 
         val resultEval =
-            ResultEval(
+            ResultEvalTransE(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -290,7 +290,7 @@ class ResultEvalTest {
         val inputList = emptyList<LongArray>()
 
         val resultEval =
-            ResultEval(
+            ResultEvalTransE(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -323,7 +323,7 @@ class ResultEvalTest {
         val inputList = listOf(longArrayOf(0, 0, 1))
 
         val resultEval =
-            ResultEval(
+            ResultEvalTransE(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -366,7 +366,7 @@ class ResultEvalTest {
             )
 
         val resultEval =
-            ResultEval(
+            ResultEvalTransE(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -402,7 +402,7 @@ class ResultEvalTest {
         val inputList = listOf(longArrayOf(0, 0, 100))
 
         val resultEval =
-            ResultEval(
+            ResultEvalTransE(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -436,7 +436,7 @@ class ResultEvalTest {
         val inputList = listOf(longArrayOf(0, 0, 1))
 
         val resultEvalHigher =
-            ResultEval(
+            ResultEvalDistMult(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -471,7 +471,7 @@ class ResultEvalTest {
         val subManager = manager.newSubManager()
 
         val resultEval =
-            ResultEval(
+            ResultEvalTransE(
                 inputList,
                 subManager,
                 predictor,

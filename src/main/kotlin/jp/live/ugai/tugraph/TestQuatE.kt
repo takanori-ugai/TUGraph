@@ -86,13 +86,13 @@ fun main() {
         }
 
         val result =
-            ResultEval(
+            ResultEvalQuatE(
                 inputList,
                 manager.newSubManager(),
                 predictor,
                 numEntities,
-                higherIsBetter = true,
                 quatE = quate,
+                higherIsBetter = true,
             )
         println("Tail")
         result.getTailResult().forEach {

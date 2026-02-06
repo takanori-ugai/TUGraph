@@ -205,7 +205,7 @@ class EmbeddingModelsIntegrationTest {
             )
 
         val resultEval =
-            ResultEval(
+            ResultEvalTransE(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -249,7 +249,7 @@ class EmbeddingModelsIntegrationTest {
             )
 
         val resultEval =
-            ResultEval(
+            ResultEvalDistMult(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -287,7 +287,7 @@ class EmbeddingModelsIntegrationTest {
             )
 
         val resultEval =
-            ResultEval(
+            ResultEvalComplEx(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -326,7 +326,7 @@ class EmbeddingModelsIntegrationTest {
             )
 
         val resultEval =
-            ResultEval(
+            ResultEvalTransR(
                 inputList,
                 manager.newSubManager(),
                 predictor,

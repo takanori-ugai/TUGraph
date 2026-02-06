@@ -72,13 +72,13 @@ fun main() {
         println(predictor.predict(NDList(test)).singletonOrThrow())
 
         val result =
-            ResultEval(
+            ResultEvalComplEx(
                 inputList,
                 manager.newSubManager(),
                 predictor,
                 numEntities,
-                higherIsBetter = true,
                 complEx = complex,
+                higherIsBetter = true,
             )
         println("Tail")
         result.getTailResult().forEach {

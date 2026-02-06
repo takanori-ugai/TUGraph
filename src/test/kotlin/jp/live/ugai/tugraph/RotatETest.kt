@@ -251,7 +251,7 @@ class RotatETest {
             )
 
         val resultEval =
-            ResultEval(
+            ResultEvalRotatE(
                 inputList,
                 manager.newSubManager(),
                 predictor,

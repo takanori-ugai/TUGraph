@@ -88,13 +88,13 @@ fun main() {
         }
 
         val result =
-            ResultEval(
+            ResultEvalRotatE(
                 inputList,
                 manager.newSubManager(),
                 predictor,
                 numEntities,
-                higherIsBetter = false,
                 rotatE = rotate,
+                higherIsBetter = false,
             )
         println("Tail")
         result.getTailResult().forEach {

@@ -98,11 +98,12 @@ fun main() {
         }
 
         val result =
-            ResultEval(
+            ResultEvalHyperComplEx(
                 inputList,
                 manager.newSubManager(),
                 predictor,
                 numEntities,
+                hyperComplEx = hyperComplEx,
                 higherIsBetter = true,
             )
         println("Tail")

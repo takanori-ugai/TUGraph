@@ -199,7 +199,7 @@ class EdgeCaseRegressionTest {
         val inputList = listOf(longArrayOf(0, 0, 0))
 
         val resultEval =
-            ResultEval(
+            ResultEvalTransE(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -294,7 +294,7 @@ class EdgeCaseRegressionTest {
         val inputList = listOf(longArrayOf(0, 0, 1))
 
         val resultEval =
-            ResultEval(
+            ResultEvalTransE(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -337,7 +337,7 @@ class EdgeCaseRegressionTest {
         }
 
         val resultEval =
-            ResultEval(
+            ResultEvalTransE(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -373,7 +373,7 @@ class EdgeCaseRegressionTest {
         val inputList = listOf(longArrayOf(0, 0, 1))
 
         val resultEvalHigher =
-            ResultEval(
+            ResultEvalDistMult(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -413,7 +413,7 @@ class EdgeCaseRegressionTest {
             )
 
         val resultEval =
-            ResultEval(
+            ResultEvalTransE(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -453,7 +453,7 @@ class EdgeCaseRegressionTest {
             )
 
         val resultEval =
-            ResultEval(
+            ResultEvalTransE(
                 inputList,
                 manager.newSubManager(),
                 predictor,
