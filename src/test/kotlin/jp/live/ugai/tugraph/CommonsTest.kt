@@ -194,7 +194,7 @@ class CommonsTest {
 
     @Test
     fun verifyResultEvalEntityChunkSizeValue() {
-        assertEquals(1000, RESULT_EVAL_ENTITY_CHUNK_SIZE, "Result eval entity chunk size should be 1000")
+        assertEquals(8000, RESULT_EVAL_ENTITY_CHUNK_SIZE, "Result eval entity chunk size should be 8000")
     }
 
     @Test
