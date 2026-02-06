@@ -1,4 +1,4 @@
-package jp.live.ugai.tugraph
+package jp.live.ugai.tugraph.eval
 
 import ai.djl.inference.Predictor
 import ai.djl.ndarray.NDArray
@@ -7,6 +7,7 @@ import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
+import jp.live.ugai.tugraph.*
 
 /**
  * A class for evaluating the results of a model.

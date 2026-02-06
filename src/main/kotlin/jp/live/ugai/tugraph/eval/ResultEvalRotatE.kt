@@ -1,20 +1,20 @@
-package jp.live.ugai.tugraph
+package jp.live.ugai.tugraph.eval
 
 import ai.djl.inference.Predictor
-import ai.djl.ndarray.NDArray
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
+import jp.live.ugai.tugraph.*
 
-class ResultEvalComplEx(
+class ResultEvalRotatE(
     inputList: List<LongArray>,
     manager: NDManager,
     predictor: Predictor<NDList, NDList>,
     numEntities: Long,
-    val complEx: ComplEx,
-    higherIsBetter: Boolean = true,
+    val rotatE: RotatE,
+    higherIsBetter: Boolean = false,
     filtered: Boolean = false,
 ) : ResultEval(inputList, manager, predictor, numEntities, higherIsBetter, filtered) {
     private val col0Index = NDIndex(":, 0")
@@ -26,25 +26,16 @@ class ResultEvalComplEx(
         mode: EvalMode,
         buildBatch: (start: Int, end: Int) -> EvalBatch,
     ): IntArray {
-        return computeRanksComplEx(evalBatchSize, entityChunkSize, mode, buildBatch)
-    }
-
-    private fun computeRanksComplEx(
-        evalBatchSize: Int,
-        entityChunkSize: Int,
-        mode: EvalMode,
-        buildBatch: (start: Int, end: Int) -> EvalBatch,
-    ): IntArray {
         val totalSize = inputList.size
         if (totalSize == 0) {
             return IntArray(0)
         }
         val ranks = IntArray(totalSize)
         var outIndex = 0
-        val entities = complEx.getEntities()
-        val edges = complEx.getEdges()
+        val entities = rotatE.getEntities()
+        val edges = rotatE.getEdges()
         val embDim2 = entities.shape[1].toInt()
-        require(embDim2 % 2 == 0) { "ComplEx embeddings must have even dimension (found $embDim2)." }
+        require(embDim2 % 2 == 0) { "RotatE embeddings must have even dimension (found $embDim2)." }
         val halfDim = embDim2 / 2
         val realIndex = NDIndex(":, 0:$halfDim")
         val imagIndex = NDIndex(":, $halfDim:")
@@ -67,47 +58,58 @@ class ResultEvalComplEx(
                     val fixedIds = if (mode == EvalMode.TAIL) baseCol0 else baseCol1
                     val rels = edges.get(relIds).also { it.attach(batchManager) }
                     val fixed = entities.get(fixedIds).also { it.attach(batchManager) }
-                    val rRe = rels.get(realIndex).also { it.attach(batchManager) }
-                    val rIm = rels.get(imagIndex).also { it.attach(batchManager) }
+                    val rCos = rels.cos().also { it.attach(batchManager) }
+                    val rSin = rels.sin().also { it.attach(batchManager) }
                     val fRe = fixed.get(realIndex).also { it.attach(batchManager) }
                     val fIm = fixed.get(imagIndex).also { it.attach(batchManager) }
-                    val (a, b) =
+                    val rotRe =
                         if (mode == EvalMode.TAIL) {
-                            val aVal = fRe.mul(rRe).sub(fIm.mul(rIm)).also { it.attach(batchManager) }
-                            val bVal = fRe.mul(rIm).add(fIm.mul(rRe)).also { it.attach(batchManager) }
-                            aVal to bVal
+                            fRe.mul(rCos).sub(fIm.mul(rSin))
                         } else {
-                            val aVal = rRe.mul(fRe).add(rIm.mul(fIm)).also { it.attach(batchManager) }
-                            val bVal = rRe.mul(fIm).sub(rIm.mul(fRe)).also { it.attach(batchManager) }
-                            aVal to bVal
-                        }
+                            fRe.mul(rCos).add(fIm.mul(rSin))
+                        }.also { it.attach(batchManager) }
+                    val rotIm =
+                        if (mode == EvalMode.TAIL) {
+                            fRe.mul(rSin).add(fIm.mul(rCos))
+                        } else {
+                            fIm.mul(rCos).sub(fRe.mul(rSin))
+                        }.also { it.attach(batchManager) }
                     val trueEmb = entities.get(trueIdsFlat).also { it.attach(batchManager) }
                     val tRe = trueEmb.get(realIndex).also { it.attach(batchManager) }
                     val tIm = trueEmb.get(imagIndex).also { it.attach(batchManager) }
                     val trueScore =
-                        a.mul(tRe).add(b.mul(tIm)).sum(intArrayOf(1)).reshape(batchSize.toLong(), 1)
+                        rotRe.sub(tRe).abs().add(rotIm.sub(tIm).abs()).sum(intArrayOf(1))
+                            .reshape(batchSize.toLong(), 1)
                             .also { it.attach(batchManager) }
                     val countBetter = batchManager.zeros(Shape(batchSize.toLong()), DataType.INT64)
+                    val rotReExp = rotRe.expandDims(1).also { it.attach(batchManager) }
+                    val rotImExp = rotIm.expandDims(1).also { it.attach(batchManager) }
                     var chunkStart = 0
                     while (chunkStart < numEntitiesInt) {
                         val chunkEnd = minOf(chunkStart + chunkSize, numEntitiesInt)
                         entities.get(NDIndex("$chunkStart:$chunkEnd, :")).use { entityChunk ->
                             val eRe = entityChunk.get(realIndex)
                             val eIm = entityChunk.get(imagIndex)
-                            eRe.use { er ->
-                                eIm.use { ei ->
-                                    er.transpose().use { erT ->
-                                        ei.transpose().use { eiT ->
-                                            a.matMul(erT).use { sc ->
-                                                b.matMul(eiT).use { sc.addi(it) }
-                                                val countBetterNd =
-                                                    if (higherIsBetter) {
-                                                        sc.gt(trueScore).sum(intArrayOf(1))
-                                                    } else {
-                                                        sc.lt(trueScore).sum(intArrayOf(1))
+                            eRe.use { re ->
+                                eIm.use { im ->
+                                    re.expandDims(0).use { reExp ->
+                                        im.expandDims(0).use { imExp ->
+                                            val diffRe = rotReExp.sub(reExp)
+                                            val diffIm = rotImExp.sub(imExp)
+                                            diffRe.use { dr ->
+                                                diffIm.use { di ->
+                                                    val scores = dr.abs().add(di.abs()).sum(intArrayOf(2))
+                                                    scores.use { sc ->
+                                                        val countBetterNd =
+                                                            if (higherIsBetter) {
+                                                                sc.gt(trueScore).sum(intArrayOf(1))
+                                                            } else {
+                                                                sc.lt(trueScore).sum(intArrayOf(1))
+                                                            }
+                                                        countBetter.addi(countBetterNd)
+                                                        countBetterNd.close()
                                                     }
-                                                countBetter.addi(countBetterNd)
-                                                countBetterNd.close()
+                                                }
                                             }
                                         }
                                     }

@@ -1,12 +1,12 @@
-package jp.live.ugai.tugraph
+package jp.live.ugai.tugraph.eval
 
 import ai.djl.inference.Predictor
-import ai.djl.ndarray.NDArray
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
+import jp.live.ugai.tugraph.*
 
 class ResultEvalQuatE(
     inputList: List<LongArray>,
@@ -21,15 +21,6 @@ class ResultEvalQuatE(
     private val col1Index = NDIndex(":, 1")
 
     protected override fun computeRanks(
-        evalBatchSize: Int,
-        entityChunkSize: Int,
-        mode: EvalMode,
-        buildBatch: (start: Int, end: Int) -> EvalBatch,
-    ): IntArray {
-        return computeRanksQuatE(evalBatchSize, entityChunkSize, mode, buildBatch)
-    }
-
-    private fun computeRanksQuatE(
         evalBatchSize: Int,
         entityChunkSize: Int,
         mode: EvalMode,

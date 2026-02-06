@@ -1,20 +1,20 @@
-package jp.live.ugai.tugraph
+package jp.live.ugai.tugraph.eval
 
 import ai.djl.inference.Predictor
-import ai.djl.ndarray.NDArray
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
+import jp.live.ugai.tugraph.*
 
-class ResultEvalTransE(
+class ResultEvalDistMult(
     inputList: List<LongArray>,
     manager: NDManager,
     predictor: Predictor<NDList, NDList>,
     numEntities: Long,
-    val transE: TransE,
-    higherIsBetter: Boolean = false,
+    val distMult: DistMult,
+    higherIsBetter: Boolean = true,
     filtered: Boolean = false,
 ) : ResultEval(inputList, manager, predictor, numEntities, higherIsBetter, filtered) {
     private val col0Index = NDIndex(":, 0")
@@ -26,23 +26,14 @@ class ResultEvalTransE(
         mode: EvalMode,
         buildBatch: (start: Int, end: Int) -> EvalBatch,
     ): IntArray {
-        return computeRanksTransE(evalBatchSize, entityChunkSize, mode, buildBatch)
-    }
-
-    private fun computeRanksTransE(
-        evalBatchSize: Int,
-        entityChunkSize: Int,
-        mode: EvalMode,
-        buildBatch: (start: Int, end: Int) -> EvalBatch,
-    ): IntArray {
         val totalSize = inputList.size
         if (totalSize == 0) {
             return IntArray(0)
         }
         val ranks = IntArray(totalSize)
         var outIndex = 0
-        val entities = transE.getEntities()
-        val edges = transE.getEdges()
+        val entities = distMult.getEntities()
+        val edges = distMult.getEdges()
         val chunkSize = maxOf(1, entityChunkSize)
         val numEntitiesInt = numEntities.toInt()
         var start = 0
@@ -58,44 +49,31 @@ class ResultEvalTransE(
                     val baseCol1 = basePair.get(col1Index).also { it.attach(batchManager) }
                     val trueIdsFlat =
                         trueEntityCol.reshape(batchSize.toLong()).also { it.attach(batchManager) }
-                    val baseEmb =
-                        when (mode) {
-                            EvalMode.TAIL -> {
-                                val heads = entities.get(baseCol0).also { it.attach(batchManager) }
-                                val rels = edges.get(baseCol1).also { it.attach(batchManager) }
-                                heads.add(rels).also { it.attach(batchManager) }
-                            }
-                            EvalMode.HEAD -> {
-                                val rels = edges.get(baseCol0).also { it.attach(batchManager) }
-                                val tails = entities.get(baseCol1).also { it.attach(batchManager) }
-                                tails.sub(rels).also { it.attach(batchManager) }
-                            }
-                        }
+                    val relIds = if (mode == EvalMode.TAIL) baseCol1 else baseCol0
+                    val fixedIds = if (mode == EvalMode.TAIL) baseCol0 else baseCol1
+                    val rels = edges.get(relIds).also { it.attach(batchManager) }
+                    val fixed = entities.get(fixedIds).also { it.attach(batchManager) }
+                    val baseMul = fixed.mul(rels).also { it.attach(batchManager) }
                     val trueEmb = entities.get(trueIdsFlat).also { it.attach(batchManager) }
                     val trueScore =
-                        baseEmb.sub(trueEmb).abs().sum(intArrayOf(1)).reshape(batchSize.toLong(), 1)
+                        baseMul.mul(trueEmb).sum(intArrayOf(1)).reshape(batchSize.toLong(), 1)
                             .also { it.attach(batchManager) }
                     val countBetter = batchManager.zeros(Shape(batchSize.toLong()), DataType.INT64)
-                    val baseEmbExp = baseEmb.expandDims(1).also { it.attach(batchManager) }
                     var chunkStart = 0
                     while (chunkStart < numEntitiesInt) {
                         val chunkEnd = minOf(chunkStart + chunkSize, numEntitiesInt)
                         entities.get(NDIndex("$chunkStart:$chunkEnd, :")).use { entityChunk ->
-                            val entityExp = entityChunk.expandDims(0)
-                            entityExp.use { ent ->
-                                val diff = baseEmbExp.sub(ent)
-                                diff.use { d ->
-                                    val scores = d.abs().sum(intArrayOf(2))
-                                    scores.use { sc ->
-                                        val countBetterNd =
-                                            if (higherIsBetter) {
-                                                sc.gt(trueScore).sum(intArrayOf(1))
-                                            } else {
-                                                sc.lt(trueScore).sum(intArrayOf(1))
-                                            }
-                                        countBetter.addi(countBetterNd)
-                                        countBetterNd.close()
-                                    }
+                            entityChunk.transpose().use { entityChunkT ->
+                                val scores = baseMul.matMul(entityChunkT)
+                                scores.use { sc ->
+                                    val countBetterNd =
+                                        if (higherIsBetter) {
+                                            sc.gt(trueScore).sum(intArrayOf(1))
+                                        } else {
+                                            sc.lt(trueScore).sum(intArrayOf(1))
+                                        }
+                                    countBetter.addi(countBetterNd)
+                                    countBetterNd.close()
                                 }
                             }
                         }

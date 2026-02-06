@@ -11,6 +11,7 @@ import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
+import jp.live.ugai.tugraph.eval.*
 
 /**
  * Runs a complete TransR embedding example: loads triples from CSV, trains the TransR model,
