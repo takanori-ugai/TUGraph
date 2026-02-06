@@ -32,6 +32,7 @@ class ResultEvalDistMult(
         }
         val ranks = IntArray(totalSize)
         var outIndex = 0
+        // These are live parameter arrays; do not close them here.
         val entities = distMult.getEntities()
         val edges = distMult.getEdges()
         val chunkSize = maxOf(1, entityChunkSize)

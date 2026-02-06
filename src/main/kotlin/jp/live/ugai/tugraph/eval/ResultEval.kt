@@ -31,7 +31,7 @@ open class ResultEval(
     val higherIsBetter: Boolean = false,
     /** Whether to perform filtered evaluation by removing other true triples from candidate sets. */
     val filtered: Boolean = false,
-) {
+) : AutoCloseable {
     private val col0Index = NDIndex(":, 0")
     private val col1Index = NDIndex(":, 1")
 
@@ -495,7 +495,7 @@ open class ResultEval(
     /**
      * Closes the NDManager instance.
      */
-    fun close() {
+    override fun close() {
         manager.close()
     }
 }

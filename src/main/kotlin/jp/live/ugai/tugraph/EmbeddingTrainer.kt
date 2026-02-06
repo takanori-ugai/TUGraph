@@ -677,7 +677,12 @@ class EmbeddingTrainer(
         weightsScaled.close()
         val negLoss =
             try {
-                weights.mul(negLogSig).sum(intArrayOf(1)).neg()
+                val weightedNeg = weights.mul(negLogSig)
+                val summed = weightedNeg.sum(intArrayOf(1))
+                weightedNeg.close()
+                val result = summed.neg()
+                summed.close()
+                result
             } finally {
                 weights.close()
                 negLogSig.close()
@@ -703,15 +708,12 @@ class EmbeddingTrainer(
         val regLoss = block.l2RegLoss(parameterStore, device, training)
         val loss =
             try {
-                val consistencyScaled = consistency.mul(HYPERCOMPLEX_LAMBDA1)
-                val regScaled = regLoss.mul(HYPERCOMPLEX_LAMBDA2)
-                val rankPlus = rankLoss.add(consistencyScaled)
-                try {
-                    rankPlus.add(regScaled)
-                } finally {
-                    rankPlus.close()
-                    consistencyScaled.close()
-                    regScaled.close()
+                consistency.mul(HYPERCOMPLEX_LAMBDA1).use { consistencyScaled ->
+                    regLoss.mul(HYPERCOMPLEX_LAMBDA2).use { regScaled ->
+                        rankLoss.add(consistencyScaled).use { rankPlus ->
+                            rankPlus.add(regScaled)
+                        }
+                    }
                 }
             } finally {
                 rankLoss.close()

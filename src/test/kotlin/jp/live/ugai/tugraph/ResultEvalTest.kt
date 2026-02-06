@@ -138,7 +138,8 @@ class ResultEvalTest {
             assertNotNull(headResult)
             assertEquals(4, headResult.size)
         } catch (e: IllegalStateException) {
-            // Allow TransR evaluation to fail in edge cases of small synthetic data.
+            // DistMult evaluation may fail on small synthetic data; log and continue.
+            System.err.println("DistMult eval edge case: ${e.message}")
         }
 
         resultEval.close()

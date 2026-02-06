@@ -509,6 +509,8 @@ class EmbeddingTrainerTest {
         runCatching {
             val method = trainer.javaClass.getMethod("setCheckGradients", Boolean::class.javaPrimitiveType)
             method.invoke(trainer, false)
+        }.onFailure {
+            // Method may not exist in all DJL versions; safe to ignore.
         }
     }
 }

@@ -92,31 +92,23 @@ class ResultEvalRotatE(
                     while (chunkStart < numEntitiesInt) {
                         val chunkEnd = minOf(chunkStart + chunkSize, numEntitiesInt)
                         entities.get(NDIndex("$chunkStart:$chunkEnd, :")).use { entityChunk ->
-                            val eRe = entityChunk.get(realIndex)
-                            val eIm = entityChunk.get(imagIndex)
-                            eRe.use { re ->
-                                eIm.use { im ->
-                                    re.expandDims(0).use { reExp ->
-                                        im.expandDims(0).use { imExp ->
-                                            val diffRe = rotReExp.sub(reExp)
-                                            val diffIm = rotImExp.sub(imExp)
-                                            diffRe.use { dr ->
-                                                diffIm.use { di ->
-                                                    val scores = dr.abs().add(di.abs()).sum(intArrayOf(2))
-                                                    scores.use { sc ->
-                                                        val countBetterNd =
-                                                            if (higherIsBetter) {
-                                                                sc.gt(trueScore).sum(intArrayOf(1))
-                                                            } else {
-                                                                sc.lt(trueScore).sum(intArrayOf(1))
-                                                            }
-                                                        countBetter.addi(countBetterNd)
-                                                        countBetterNd.close()
-                                                    }
-                                                }
-                                            }
+                            batchManager.newSubManager().use { chunkManager ->
+                                val eRe = entityChunk.get(realIndex).also { it.attach(chunkManager) }
+                                val eIm = entityChunk.get(imagIndex).also { it.attach(chunkManager) }
+                                val reExp = eRe.expandDims(0).also { it.attach(chunkManager) }
+                                val imExp = eIm.expandDims(0).also { it.attach(chunkManager) }
+                                val diffRe = rotReExp.sub(reExp).also { it.attach(chunkManager) }
+                                val diffIm = rotImExp.sub(imExp).also { it.attach(chunkManager) }
+                                val scores = diffRe.abs().add(diffIm.abs()).sum(intArrayOf(2))
+                                scores.use { sc ->
+                                    val countBetterNd =
+                                        if (higherIsBetter) {
+                                            sc.gt(trueScore).sum(intArrayOf(1))
+                                        } else {
+                                            sc.lt(trueScore).sum(intArrayOf(1))
                                         }
-                                    }
+                                    countBetter.addi(countBetterNd)
+                                    countBetterNd.close()
                                 }
                             }
                         }

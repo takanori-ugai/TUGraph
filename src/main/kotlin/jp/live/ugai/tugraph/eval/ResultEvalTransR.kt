@@ -73,118 +73,69 @@ class ResultEvalTransR(
                                 } else {
                                     baseCol1.get(idxNd)
                                 }
-                            headIdsNd.use { hIds ->
-                                tailIdsNd.use { tIds ->
-                                    batchManager.create(longArrayOf(relId)).use { relIdNd ->
-                                        val heads = entities.get(hIds)
-                                        val tails = entities.get(tIds)
-                                        val relEmb = edges.get(relIdNd)
-                                        heads.use { h ->
-                                            tails.use { t ->
-                                                relEmb.use { r ->
-                                                    val matrixRel = matrix.get(relIdNd).reshape(r.shape[1], h.shape[1])
-                                                    matrixRel.use { mRel ->
-                                                        val matrixT = mRel.transpose()
-                                                        matrixT.use { mT ->
-                                                            val headProj = h.matMul(mT)
-                                                            val tailProj = t.matMul(mT)
-                                                            headProj.use { hP ->
-                                                                tailProj.use { tP ->
-                                                                    val base =
-                                                                        if (mode == EvalMode.TAIL) {
-                                                                            hP.add(r)
-                                                                        } else {
-                                                                            r.sub(tP)
-                                                                        }
-                                                                    base.use { b ->
-                                                                        val trueScore2d =
-                                                                            if (mode == EvalMode.TAIL) {
-                                                                                b.sub(tP).abs().sum(intArrayOf(1))
-                                                                            } else {
-                                                                                b.add(hP).abs().sum(intArrayOf(1))
-                                                                            }.reshape(idxArr.size.toLong(), 1)
-                                                                        trueScore2d.use { ts2d ->
-                                                                            val countBetter =
-                                                                                batchManager.zeros(
-                                                                                    Shape(idxArr.size.toLong()),
-                                                                                    DataType.INT64,
-                                                                                )
-                                                                            var chunkStart = 0
-                                                                            while (chunkStart < numEntitiesInt) {
-                                                                                val chunkEnd =
-                                                                                    minOf(
-                                                                                        chunkStart + chunkSize,
-                                                                                        numEntitiesInt,
-                                                                                    )
-                                                                                entities
-                                                                                    .get(
-                                                                                        NDIndex("$chunkStart:$chunkEnd, :"),
-                                                                                    ).use { entityChunk ->
-                                                                                        val projChunk = entityChunk.matMul(mT)
-                                                                                        projChunk.use { pChunk ->
-                                                                                            val baseExp = b.expandDims(1)
-                                                                                            val projExp = pChunk.expandDims(0)
-                                                                                            baseExp.use { be ->
-                                                                                                projExp.use { pe ->
-                                                                                                    val diff =
-                                                                                                        if (mode == EvalMode.TAIL) {
-                                                                                                            be.sub(pe)
-                                                                                                        } else {
-                                                                                                            be.add(pe)
-                                                                                                        }
-                                                                                                    diff.use { d ->
-                                                                                                        val scores =
-                                                                                                            d.abs().sum(
-                                                                                                                intArrayOf(2),
-                                                                                                            )
-                                                                                                        scores.use { sc ->
-                                                                                                            val countBetterNd =
-                                                                                                                if (higherIsBetter) {
-                                                                                                                    sc
-                                                                                                                        .gt(
-                                                                                                                            ts2d,
-                                                                                                                        ).sum(
-                                                                                                                            intArrayOf(
-                                                                                                                                1,
-                                                                                                                            ),
-                                                                                                                        )
-                                                                                                                } else {
-                                                                                                                    sc
-                                                                                                                        .lt(
-                                                                                                                            ts2d,
-                                                                                                                        ).sum(
-                                                                                                                            intArrayOf(
-                                                                                                                                1,
-                                                                                                                            ),
-                                                                                                                        )
-                                                                                                                }
-                                                                                                            countBetter.addi(
-                                                                                                                countBetterNd,
-                                                                                                            )
-                                                                                                            countBetterNd.close()
-                                                                                                        }
-                                                                                                    }
-                                                                                                }
-                                                                                            }
-                                                                                        }
-                                                                                    }
-                                                                                chunkStart = chunkEnd
-                                                                            }
-                                                                            val subsetCounts = countBetter.toLongArray()
-                                                                            countBetter.close()
-                                                                            for (i in idxArr.indices) {
-                                                                                countBetterAll[idxArr[i]] = subsetCounts[i]
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
+                            batchManager.newSubManager().use { relManager ->
+                                val hIds = headIdsNd.also { it.attach(relManager) }
+                                val tIds = tailIdsNd.also { it.attach(relManager) }
+                                val relIdNd = relManager.create(longArrayOf(relId))
+                                val h = entities.get(hIds).also { it.attach(relManager) }
+                                val t = entities.get(tIds).also { it.attach(relManager) }
+                                val r = edges.get(relIdNd).also { it.attach(relManager) }
+                                val matrixRel =
+                                    matrix.get(relIdNd).reshape(r.shape[1], h.shape[1]).also { it.attach(relManager) }
+                                val mT = matrixRel.transpose().also { it.attach(relManager) }
+                                val hP = h.matMul(mT).also { it.attach(relManager) }
+                                val tP = t.matMul(mT).also { it.attach(relManager) }
+                                val base =
+                                    if (mode == EvalMode.TAIL) {
+                                        hP.add(r)
+                                    } else {
+                                        r.sub(tP)
+                                    }.also { it.attach(relManager) }
+                                val ts2d =
+                                    if (mode == EvalMode.TAIL) {
+                                        base.sub(tP).abs().sum(intArrayOf(1))
+                                    } else {
+                                        base.add(hP).abs().sum(intArrayOf(1))
+                                    }.reshape(idxArr.size.toLong(), 1).also { it.attach(relManager) }
+
+                                val countBetter =
+                                    batchManager.zeros(
+                                        Shape(idxArr.size.toLong()),
+                                        DataType.INT64,
+                                    )
+                                var chunkStart = 0
+                                while (chunkStart < numEntitiesInt) {
+                                    val chunkEnd = minOf(chunkStart + chunkSize, numEntitiesInt)
+                                    entities
+                                        .get(NDIndex("$chunkStart:$chunkEnd, :"))
+                                        .use { entityChunk ->
+                                            relManager.newSubManager().use { chunkManager ->
+                                                val projChunk = entityChunk.matMul(mT).also { it.attach(chunkManager) }
+                                                val baseExp = base.expandDims(1).also { it.attach(chunkManager) }
+                                                val projExp = projChunk.expandDims(0).also { it.attach(chunkManager) }
+                                                val diff =
+                                                    if (mode == EvalMode.TAIL) {
+                                                        baseExp.sub(projExp)
+                                                    } else {
+                                                        baseExp.add(projExp)
+                                                    }.also { it.attach(chunkManager) }
+                                                val scores = diff.abs().sum(intArrayOf(2)).also { it.attach(chunkManager) }
+                                                val countBetterNd =
+                                                    if (higherIsBetter) {
+                                                        scores.gt(ts2d).sum(intArrayOf(1))
+                                                    } else {
+                                                        scores.lt(ts2d).sum(intArrayOf(1))
                                                     }
-                                                }
+                                                countBetter.addi(countBetterNd)
+                                                countBetterNd.close()
                                             }
                                         }
-                                    }
+                                    chunkStart = chunkEnd
+                                }
+                                val subsetCounts = countBetter.toLongArray()
+                                countBetter.close()
+                                for (i in idxArr.indices) {
+                                    countBetterAll[idxArr[i]] = subsetCounts[i]
                                 }
                             }
                         }

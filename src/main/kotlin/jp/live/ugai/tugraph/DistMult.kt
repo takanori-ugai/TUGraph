@@ -130,12 +130,6 @@ class DistMult(
      *     when two inputs are provided.
      */
     @Override
-    /**
-     * Computes output shapes for the provided input shapes.
-     *
-     * @param inputs Input shapes for the block.
-     * @return Output shapes for the block.
-     */
     override fun getOutputShapes(inputs: Array<Shape>): Array<Shape> {
         val numTriples = inputs[0].size() / TRIPLE
         val outShape = Shape(numTriples)

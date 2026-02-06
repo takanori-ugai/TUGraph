@@ -226,8 +226,8 @@ class TransR(
      * with the norm floored to 1e-12 to avoid division by zero.
      */
     fun normalize() {
-        val ent = getParameters().valueAt(0).array
-        val rel = getParameters().valueAt(1).array
+        val ent = getParameters().get("entities").array
+        val rel = getParameters().get("edges").array
         val entNorm = ent.norm(intArrayOf(1), true)
         val entSafe = entNorm.maximum(1.0e-12f)
         val relNorm = rel.norm(intArrayOf(1), true)

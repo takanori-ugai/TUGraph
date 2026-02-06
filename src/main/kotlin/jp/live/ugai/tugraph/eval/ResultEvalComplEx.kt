@@ -95,12 +95,14 @@ class ResultEvalComplEx(
                                         ei.transpose().use { eiT ->
                                             a.matMul(erT).use { sc ->
                                                 b.matMul(eiT).use { sc.addi(it) }
-                                                val countBetterNd =
+                                                val cmp =
                                                     if (higherIsBetter) {
-                                                        sc.gt(trueScore).sum(intArrayOf(1))
+                                                        sc.gt(trueScore)
                                                     } else {
-                                                        sc.lt(trueScore).sum(intArrayOf(1))
+                                                        sc.lt(trueScore)
                                                     }
+                                                val countBetterNd = cmp.sum(intArrayOf(1))
+                                                cmp.close()
                                                 countBetter.addi(countBetterNd)
                                                 countBetterNd.close()
                                             }
