@@ -11,7 +11,7 @@ import ai.djl.training.listener.EpochTrainingListener
 import ai.djl.training.loss.Loss
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
-import jp.live.ugai.tugraph.eval.*
+import jp.live.ugai.tugraph.eval.ResultEvalQuatE
 
 /**
  * Runs a self-contained demonstration that trains and evaluates a QuatE model augmented with Matryoshka embeddings.

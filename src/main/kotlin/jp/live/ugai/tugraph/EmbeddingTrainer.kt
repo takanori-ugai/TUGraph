@@ -46,7 +46,11 @@ class EmbeddingTrainer(
     val inputList = mutableListOf<LongArray>()
     private val inputSet: Set<TripleKey>
 
-    private data class TripleKey(val head: Long, val rel: Long, val tail: Long)
+    private data class TripleKey(
+        val head: Long,
+        val rel: Long,
+        val tail: Long,
+    )
 
     private val bernoulliProb: Map<Long, Float>
 
@@ -570,10 +574,15 @@ class EmbeddingTrainer(
         useSimilarityLoss: Boolean,
         useSelfAdversarial: Boolean,
         higherIsBetter: Boolean,
-    ): NDArray {
-        return if (useSimilarityLoss) {
+    ): NDArray =
+        if (useSimilarityLoss) {
             // softplus(-pos) + softplus(neg)
-            val posLoss = pos.neg().exp().add(1f).log()
+            val posLoss =
+                pos
+                    .neg()
+                    .exp()
+                    .add(1f)
+                    .log()
             val negLoss = neg.exp().add(1f).log()
             val negAgg =
                 if (useSelfAdversarial) {
@@ -588,11 +597,14 @@ class EmbeddingTrainer(
                 if (higherIsBetter) {
                     neg.sub(pos.expandDims(1)).add(margin).maximum(0f)
                 } else {
-                    pos.expandDims(1).sub(neg).add(margin).maximum(0f)
+                    pos
+                        .expandDims(1)
+                        .sub(neg)
+                        .add(margin)
+                        .maximum(0f)
                 }
             hinge.mean(intArrayOf(1))
         }
-    }
 
     /**
      * Computes HyperComplEx loss as the sum of self-adversarial ranking loss, multi-space consistency loss,
@@ -696,8 +708,7 @@ class EmbeddingTrainer(
                             rankPlus.add(regScaled)
                         }
                     }
-                }
-                .also {
+                }.also {
                     rankLoss.close()
                     consistency.close()
                     regLoss.close()

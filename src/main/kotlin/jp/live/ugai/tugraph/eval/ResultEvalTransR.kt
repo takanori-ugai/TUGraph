@@ -6,7 +6,7 @@ import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
-import jp.live.ugai.tugraph.*
+import jp.live.ugai.tugraph.TransR
 
 class ResultEvalTransR(
     inputList: List<LongArray>,
@@ -116,42 +116,48 @@ class ResultEvalTransR(
                                                                                         chunkStart + chunkSize,
                                                                                         numEntitiesInt,
                                                                                     )
-                                                                                entities.get(
-                                                                                    NDIndex("$chunkStart:$chunkEnd, :"),
-                                                                                ).use { entityChunk ->
-                                                                                    val projChunk = entityChunk.matMul(mT)
-                                                                                    projChunk.use { pChunk ->
-                                                                                        val baseExp = b.expandDims(1)
-                                                                                        val projExp = pChunk.expandDims(0)
-                                                                                        baseExp.use { be ->
-                                                                                            projExp.use { pe ->
-                                                                                                val diff =
-                                                                                                    if (mode == EvalMode.TAIL) {
-                                                                                                        be.sub(pe)
-                                                                                                    } else {
-                                                                                                        be.add(pe)
-                                                                                                    }
-                                                                                                diff.use { d ->
-                                                                                                    val scores = d.abs().sum(intArrayOf(2))
-                                                                                                    scores.use { sc ->
-                                                                                                        val countBetterNd =
-                                                                                                            if (higherIsBetter) {
-                                                                                                                sc.gt(
-                                                                                                                    ts2d,
-                                                                                                                ).sum(intArrayOf(1))
-                                                                                                            } else {
-                                                                                                                sc.lt(
-                                                                                                                    ts2d,
-                                                                                                                ).sum(intArrayOf(1))
-                                                                                                            }
-                                                                                                        countBetter.addi(countBetterNd)
-                                                                                                        countBetterNd.close()
+                                                                                entities
+                                                                                    .get(
+                                                                                        NDIndex("$chunkStart:$chunkEnd, :"),
+                                                                                    ).use { entityChunk ->
+                                                                                        val projChunk = entityChunk.matMul(mT)
+                                                                                        projChunk.use { pChunk ->
+                                                                                            val baseExp = b.expandDims(1)
+                                                                                            val projExp = pChunk.expandDims(0)
+                                                                                            baseExp.use { be ->
+                                                                                                projExp.use { pe ->
+                                                                                                    val diff =
+                                                                                                        if (mode == EvalMode.TAIL) {
+                                                                                                            be.sub(pe)
+                                                                                                        } else {
+                                                                                                            be.add(pe)
+                                                                                                        }
+                                                                                                    diff.use { d ->
+                                                                                                        val scores =
+                                                                                                            d.abs().sum(
+                                                                                                                intArrayOf(2),
+                                                                                                            )
+                                                                                                        scores.use { sc ->
+                                                                                                            val countBetterNd =
+                                                                                                                if (higherIsBetter) {
+                                                                                                                    sc
+                                                                                                                        .gt(
+                                                                                                                            ts2d,
+                                                                                                                        ).sum(intArrayOf(1))
+                                                                                                                } else {
+                                                                                                                    sc
+                                                                                                                        .lt(
+                                                                                                                            ts2d,
+                                                                                                                        ).sum(intArrayOf(1))
+                                                                                                                }
+                                                                                                            countBetter.addi(countBetterNd)
+                                                                                                            countBetterNd.close()
+                                                                                                        }
                                                                                                     }
                                                                                                 }
                                                                                             }
                                                                                         }
                                                                                     }
-                                                                                }
                                                                                 chunkStart = chunkEnd
                                                                             }
                                                                             val subsetCounts = countBetter.toLongArray()

@@ -43,11 +43,11 @@ class GpuMemoryRegressionTest {
             val config =
                 DefaultTrainingConfig(Loss.l1Loss())
                     .optOptimizer(
-                        Optimizer.sgd()
+                        Optimizer
+                            .sgd()
                             .setLearningRateTracker(Tracker.fixed(0.01f))
                             .build(),
-                    )
-                    .optDevices(arrayOf(device))
+                    ).optDevices(arrayOf(device))
             trainer =
                 model.newTrainer(config).also {
                     it.initialize(triples.shape)

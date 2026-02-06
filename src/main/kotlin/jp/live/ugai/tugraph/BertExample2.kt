@@ -13,7 +13,8 @@ fun main() {
     val sentence = "I have watched this [MASK] and it was awesome."
 
     val criteria =
-        Criteria.builder()
+        Criteria
+            .builder()
             .optApplication(Application.NLP.FILL_MASK)
             .setTypes(String::class.java, Classifications::class.java)
             .optTranslatorFactory(FillMaskTranslatorFactory())

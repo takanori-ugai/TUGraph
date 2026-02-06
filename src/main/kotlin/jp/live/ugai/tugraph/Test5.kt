@@ -49,7 +49,8 @@ fun main() {
         val labels = manager.create(floatArrayOf(0f, 0f, 1f, 0f, 1f))
         val batchSize = 1
         val dataset =
-            ArrayDataset.Builder()
+            ArrayDataset
+                .Builder()
                 .setData(input) // set the features
                 .optLabels(labels) // set the labels
                 .setSampling(batchSize, true) // set the batch size and random sampling

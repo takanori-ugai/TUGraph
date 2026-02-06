@@ -7,7 +7,7 @@ import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
-import jp.live.ugai.tugraph.*
+import jp.live.ugai.tugraph.HyperComplEx
 import kotlin.math.sqrt
 
 class ResultEvalHyperComplEx(
@@ -100,7 +100,8 @@ class ResultEvalHyperComplEx(
                             }
                         val euclidTrue = euclideanScore2d(mpHE, mpRE, mpTE).also { it.attach(batchManager) }
                         val trueScore =
-                            alphaH.mul(hyperTrue)
+                            alphaH
+                                .mul(hyperTrue)
                                 .add(alphaC.mul(complexTrue))
                                 .add(alphaE.mul(euclidTrue))
                                 .reshape(batchSize.toLong(), 1)
@@ -196,13 +197,12 @@ class ResultEvalHyperComplEx(
         array: NDArray,
         target: DataType,
         model: HyperComplEx,
-    ): NDArray {
-        return if (model.mixedPrecision && array.dataType != target) {
+    ): NDArray =
+        if (model.mixedPrecision && array.dataType != target) {
             array.toType(target, false)
         } else {
             array
         }
-    }
 
     private fun hyperbolicScore2d(
         h: NDArray,
@@ -238,9 +238,13 @@ class ResultEvalHyperComplEx(
         h: NDArray,
         r: NDArray,
         t: NDArray,
-    ): NDArray {
-        return h.add(r).sub(t).pow(2).sum(sumAxis2d).neg()
-    }
+    ): NDArray =
+        h
+            .add(r)
+            .sub(t)
+            .pow(2)
+            .sum(sumAxis2d)
+            .neg()
 
     private fun scoreTailChunk(
         hH: NDArray,
@@ -357,7 +361,12 @@ class ResultEvalHyperComplEx(
         tChunk: NDArray,
     ): NDArray {
         val base = h.add(r)
-        return base.expandDims(1).sub(tChunk.expandDims(0)).pow(2).sum(sumAxis3d).neg()
+        return base
+            .expandDims(1)
+            .sub(tChunk.expandDims(0))
+            .pow(2)
+            .sum(sumAxis3d)
+            .neg()
     }
 
     private fun euclideanScoreHead(
@@ -366,7 +375,12 @@ class ResultEvalHyperComplEx(
         hChunk: NDArray,
     ): NDArray {
         val base = r.sub(t)
-        return hChunk.expandDims(0).add(base.expandDims(1)).pow(2).sum(sumAxis3d).neg()
+        return hChunk
+            .expandDims(0)
+            .add(base.expandDims(1))
+            .pow(2)
+            .sum(sumAxis3d)
+            .neg()
     }
 
     private fun hyperbolicScoreHead(

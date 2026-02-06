@@ -41,7 +41,8 @@ class TransR(
         setInitializer(UniformInitializer(bound), Parameter.Type.WEIGHT)
         entities =
             addParameter(
-                Parameter.builder()
+                Parameter
+                    .builder()
                     .setName("entities")
                     .setType(Parameter.Type.WEIGHT)
                     .optShape(Shape(numEnt, entDim))
@@ -49,7 +50,8 @@ class TransR(
             )
         edges =
             addParameter(
-                Parameter.builder()
+                Parameter
+                    .builder()
                     .setName("edges")
                     .setType(Parameter.Type.WEIGHT)
                     .optShape(Shape(numEdge, relDim))
@@ -57,7 +59,8 @@ class TransR(
             )
         matrix =
             addParameter(
-                Parameter.builder()
+                Parameter
+                    .builder()
                     .setName("matrix")
                     .setType(Parameter.Type.WEIGHT)
                     .optShape(Shape(numEdge, relDim, entDim))
@@ -200,27 +203,21 @@ class TransR(
      *
      * @return The NDArray of entity embeddings with shape (numEnt, entDim).
      */
-    fun getEntities(): NDArray {
-        return getParameters().get("entities").array
-    }
+    fun getEntities(): NDArray = getParameters().get("entities").array
 
     /**
      * Returns the relation embedding parameter (edges).
      *
      * @return The relation embeddings as an NDArray with shape (numEdge, relDim).
      */
-    fun getEdges(): NDArray {
-        return getParameters().get("edges").array
-    }
+    fun getEdges(): NDArray = getParameters().get("edges").array
 
     /**
      * Returns the relation projection matrices.
      *
      * @return NDArray of shape (numEdge, relDim, entDim).
      */
-    fun getMatrix(): NDArray {
-        return getParameters().get("matrix").array
-    }
+    fun getMatrix(): NDArray = getParameters().get("matrix").array
 
     /**
      * Normalize entity and relation embedding rows to unit length.

@@ -103,7 +103,10 @@ private fun prepareTrainingConfig(): TrainingConfig {
     return trainerBuilder
 }
 
-private class CustomDataset(private val sentences: Array<String>, private val labels: LongArray) : Dataset {
+private class CustomDataset(
+    private val sentences: Array<String>,
+    private val labels: LongArray,
+) : Dataset {
     override fun prepare(progress: Progress?) {
         // No specific preparation required for this custom dataset
     }

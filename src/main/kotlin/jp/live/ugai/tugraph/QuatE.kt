@@ -43,7 +43,8 @@ class QuatE(
         setInitializer(UniformInitializer(bound), Parameter.Type.WEIGHT)
         entities =
             addParameter(
-                Parameter.builder()
+                Parameter
+                    .builder()
                     .setName("entities")
                     .setType(Parameter.Type.WEIGHT)
                     .optShape(Shape(numEnt, dim * 4))
@@ -51,7 +52,8 @@ class QuatE(
             )
         edges =
             addParameter(
-                Parameter.builder()
+                Parameter
+                    .builder()
                     .setName("edges")
                     .setType(Parameter.Type.WEIGHT)
                     .optShape(Shape(numEdge, dim * 4))
@@ -100,9 +102,7 @@ class QuatE(
         input: NDArray,
         entities: NDArray,
         edges: NDArray,
-    ): NDArray {
-        return score(input, entities, edges, dim * 4)
-    }
+    ): NDArray = score(input, entities, edges, dim * 4)
 
     /**
      * Compute per-triple QuatE scores by applying the Hamilton product between head and relation quaternions and
@@ -152,16 +152,45 @@ class QuatE(
             val tK = tails.get(kIndex).also { it.attach(sm) }
 
             // Hamilton product h ⊗ r
-            val hrR = hR.mul(rR).sub(hI.mul(rI)).sub(hJ.mul(rJ)).sub(hK.mul(rK)).also { it.attach(sm) }
-            val hrI = hR.mul(rI).add(hI.mul(rR)).add(hJ.mul(rK)).sub(hK.mul(rJ)).also { it.attach(sm) }
-            val hrJ = hR.mul(rJ).sub(hI.mul(rK)).add(hJ.mul(rR)).add(hK.mul(rI)).also { it.attach(sm) }
-            val hrK = hR.mul(rK).add(hI.mul(rJ)).sub(hJ.mul(rI)).add(hK.mul(rR)).also { it.attach(sm) }
+            val hrR =
+                hR
+                    .mul(rR)
+                    .sub(hI.mul(rI))
+                    .sub(hJ.mul(rJ))
+                    .sub(hK.mul(rK))
+                    .also { it.attach(sm) }
+            val hrI =
+                hR
+                    .mul(rI)
+                    .add(hI.mul(rR))
+                    .add(hJ.mul(rK))
+                    .sub(hK.mul(rJ))
+                    .also { it.attach(sm) }
+            val hrJ =
+                hR
+                    .mul(rJ)
+                    .sub(hI.mul(rK))
+                    .add(hJ.mul(rR))
+                    .add(hK.mul(rI))
+                    .also { it.attach(sm) }
+            val hrK =
+                hR
+                    .mul(rK)
+                    .add(hI.mul(rJ))
+                    .sub(hJ.mul(rI))
+                    .add(hK.mul(rR))
+                    .also { it.attach(sm) }
 
             val dotR = hrR.mul(tR).also { it.attach(sm) }
             val dotI = hrI.mul(tI).also { it.attach(sm) }
             val dotJ = hrJ.mul(tJ).also { it.attach(sm) }
             val dotK = hrK.mul(tK).also { it.attach(sm) }
-            val sum = dotR.add(dotI).add(dotJ).add(dotK).also { it.attach(sm) }
+            val sum =
+                dotR
+                    .add(dotI)
+                    .add(dotJ)
+                    .add(dotK)
+                    .also { it.attach(sm) }
             val result = sum.sum(sumAxis).also { it.attach(parent) }
             result
         }
@@ -192,9 +221,7 @@ class QuatE(
      *
      * @return The entities embeddings NDArray with shape (numEnt, dim * 4).
      */
-    fun getEntities(): NDArray {
-        return getParameters().get("entities").array
-    }
+    fun getEntities(): NDArray = getParameters().get("entities").array
 
     /**
      * Retrieve the entities embeddings on the requested device.
@@ -203,18 +230,14 @@ class QuatE(
         parameterStore: ParameterStore,
         device: Device,
         training: Boolean,
-    ): NDArray {
-        return parameterStore.getValue(entities, device, training)
-    }
+    ): NDArray = parameterStore.getValue(entities, device, training)
 
     /**
      * Gets relation (edge) embeddings.
      *
      * @return NDArray of shape (numEdge, dim * 4) containing quaternion relation embeddings.
      */
-    fun getEdges(): NDArray {
-        return getParameters().get("edges").array
-    }
+    fun getEdges(): NDArray = getParameters().get("edges").array
 
     /**
      * Gets relation (edge) embeddings on the requested device.
@@ -223,7 +246,5 @@ class QuatE(
         parameterStore: ParameterStore,
         device: Device,
         training: Boolean,
-    ): NDArray {
-        return parameterStore.getValue(edges, device, training)
-    }
+    ): NDArray = parameterStore.getValue(edges, device, training)
 }

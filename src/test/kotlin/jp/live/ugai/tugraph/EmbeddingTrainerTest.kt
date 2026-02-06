@@ -55,17 +55,18 @@ class EmbeddingTrainerTest {
         val numEdges = 2L
         val dim = 8L
 
-        val transE =
-            TransE(numEntities, numEdges, dim).also {
+        val rotate =
+            RotatE(numEntities, numEdges, dim).also {
                 it.initialize(manager, DataType.FLOAT32, Shape(1, TRIPLE))
             }
 
-        val model = Model.newInstance("transe").also { it.block = transE }
+        val model = Model.newInstance("rotate").also { it.block = rotate }
 
         val config =
             DefaultTrainingConfig(Loss.l1Loss())
                 .optOptimizer(
-                    ai.djl.training.optimizer.Optimizer.sgd()
+                    ai.djl.training.optimizer.Optimizer
+                        .sgd()
                         .setLearningRateTracker(Tracker.fixed(0.01f))
                         .build(),
                 ).optDevices(manager.engine.getDevices(1))
@@ -122,7 +123,8 @@ class EmbeddingTrainerTest {
         val config =
             DefaultTrainingConfig(Loss.l1Loss())
                 .optOptimizer(
-                    ai.djl.training.optimizer.Optimizer.sgd()
+                    ai.djl.training.optimizer.Optimizer
+                        .sgd()
                         .setLearningRateTracker(Tracker.fixed(0.01f))
                         .build(),
                 ).optDevices(manager.engine.getDevices(1))
@@ -179,7 +181,11 @@ class EmbeddingTrainerTest {
         val model = Model.newInstance("distmult").also { it.block = distMult }
 
         val lrt = Tracker.fixed(0.01f)
-        val sgd = ai.djl.training.optimizer.Optimizer.sgd().setLearningRateTracker(lrt).build()
+        val sgd =
+            ai.djl.training.optimizer.Optimizer
+                .sgd()
+                .setLearningRateTracker(lrt)
+                .build()
 
         val config =
             DefaultTrainingConfig(Loss.l1Loss())
@@ -283,7 +289,8 @@ class EmbeddingTrainerTest {
         val config =
             DefaultTrainingConfig(Loss.l1Loss())
                 .optOptimizer(
-                    ai.djl.training.optimizer.Optimizer.sgd()
+                    ai.djl.training.optimizer.Optimizer
+                        .sgd()
                         .setLearningRateTracker(Tracker.fixed(0.01f))
                         .build(),
                 ).optDevices(manager.engine.getDevices(1))
@@ -329,7 +336,8 @@ class EmbeddingTrainerTest {
         val config =
             DefaultTrainingConfig(Loss.l1Loss())
                 .optOptimizer(
-                    ai.djl.training.optimizer.Optimizer.sgd()
+                    ai.djl.training.optimizer.Optimizer
+                        .sgd()
                         .setLearningRateTracker(Tracker.fixed(0.01f))
                         .build(),
                 ).optDevices(manager.engine.getDevices(1))
@@ -380,7 +388,8 @@ class EmbeddingTrainerTest {
         val config =
             DefaultTrainingConfig(Loss.l1Loss())
                 .optOptimizer(
-                    ai.djl.training.optimizer.Optimizer.sgd()
+                    ai.djl.training.optimizer.Optimizer
+                        .sgd()
                         .setLearningRateTracker(Tracker.fixed(0.01f))
                         .build(),
                 ).optDevices(manager.engine.getDevices(1))
@@ -423,7 +432,8 @@ class EmbeddingTrainerTest {
         val config =
             DefaultTrainingConfig(Loss.l1Loss())
                 .optOptimizer(
-                    ai.djl.training.optimizer.Optimizer.sgd()
+                    ai.djl.training.optimizer.Optimizer
+                        .sgd()
                         .setLearningRateTracker(Tracker.fixed(0.01f))
                         .build(),
                 ).optDevices(manager.engine.getDevices(1))
@@ -461,7 +471,8 @@ class EmbeddingTrainerTest {
         val config =
             DefaultTrainingConfig(Loss.l1Loss())
                 .optOptimizer(
-                    ai.djl.training.optimizer.Optimizer.sgd()
+                    ai.djl.training.optimizer.Optimizer
+                        .sgd()
                         .setLearningRateTracker(Tracker.fixed(0.01f))
                         .build(),
                 ).optDevices(manager.engine.getDevices(1))
@@ -500,7 +511,8 @@ class EmbeddingTrainerTest {
         val config =
             DefaultTrainingConfig(Loss.l1Loss())
                 .optOptimizer(
-                    ai.djl.training.optimizer.Optimizer.sgd()
+                    ai.djl.training.optimizer.Optimizer
+                        .sgd()
                         .setLearningRateTracker(Tracker.fixed(0.01f))
                         .build(),
                 ).optDevices(manager.engine.getDevices(1))
@@ -553,7 +565,8 @@ class EmbeddingTrainerTest {
         val config =
             DefaultTrainingConfig(Loss.l1Loss())
                 .optOptimizer(
-                    ai.djl.training.optimizer.Optimizer.sgd()
+                    ai.djl.training.optimizer.Optimizer
+                        .sgd()
                         .setLearningRateTracker(Tracker.fixed(0.1f))
                         .build(),
                 ).optDevices(manager.engine.getDevices(1))

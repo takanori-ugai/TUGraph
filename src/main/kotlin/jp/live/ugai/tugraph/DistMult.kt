@@ -38,7 +38,8 @@ class DistMult(
         setInitializer(UniformInitializer(bound), Parameter.Type.WEIGHT)
         entities =
             addParameter(
-                Parameter.builder()
+                Parameter
+                    .builder()
                     .setName("entities")
                     .setType(Parameter.Type.WEIGHT)
                     .optShape(Shape(numEnt, dim))
@@ -46,7 +47,8 @@ class DistMult(
             )
         edges =
             addParameter(
-                Parameter.builder()
+                Parameter
+                    .builder()
                     .setName("edges")
                     .setType(Parameter.Type.WEIGHT)
                     .optShape(Shape(numEdge, dim))
@@ -149,16 +151,12 @@ class DistMult(
      *
      * @return The entity embeddings as an NDArray with shape (numEnt, dim).
      */
-    fun getEntities(): NDArray {
-        return getParameters().get("entities").array
-    }
+    fun getEntities(): NDArray = getParameters().get("entities").array
 
     /**
      * Get the relation (edge) embeddings.
      *
      * @return The relation embeddings NDArray with shape (numEdge, dim).
      */
-    fun getEdges(): NDArray {
-        return getParameters().get("edges").array
-    }
+    fun getEdges(): NDArray = getParameters().get("edges").array
 }

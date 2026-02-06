@@ -25,7 +25,12 @@ object EmbeddingExample {
     @JvmStatic
     fun main(args: Array<String>) {
         val sentence = listOf("I", "am", "a", "dog", "am", "a", "<START>", "<END>")
-        val dic = DefaultVocabulary.builder().add(sentence).optUnknownToken().build()
+        val dic =
+            DefaultVocabulary
+                .builder()
+                .add(sentence)
+                .optUnknownToken()
+                .build()
 
         NDManager.newBaseManager().use { manager ->
             val sizeOfSentence = 8L
@@ -36,15 +41,19 @@ object EmbeddingExample {
             val lang = manager.randomInteger(0, numOfWords, Shape(sizeOfMatrix), DataType.INT32)
             println("LANG: $lang")
             val features =
-                manager.full(Shape(numOfSentence, 1), 4)
+                manager
+                    .full(Shape(numOfSentence, 1), 4)
                     .concat(lang.reshape(numOfSentence, sizeOfSentence), 1)
             println("Features: $features")
             val lang2 =
-                lang.reshape(numOfSentence, sizeOfSentence).concat(manager.full(Shape(numOfSentence, 1), 5), 1)
+                lang
+                    .reshape(numOfSentence, sizeOfSentence)
+                    .concat(manager.full(Shape(numOfSentence, 1), 5), 1)
                     .reshape((sizeOfSentence + 1) * numOfSentence)
             println(lang2)
             val labels =
-                manager.eye(numOfWords.toInt() + 2)
+                manager
+                    .eye(numOfWords.toInt() + 2)
                     .get(lang2)
                     .reshape(numOfSentence, sizeOfSentence + 1, numOfWords + 2)
             println("Labels: $labels")
@@ -52,7 +61,12 @@ object EmbeddingExample {
             println(dic.getIndex("<END>"))
             val emb = TrainableWordEmbedding(dic, 20)
             val net = SequentialBlock()
-            val linearBlock = Linear.builder().optBias(true).setUnits(numOfWords + 2).build()
+            val linearBlock =
+                Linear
+                    .builder()
+                    .optBias(true)
+                    .setUnits(numOfWords + 2)
+                    .build()
             val trans = TransformerEncoderBlock(20, 2, 6, 0.5F, Activation::relu)
             net.add(emb)
             net.add(trans)
@@ -126,11 +140,11 @@ object EmbeddingExample {
         labels: NDArray,
         batchSize: Int,
         shuffle: Boolean,
-    ): ArrayDataset {
-        return ArrayDataset.Builder()
+    ): ArrayDataset =
+        ArrayDataset
+            .Builder()
             .setData(features) // set the features
             .optLabels(labels) // set the labels
             .setSampling(batchSize, shuffle) // set the batch size and random sampling
             .build()
-    }
 }

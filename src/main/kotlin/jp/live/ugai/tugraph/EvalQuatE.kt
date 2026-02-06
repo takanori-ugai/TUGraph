@@ -32,10 +32,30 @@ internal object EvalQuatE {
         rel: Parts,
         batchManager: NDManager,
     ): Parts {
-        val hrR = fixed.r.mul(rel.r).sub(fixed.i.mul(rel.i)).sub(fixed.j.mul(rel.j)).sub(fixed.k.mul(rel.k))
-        val hrI = fixed.r.mul(rel.i).add(fixed.i.mul(rel.r)).add(fixed.j.mul(rel.k)).sub(fixed.k.mul(rel.j))
-        val hrJ = fixed.r.mul(rel.j).sub(fixed.i.mul(rel.k)).add(fixed.j.mul(rel.r)).add(fixed.k.mul(rel.i))
-        val hrK = fixed.r.mul(rel.k).add(fixed.i.mul(rel.j)).sub(fixed.j.mul(rel.i)).add(fixed.k.mul(rel.r))
+        val hrR =
+            fixed.r
+                .mul(rel.r)
+                .sub(fixed.i.mul(rel.i))
+                .sub(fixed.j.mul(rel.j))
+                .sub(fixed.k.mul(rel.k))
+        val hrI =
+            fixed.r
+                .mul(rel.i)
+                .add(fixed.i.mul(rel.r))
+                .add(fixed.j.mul(rel.k))
+                .sub(fixed.k.mul(rel.j))
+        val hrJ =
+            fixed.r
+                .mul(rel.j)
+                .sub(fixed.i.mul(rel.k))
+                .add(fixed.j.mul(rel.r))
+                .add(fixed.k.mul(rel.i))
+        val hrK =
+            fixed.r
+                .mul(rel.k)
+                .add(fixed.i.mul(rel.j))
+                .sub(fixed.j.mul(rel.i))
+                .add(fixed.k.mul(rel.r))
         val aR = hrR.also { it.attach(batchManager) }
         val aI = hrI.also { it.attach(batchManager) }
         val aJ = hrJ.also { it.attach(batchManager) }
@@ -87,7 +107,12 @@ internal object EvalQuatE {
     ): NDArray {
         val trueEmb = entities.get(trueIdsFlat).also { it.attach(batchManager) }
         val t = sliceQuat(trueEmb, rIndex, iIndex, jIndex, kIndex, batchManager)
-        return a.r.mul(t.r).add(a.i.mul(t.i)).add(a.j.mul(t.j)).add(a.k.mul(t.k)).sum(intArrayOf(1))
+        return a.r
+            .mul(t.r)
+            .add(a.i.mul(t.i))
+            .add(a.j.mul(t.j))
+            .add(a.k.mul(t.k))
+            .sum(intArrayOf(1))
             .reshape(batchSize.toLong(), 1)
             .also { it.attach(batchManager) }
     }
@@ -105,7 +130,12 @@ internal object EvalQuatE {
     ): NDArray {
         val trueEmb = entities.get(trueIdsFlat).also { it.attach(batchManager) }
         val h = sliceQuat(trueEmb, rIndex, iIndex, jIndex, kIndex, batchManager)
-        return a.r.mul(h.r).add(a.i.mul(h.i)).add(a.j.mul(h.j)).add(a.k.mul(h.k)).sum(intArrayOf(1))
+        return a.r
+            .mul(h.r)
+            .add(a.i.mul(h.i))
+            .add(a.j.mul(h.j))
+            .add(a.k.mul(h.k))
+            .sum(intArrayOf(1))
             .reshape(batchSize.toLong(), 1)
             .also { it.attach(batchManager) }
     }
@@ -136,7 +166,8 @@ internal object EvalQuatE {
                         eJ.use { ej ->
                             eK.use { ek ->
                                 val scores =
-                                    a.r.matMul(er.transpose())
+                                    a.r
+                                        .matMul(er.transpose())
                                         .add(a.i.matMul(ei.transpose()))
                                         .add(a.j.matMul(ej.transpose()))
                                         .add(a.k.matMul(ek.transpose()))

@@ -7,7 +7,8 @@ import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
-import jp.live.ugai.tugraph.*
+import jp.live.ugai.tugraph.RESULT_EVAL_BATCH_SIZE
+import jp.live.ugai.tugraph.RESULT_EVAL_ENTITY_CHUNK_SIZE
 
 /**
  * A class for evaluating the results of a model.
@@ -34,7 +35,10 @@ open class ResultEval(
     private val col0Index = NDIndex(":, 0")
     private val col1Index = NDIndex(":, 1")
 
-    private data class PairKey(val a: Long, val b: Long)
+    private data class PairKey(
+        val a: Long,
+        val b: Long,
+    )
 
     private val tailFilter: Map<PairKey, IntArray> by lazy {
         val map = mutableMapOf<PairKey, MutableSet<Int>>()
@@ -189,8 +193,8 @@ open class ResultEval(
         entityChunkSize: Int,
         mode: EvalMode,
         buildBatch: (start: Int, end: Int) -> EvalBatch,
-    ): IntArray {
-        return when (mode) {
+    ): IntArray =
+        when (mode) {
             EvalMode.TAIL ->
                 computeRanksChunked(
                     evalBatchSize,
@@ -234,7 +238,6 @@ open class ResultEval(
                     },
                 )
         }
-    }
 
     /**
      * Computes the rank of the true entity for each input triple by comparing its score
@@ -280,7 +283,8 @@ open class ResultEval(
                     while (chunkStart < numEntitiesInt) {
                         val chunkEnd = minOf(chunkStart + chunkSize, numEntitiesInt)
                         val entityChunk =
-                            manager.arange(chunkStart, chunkEnd, 1, DataType.INT64)
+                            manager
+                                .arange(chunkStart, chunkEnd, 1, DataType.INT64)
                                 .reshape((chunkEnd - chunkStart).toLong(), 1)
                         val chunkInput = buildChunkInput(batch.basePair, entityChunk)
                         chunkInput.use {

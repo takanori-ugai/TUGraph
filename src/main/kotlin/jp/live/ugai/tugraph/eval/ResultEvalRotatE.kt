@@ -6,7 +6,7 @@ import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
-import jp.live.ugai.tugraph.*
+import jp.live.ugai.tugraph.RotatE
 
 class ResultEvalRotatE(
     inputList: List<LongArray>,
@@ -78,7 +78,11 @@ class ResultEvalRotatE(
                     val tRe = trueEmb.get(realIndex).also { it.attach(batchManager) }
                     val tIm = trueEmb.get(imagIndex).also { it.attach(batchManager) }
                     val trueScore =
-                        rotRe.sub(tRe).abs().add(rotIm.sub(tIm).abs()).sum(intArrayOf(1))
+                        rotRe
+                            .sub(tRe)
+                            .abs()
+                            .add(rotIm.sub(tIm).abs())
+                            .sum(intArrayOf(1))
                             .reshape(batchSize.toLong(), 1)
                             .also { it.attach(batchManager) }
                     val countBetter = batchManager.zeros(Shape(batchSize.toLong()), DataType.INT64)

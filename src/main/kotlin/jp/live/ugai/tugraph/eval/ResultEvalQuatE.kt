@@ -6,7 +6,8 @@ import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
-import jp.live.ugai.tugraph.*
+import jp.live.ugai.tugraph.EvalQuatE
+import jp.live.ugai.tugraph.QuatE
 
 class ResultEvalQuatE(
     inputList: List<LongArray>,

@@ -47,7 +47,8 @@ object BertQaInference {
         logger.info("Paragraph: {}", input.paragraph)
         logger.info("Question: {}", input.question)
         val criteria =
-            Criteria.builder()
+            Criteria
+                .builder()
                 .optApplication(Application.NLP.QUESTION_ANSWER)
                 .setTypes(QAInput::class.java, String::class.java)
                 .optFilter("backbone", "bert")

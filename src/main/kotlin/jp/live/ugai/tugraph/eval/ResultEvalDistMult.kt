@@ -6,7 +6,7 @@ import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
-import jp.live.ugai.tugraph.*
+import jp.live.ugai.tugraph.DistMult
 
 class ResultEvalDistMult(
     inputList: List<LongArray>,
@@ -56,7 +56,10 @@ class ResultEvalDistMult(
                     val baseMul = fixed.mul(rels).also { it.attach(batchManager) }
                     val trueEmb = entities.get(trueIdsFlat).also { it.attach(batchManager) }
                     val trueScore =
-                        baseMul.mul(trueEmb).sum(intArrayOf(1)).reshape(batchSize.toLong(), 1)
+                        baseMul
+                            .mul(trueEmb)
+                            .sum(intArrayOf(1))
+                            .reshape(batchSize.toLong(), 1)
                             .also { it.attach(batchManager) }
                     val countBetter = batchManager.zeros(Shape(batchSize.toLong()), DataType.INT64)
                     var chunkStart = 0

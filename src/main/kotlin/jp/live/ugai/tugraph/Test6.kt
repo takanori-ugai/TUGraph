@@ -11,7 +11,7 @@ import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
-import jp.live.ugai.tugraph.eval.*
+import jp.live.ugai.tugraph.eval.ResultEvalTransE
 
 /**
  * Runs the end-to-end embedding training and evaluation pipeline using DJL within a managed NDManager scope.

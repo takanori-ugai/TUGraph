@@ -6,7 +6,8 @@ import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
 import ai.djl.translate.NoopTranslator
-import jp.live.ugai.tugraph.eval.*
+import jp.live.ugai.tugraph.eval.ResultEvalDistMult
+import jp.live.ugai.tugraph.eval.ResultEvalTransE
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull

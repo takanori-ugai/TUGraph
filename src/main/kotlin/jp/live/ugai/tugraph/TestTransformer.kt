@@ -30,7 +30,8 @@ fun main() {
 
         // Tiny LM vocabulary
         val vocab =
-            DefaultVocabulary.builder()
+            DefaultVocabulary
+                .builder()
                 .add(listOf("<BOS>", "<EOS>", "i", "am", "a", "dog", "cat"))
                 .optUnknownToken()
                 .build()
@@ -76,7 +77,8 @@ fun main() {
         val labels = manager.create(labelArr, Shape(targets.size.toLong(), seqLen.toLong()))
 
         val dataset =
-            ArrayDataset.Builder()
+            ArrayDataset
+                .Builder()
                 .setData(data)
                 .optLabels(labels)
                 .setSampling(2, true)

@@ -131,7 +131,8 @@ class HyperComplEx(
             )
         attnW =
             addParameter(
-                Parameter.builder()
+                Parameter
+                    .builder()
                     .setName("attnW")
                     .setType(Parameter.Type.WEIGHT)
                     .optShape(Shape(numEdge, 3))
@@ -328,7 +329,11 @@ class HyperComplEx(
             val euclid = euclideanScore(mpHE, mpRE, mpTE).also { it.attach(sm) }
 
             val total =
-                alphaH.mul(hyper).add(alphaC.mul(complex)).add(alphaE.mul(euclid)).also { it.attach(sm) }
+                alphaH
+                    .mul(hyper)
+                    .add(alphaC.mul(complex))
+                    .add(alphaE.mul(euclid))
+                    .also { it.attach(sm) }
             val totalOut = maybeCast(total, DataType.FLOAT32).also { it.attach(parent) }
             val hyperOut = maybeCast(hyper, DataType.FLOAT32).also { it.attach(parent) }
             val complexOut = maybeCast(complex, DataType.FLOAT32).also { it.attach(parent) }
@@ -345,13 +350,12 @@ class HyperComplEx(
     private fun maybeCast(
         array: NDArray,
         target: DataType,
-    ): NDArray {
-        return if (mixedPrecision && array.dataType != target) {
+    ): NDArray =
+        if (mixedPrecision && array.dataType != target) {
             array.toType(target, false)
         } else {
             array
         }
-    }
 
     private fun hyperbolicScore(
         h: NDArray,
@@ -387,9 +391,13 @@ class HyperComplEx(
         h: NDArray,
         r: NDArray,
         t: NDArray,
-    ): NDArray {
-        return h.add(r).sub(t).pow(2).sum(sumAxis).neg()
-    }
+    ): NDArray =
+        h
+            .add(r)
+            .sub(t)
+            .pow(2)
+            .sum(sumAxis)
+            .neg()
 
     private fun mobiusAdd(
         x: NDArray,
@@ -449,7 +457,13 @@ class HyperComplEx(
         x: NDArray,
         maxNorm: Float,
     ) {
-        val norms = x.pow(2).sum(sumAxis).sqrt().reshape(x.shape[0], 1)
+        val sq = x.pow(2)
+        val summed = sq.sum(sumAxis)
+        sq.close()
+        val sqrtVal = summed.sqrt()
+        summed.close()
+        val norms = sqrtVal.reshape(x.shape[0], 1)
+        sqrtVal.close()
         val maxNormTensor = x.manager.full(norms.shape, maxNorm, norms.dataType, norms.device)
         val ratio = maxNormTensor.div(norms)
         val scale = ratio.minimum(1f)
@@ -498,7 +512,7 @@ class HyperComplEx(
     /** Retrieve the Euclidean relation embeddings array (caller must close). */
     fun getEdgesE(): NDArray = concatParamShards(relE)
 
-    /** Retrieve relation attention weights (caller must close). */
+    /** Retrieve relation attention weights (do NOT close; this is the live parameter). */
     fun getAttention(): NDArray = getParameters().get("attnW").array
 
     /** Retrieve hyperbolic entity embeddings on the requested device. */
@@ -612,7 +626,10 @@ class HyperComplEx(
         return params
     }
 
-    private data class ShardSpec(val offsets: LongArray, val sizes: LongArray)
+    private data class ShardSpec(
+        val offsets: LongArray,
+        val sizes: LongArray,
+    )
 
     private fun shardSpec(
         total: Long,
@@ -645,7 +662,8 @@ class HyperComplEx(
             val name = "$prefix-$i"
             val param =
                 addParameter(
-                    Parameter.builder()
+                    Parameter
+                        .builder()
                         .setName(name)
                         .setType(Parameter.Type.WEIGHT)
                         .optInitializer(initializer)
@@ -720,7 +738,5 @@ class HyperComplEx(
         }
     }
 
-    private fun concatParamShards(shards: List<Parameter>): NDArray {
-        return concatNdShards(shards.map { it.array })
-    }
+    private fun concatParamShards(shards: List<Parameter>): NDArray = concatNdShards(shards.map { it.array })
 }

@@ -29,15 +29,28 @@ fun main() {
         val mini2 = manager.arange(5).reshape(1, 5)
         println(mini2.transpose())
         println(mini.sum(intArrayOf(0)).sub(mini2))
-        println(mini.sum(intArrayOf(0)).transpose().sub(mini2.transpose()).transpose())
+        println(
+            mini
+                .sum(intArrayOf(0))
+                .transpose()
+                .sub(mini2.transpose())
+                .transpose(),
+        )
         val mini3 = manager.arange(4).reshape(1, 4)
         println(matrix.get(NDIndex("0:-1")))
-        println(matrix.transpose().get(NDIndex("0:-1")).concat(mini3).transpose())
+        println(
+            matrix
+                .transpose()
+                .get(NDIndex("0:-1"))
+                .concat(mini3)
+                .transpose(),
+        )
         val mini4 = manager.arange(5).reshape(1, 5)
         println(mini4.repeat(0, 2))
 
         val dataset =
-            ArrayDataset.Builder()
+            ArrayDataset
+                .Builder()
                 .setData(manager.arange(0, 4), manager.arange(5, 9))
                 .optLabels(manager.ones(Shape(1)), manager.zeros(Shape(1)))
                 .setSampling(20, false)

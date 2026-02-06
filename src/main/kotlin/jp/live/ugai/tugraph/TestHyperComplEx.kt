@@ -12,6 +12,7 @@ import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Adam
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
+import jp.live.ugai.tugraph.eval.ResultEvalHyperComplEx
 
 /**
  * Runs an end-to-end HyperComplEx demo.
@@ -59,7 +60,8 @@ fun main() {
 
         val lrt = Tracker.fixed(HYPERCOMPLEX_ADAM_LEARNING_RATE)
         val adam =
-            Adam.builder()
+            Adam
+                .builder()
                 .optLearningRateTracker(lrt)
                 .optBeta1(HYPERCOMPLEX_ADAM_BETA1)
                 .optBeta2(HYPERCOMPLEX_ADAM_BETA2)

@@ -29,7 +29,8 @@ fun main() {
 
     // Create a dataset.
     val dataset: Dataset =
-        ArrayDataset.Builder()
+        ArrayDataset
+            .Builder()
             .setData(manager.randomInteger(100, 128, Shape(128), DataType.INT32)) // set the features
             .optLabels(manager.randomInteger(100, 128, Shape(128), DataType.INT32)) // set the labels
             .setSampling(3, true) // set the batch size and random sampling

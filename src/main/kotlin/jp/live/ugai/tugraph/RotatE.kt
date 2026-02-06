@@ -42,7 +42,8 @@ class RotatE(
         setInitializer(UniformInitializer(bound), Parameter.Type.WEIGHT)
         entities =
             addParameter(
-                Parameter.builder()
+                Parameter
+                    .builder()
                     .setName("entities")
                     .setType(Parameter.Type.WEIGHT)
                     .optShape(Shape(numEnt, dim * 2))
@@ -50,7 +51,8 @@ class RotatE(
             )
         edges =
             addParameter(
-                Parameter.builder()
+                Parameter
+                    .builder()
                     .setName("edges")
                     .setType(Parameter.Type.WEIGHT)
                     // Standard RotatE uses relation phases in [-pi, pi].
@@ -103,9 +105,7 @@ class RotatE(
         input: NDArray,
         entities: NDArray,
         edges: NDArray,
-    ): NDArray {
-        return score(input, entities, edges, dim * 2)
-    }
+    ): NDArray = score(input, entities, edges, dim * 2)
 
     /**
      * Compute RotatE scores for a batch of triples with a configurable total embedding dimension.
@@ -181,9 +181,7 @@ class RotatE(
      *
      * @return The NDArray containing entity embeddings with shape (numEnt, dim * 2).
      */
-    fun getEntities(): NDArray {
-        return getParameters().get("entities").array
-    }
+    fun getEntities(): NDArray = getParameters().get("entities").array
 
     /**
      * Access the entities embedding parameter array on the requested device.
@@ -192,18 +190,14 @@ class RotatE(
         parameterStore: ParameterStore,
         device: Device,
         training: Boolean,
-    ): NDArray {
-        return parameterStore.getValue(entities, device, training)
-    }
+    ): NDArray = parameterStore.getValue(entities, device, training)
 
     /**
      * Retrieve the relation (edge) embedding parameters.
      *
      * @return NDArray of shape (numEdge, dim) containing the relation phase embeddings.
      */
-    fun getEdges(): NDArray {
-        return getParameters().get("edges").array
-    }
+    fun getEdges(): NDArray = getParameters().get("edges").array
 
     /**
      * Retrieve the relation (edge) embeddings on the requested device.
@@ -212,7 +206,5 @@ class RotatE(
         parameterStore: ParameterStore,
         device: Device,
         training: Boolean,
-    ): NDArray {
-        return parameterStore.getValue(edges, device, training)
-    }
+    ): NDArray = parameterStore.getValue(edges, device, training)
 }

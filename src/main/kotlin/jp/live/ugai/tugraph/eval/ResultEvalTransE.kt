@@ -6,7 +6,7 @@ import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
-import jp.live.ugai.tugraph.*
+import jp.live.ugai.tugraph.TransE
 
 class ResultEvalTransE(
     inputList: List<LongArray>,
@@ -64,7 +64,11 @@ class ResultEvalTransE(
                         }
                     val trueEmb = entities.get(trueIdsFlat).also { it.attach(batchManager) }
                     val trueScore =
-                        baseEmb.sub(trueEmb).abs().sum(intArrayOf(1)).reshape(batchSize.toLong(), 1)
+                        baseEmb
+                            .sub(trueEmb)
+                            .abs()
+                            .sum(intArrayOf(1))
+                            .reshape(batchSize.toLong(), 1)
                             .also { it.attach(batchManager) }
                     val countBetter = batchManager.zeros(Shape(batchSize.toLong()), DataType.INT64)
                     val baseEmbExp = baseEmb.expandDims(1).also { it.attach(batchManager) }

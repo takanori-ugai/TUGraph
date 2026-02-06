@@ -11,7 +11,7 @@ import ai.djl.training.listener.EpochTrainingListener
 import ai.djl.training.loss.Loss
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
-import jp.live.ugai.tugraph.eval.*
+import jp.live.ugai.tugraph.eval.ResultEvalRotatE
 
 /**
  * Runs an end-to-end example that reads triples from data/sample.csv, trains a RotatE knowledge-graph
