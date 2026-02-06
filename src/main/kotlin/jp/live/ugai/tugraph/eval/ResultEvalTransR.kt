@@ -20,6 +20,20 @@ class ResultEvalTransR(
     private val col0Index = NDIndex(":, 0")
     private val col1Index = NDIndex(":, 1")
 
+    /**
+     * Computes 1-based ranks for the evaluation inputs using TransR scoring.
+     *
+     * Processes inputs in evaluation batches and, per relation group, projects heads/tails
+     * with relation-specific matrices and compares the true-entity score against scores
+     * of all entities (evaluated in chunks) to determine how many entities rank better.
+     *
+     * @param evalBatchSize Number of examples processed per evaluation batch.
+     * @param entityChunkSize Maximum number of entities processed at once when comparing scores.
+     * @param mode Which side of the triple is being ranked (HEAD or TAIL).
+     * @param buildBatch Function that builds an EvalBatch for the half-open range [start, end).
+     * @return An IntArray of length equal to the number of processed inputs (or truncated if shorter),
+     *         where each element is the 1-based rank of the true entity for the corresponding input.
+     */
     protected override fun computeRanks(
         evalBatchSize: Int,
         entityChunkSize: Int,

@@ -21,6 +21,11 @@ import jp.live.ugai.tugraph.eval.ResultEvalQuatE
  * and DJL trainer, executes embedding training, prints learned parameters and a sample prediction,
  * evaluates tail and head ranking results, and closes all resources.
  */
+/**
+ * Runs a complete example: loads triples from data/sample.csv, builds and trains a QuatE embedding model, performs a sample prediction, evaluates head/tail rankings, and prints results.
+ *
+ * The function covers data loading, model and trainer initialization, embedding training with EmbeddingTrainer, prediction via a NoopTranslator-based predictor, evaluation using ResultEvalQuatE, and prints training metrics and evaluation outputs. All created resources are closed before the function exits.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)

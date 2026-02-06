@@ -105,14 +105,15 @@ class QuatE(
     ): NDArray = score(input, entities, edges, dim * 4)
 
     /**
-     * Compute per-triple QuatE scores by applying the Hamilton product between head and relation quaternions and
-     * taking the inner product with tail quaternions.
+     * Computes a scalar QuatE score for each triple by applying the Hamilton product between head and relation
+     * quaternions and taking the inner product with the tail quaternions.
      *
-     * @param input NDArray of triples where each row is (head, relation, tail) indices.
-     * @param entities NDArray of entity embeddings with quaternion components concatenated (R,I,J,K).
-     * @param edges NDArray of relation embeddings with quaternion components concatenated (R,I,J,K).
+     * @param input NDArray of triples where each row contains (head, relation, tail) indices.
+     * @param entities NDArray of entity embeddings with quaternion components concatenated in order (R, I, J, K).
+     * @param edges NDArray of relation embeddings with quaternion components concatenated in order (R, I, J, K).
      * @param totalDim Total number of embedding columns to use from `entities`/`edges`; must be divisible by 4.
      * @return An NDArray of shape (numTriples) containing the scalar QuatE score for each triple.
+     * @throws IllegalArgumentException if `totalDim` is not divisible by 4.
      */
     fun score(
         input: NDArray,
@@ -217,14 +218,19 @@ class QuatE(
     }
 
     /**
-     * Retrieve the entities embeddings array.
-     *
-     * @return The entities embeddings NDArray with shape (numEnt, dim * 4).
-     */
+ * Access the entity embedding matrix.
+ *
+ * @return The entities embeddings NDArray with shape (numEnt, dim * 4).
+ */
     fun getEntities(): NDArray = getParameters().get("entities").array
 
     /**
-     * Retrieve the entities embeddings on the requested device.
+     * Load the entity embedding matrix for this block on the specified device.
+     *
+     * @param parameterStore Source of parameter values.
+     * @param device Target device for the returned array.
+     * @param training Whether to retrieve the training (updatable) view of the parameter.
+     * @return An NDArray of shape (numEntities, dim * 4) containing entity embeddings.
      */
     fun getEntities(
         parameterStore: ParameterStore,
@@ -240,7 +246,11 @@ class QuatE(
     fun getEdges(): NDArray = getParameters().get("edges").array
 
     /**
-     * Gets relation (edge) embeddings on the requested device.
+     * Retrieve relation (edge) embeddings on the specified device.
+     *
+     * @param device Target device for the returned embeddings.
+     * @param training If `true`, retrieve parameters in training mode; otherwise retrieve evaluation parameters.
+     * @return An NDArray of relation embeddings with shape (numEdge, dim * 4).
      */
     fun getEdges(
         parameterStore: ParameterStore,

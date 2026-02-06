@@ -21,6 +21,14 @@ import jp.live.ugai.tugraph.eval.ResultEvalTransE
  * training results, model edges and entities, performs a sample prediction, and computes head/tail evaluation
  * results; all DJL resources are created and released inside the managed NDManager scope.
  */
+/**
+ * Runs the full TransE experiment: loads triples from CSV, constructs and initializes the model,
+ * trains entity and relation embeddings, performs a sample prediction, evaluates head/tail rankings,
+ * prints results, and releases resources.
+ *
+ * This function is the program entry point and orchestrates data loading, model/trainer setup,
+ * training via EmbeddingTrainer, a sanity prediction, evaluation with ResultEvalTransE, and cleanup.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)

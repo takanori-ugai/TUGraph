@@ -21,6 +21,13 @@ import jp.live.ugai.tugraph.eval.ResultEvalRotatE
  * training, computes Matryoshka dot scores for a small batch of triples, performs a single
  * prediction, and prints head/tail evaluation metrics and training results.
  */
+/**
+ * Runs a complete example that loads triple data, trains a RotatE embedding model, evaluates results, and computes Matryoshka scores.
+ *
+ * Loads triples from data/sample.csv, constructs and trains a RotatE model with an EmbeddingTrainer, computes nested-dimension
+ * Matryoshka dot scores for a small batch of entities, performs a single prediction, evaluates head/tail metrics using ResultEvalRotatE,
+ * and closes all allocated resources.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)

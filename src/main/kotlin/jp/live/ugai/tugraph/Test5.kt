@@ -28,6 +28,16 @@ import java.util.concurrent.ThreadLocalRandom
  * and trains a TransE model for a fixed number of epochs, and prints model edges, entities,
  * and predictions for the training input and a sample test tensor.
  */
+/**
+ * Runs a minimal TransE training and prediction example using the CSV file at `data/sample.csv`.
+ *
+ * Reads records from the CSV into tensors and an in-memory list, constructs an ArrayDataset,
+ * initializes a TransE model, performs one epoch of training with L2 loss and SGD, and prints
+ * parsed rows, membership checks, model edges/entities, and prediction outputs to standard output.
+ *
+ * This function performs I/O (reads `data/sample.csv`) and produces console output; it also
+ * allocates and uses a DJL NDManager and model resources which are closed automatically.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         var input = manager.zeros(Shape(0), DataType.INT64)

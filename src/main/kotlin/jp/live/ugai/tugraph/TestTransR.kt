@@ -21,6 +21,17 @@ import jp.live.ugai.tugraph.eval.ResultEvalTransR
  * runs embedding training, prints training results as well as learned edges and entities,
  * performs a single example prediction, and prints tail/head evaluation summaries.
  */
+/**
+ * Runs an end-to-end example that trains and evaluates a TransR embedding model from CSV data.
+ *
+ * This function performs the complete workflow for the example:
+ * - Reads triples from "data/sample.csv" into an NDArray and converts them to a list of long triples.
+ * - Constructs and initializes a TransR model and wraps it in a DJL Model and predictor.
+ * - Configures an optimizer and training setup, creates a Trainer, and runs embedding training via EmbeddingTrainer.
+ * - Prints training results, learned entity and edge embeddings, and a sample model prediction.
+ * - Evaluates head and tail prediction performance using ResultEvalTransR and prints the evaluation results.
+ * - Closes all managed resources before exiting.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)

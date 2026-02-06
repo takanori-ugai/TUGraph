@@ -20,6 +20,14 @@ import jp.live.ugai.tugraph.eval.ResultEvalQuatE
  * computes Matryoshka dot scores for a small batch, runs a predictor on a test triple, and prints head/tail
  * evaluation results and diagnostics.
  */
+/**
+ * Runs an end-to-end example that trains, inspects, predicts with, and evaluates a QuatE embedding model using "data/sample.csv".
+ *
+ * Reads triples from the CSV, derives dataset sizes (entities/relations), initializes a QuatE block and a Model, configures and runs
+ * an embedding training loop, computes Matryoshka dot scores for a small batch of triples, performs a single prediction, evaluates
+ * head and tail prediction quality using ResultEvalQuatE, and prints training results, Matryoshka scores, a sample prediction, and
+ * evaluation summaries. All created DJL/NDManager resources are closed before exit.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)

@@ -27,6 +27,14 @@ internal object EvalQuatE {
         return Parts(r, i, j, k)
     }
 
+    /**
+     * Compute the quaternion product of a fixed quaternion and a relation quaternion for tail composition.
+     *
+     * @param fixed Quaternion components (r, i, j, k) representing the fixed quaternion.
+     * @param rel Quaternion components (r, i, j, k) representing the relation quaternion.
+     * @param batchManager NDManager used to attach the resulting NDArrays.
+     * @return Parts containing the resulting quaternion components `(r, i, j, k)` of the product, each attached to `batchManager`.
+     */
     fun computeATail(
         fixed: Parts,
         rel: Parts,
@@ -94,6 +102,19 @@ internal object EvalQuatE {
         return Parts(aR, aI, aJ, aK)
     }
 
+    /**
+     * Compute the true-tail score for a batch using accumulated head quaternion components.
+     *
+     * @param a Accumulated quaternion components (r, i, j, k) for the head.
+     * @param trueIdsFlat 1-D indices selecting the true tail embeddings from `entities`.
+     * @param entities NDArray containing entity embeddings organized with quaternion components.
+     * @param rIndex NDIndex selecting the real component within an embedding.
+     * @param iIndex NDIndex selecting the first imaginary component within an embedding.
+     * @param jIndex NDIndex selecting the second imaginary component within an embedding.
+     * @param kIndex NDIndex selecting the third imaginary component within an embedding.
+     * @param batchSize Number of rows in the resulting score (output shape will be (batchSize, 1)).
+     * @return NDArray of shape (batchSize, 1) containing the score for each true tail, computed as the sum of elementwise products across quaternion components (r, i, j, k).
+     */
     fun computeTrueScoreTail(
         a: Parts,
         trueIdsFlat: NDArray,
@@ -117,6 +138,22 @@ internal object EvalQuatE {
             .also { it.attach(batchManager) }
     }
 
+    /**
+     * Compute scores between an accumulated quaternion head `a` and true head entity embeddings selected by `trueIdsFlat`.
+     *
+     * The score for each pair is the sum over component-wise products: a.r*h.r + a.i*h.i + a.j*h.j + a.k*h.k, returned with shape (batchSize, 1).
+     *
+     * @param a Accumulated quaternion head components (r, i, j, k).
+     * @param trueIdsFlat NDArray of indices selecting true head embeddings from `entities`.
+     * @param entities NDArray containing entity embeddings arranged so quaternion components can be sliced by the provided indices.
+     * @param rIndex NDIndex selecting the real component slice within entity embeddings.
+     * @param iIndex NDIndex selecting the i component slice within entity embeddings.
+     * @param jIndex NDIndex selecting the j component slice within entity embeddings.
+     * @param kIndex NDIndex selecting the k component slice within entity embeddings.
+     * @param batchSize Number of rows in the resulting score (batch size).
+     * @param batchManager NDManager to attach created NDArrays.
+     * @return NDArray of shape (batchSize, 1) with the computed head scores.
+     */
     fun computeTrueScoreHead(
         a: Parts,
         trueIdsFlat: NDArray,
@@ -140,6 +177,27 @@ internal object EvalQuatE {
             .also { it.attach(batchManager) }
     }
 
+    /**
+     * Accumulates counts of entities whose scores are better than the provided true scores, processing entities in chunks.
+     *
+     * Processes the `entities` array in chunks of size `chunkSize`. For each chunk this function:
+     * - extracts quaternion components using `rIndex`, `iIndex`, `jIndex`, `kIndex`,
+     * - computes scores for each entity in the chunk against the quaternion `a`,
+     * - compares those scores to `trueScore` using `higherIsBetter` to decide the comparison direction,
+     * - increments `countBetter` in place with the number of better scores per batch row.
+     *
+     * @param entities Entity embeddings arranged with quaternion components (shape: [numEntities, ...]).
+     * @param rIndex NDIndex selector for the real component within an entity embedding.
+     * @param iIndex NDIndex selector for the first imaginary component within an entity embedding.
+     * @param jIndex NDIndex selector for the second imaginary component within an entity embedding.
+     * @param kIndex NDIndex selector for the third imaginary component within an entity embedding.
+     * @param a Quaternion parts (r, i, j, k) used to compute scores against entities.
+     * @param trueScore NDArray of reference scores to compare against (one score per row of the current batch).
+     * @param countBetter NDArray accumulator that is incremented in place with counts of better scores.
+     * @param higherIsBetter If `true`, a higher score is considered better (use `>`); otherwise lower is better (use `<`).
+     * @param chunkSize Number of entities to process per iteration to limit memory usage.
+     * @param numEntitiesInt Total number of entities to evaluate.
+     */
     fun accumulateCountBetter(
         entities: NDArray,
         rIndex: NDIndex,

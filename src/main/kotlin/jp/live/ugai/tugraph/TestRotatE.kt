@@ -23,6 +23,11 @@ import jp.live.ugai.tugraph.eval.ResultEvalRotatE
  * parameters and a sample prediction, computes evaluation metrics for tails and heads, and closes all
  * opened resources.
  */
+/**
+ * Runs a full demonstration workflow: loads triples from "data/sample.csv", trains a RotatE embedding model, and evaluates its predictions.
+ *
+ * The workflow loads and prepares triple data, initializes the RotatE model and training pipeline, trains entity and relation embeddings, prints model state and a sample prediction, and computes head/tail evaluation results which are printed to stdout.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)

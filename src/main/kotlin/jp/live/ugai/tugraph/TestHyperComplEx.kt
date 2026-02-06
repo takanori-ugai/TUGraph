@@ -21,6 +21,20 @@ import jp.live.ugai.tugraph.eval.ResultEvalHyperComplEx
  * prints learned parameters and a sample prediction, evaluates head/tail ranking metrics, and then
  * closes all resources.
  */
+/**
+ * Runs an end-to-end HyperComplEx demo that loads triples from CSV, trains embeddings, prints learned
+ * model parameters and a sample prediction, evaluates head/tail ranking metrics, and closes all resources.
+ *
+ * The program:
+ * - Loads triples from data/sample.csv and builds an in-memory list of (head, relation, tail) triples.
+ * - Determines entity and relation counts and computes adaptive HyperComplEx dimensions.
+ * - Initializes a HyperComplEx block, wraps it in a DJL Model, configures training (optimizer, listeners),
+ *   and trains embeddings via EmbeddingTrainer.
+ * - Prints training results, the internal HyperComplEx parameter tensors, and a sample prediction.
+ * - Evaluates and prints tail and head ranking results using ResultEvalHyperComplEx.
+ *
+ * All created NDManager, model, trainer, predictor, and evaluator resources are closed before exit.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)

@@ -22,6 +22,11 @@ import jp.live.ugai.tugraph.eval.ResultEvalDistMult
  * prediction, and head/tail evaluation results. All resources (NDManager, trainer, predictor, evaluator,
  * and model) are closed before exit.
  */
+/**
+ * Trains and evaluates a DistMult knowledge-graph embedding model using triples loaded from "data/sample.csv" and prints training progress, model state, a sample prediction, and head/tail evaluation results.
+ *
+ * The program loads triples, derives entity and relation counts, initializes the DistMult model and trainer, runs embedding training, runs a sample prediction, evaluates results with ResultEvalDistMult, prints the tail and head metrics, and closes resources.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)

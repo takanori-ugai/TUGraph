@@ -25,6 +25,13 @@ import ai.djl.util.PairList
  * Trains a toy model on two short token sequences using DJL utilities, prints epoch loss every 20 epochs,
  * and prints final token-level accuracy after training.
  */
+/**
+ * Trains and evaluates a minimal causal transformer language model on two toy sentences.
+ *
+ * Builds a small vocabulary, constructs a CausalTransformerLMBlock wrapped in a DJL Model,
+ * trains next-token prediction (causal LM) for 100 epochs on short example sequences,
+ * prints loss every 20 epochs, and computes final accuracy on the training dataset.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
 

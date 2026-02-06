@@ -195,10 +195,13 @@ class HyperComplEx(
     )
 
     /**
-     * Compute total and per-space scores for a batch of triples.
+     * Compute attention-weighted total scores and their hyperbolic, complex, and Euclidean components for a batch of triples.
      *
-     * @param input Triples with shape `(N, TRIPLE)` or `(N * TRIPLE)`.
-     * @return Aggregate scores plus the individual hyperbolic, complex, and Euclidean components.
+     * @param input Triples given either as shape `(N, TRIPLE)` or flattened `(N * TRIPLE)` where each triple is (head, relation, tail) ids.
+     * @param training Whether parameters should be loaded in training mode.
+     * @return A [ScoreParts] containing:
+     *   - `total`: per-triple aggregate scores (higher = more plausible),
+     *   - `hyperbolic`, `complex`, `euclidean`: per-triple score contributions from each subspace (all have the same shape as `total`).
      */
     fun scoreParts(
         input: NDArray,
@@ -347,7 +350,14 @@ class HyperComplEx(
         }
     }
 
-    private fun maybeCast(
+    /**
+         * Casts the given NDArray to the target data type only when mixed-precision mode is enabled and the array's type differs from the target.
+         *
+         * @param array The array to potentially cast.
+         * @param target The desired data type.
+         * @return The input `array` converted to `target` if mixed precision is enabled and types differ, otherwise the original `array`.
+         */
+        private fun maybeCast(
         array: NDArray,
         target: DataType,
     ): NDArray =
@@ -357,6 +367,14 @@ class HyperComplEx(
             array
         }
 
+    /**
+     * Compute the hyperbolic-space score for a (head, relation, tail) triple.
+     *
+     * @param h Head entity embedding in the Poincaré ball.
+     * @param r Relation embedding in the Poincaré ball.
+     * @param t Tail entity embedding in the Poincaré ball.
+     * @return The score defined as the negated hyperbolic distance between `mobiusAdd(h, r)` and `t`.
+     */
     private fun hyperbolicScore(
         h: NDArray,
         r: NDArray,
@@ -387,7 +405,15 @@ class HyperComplEx(
         return sum1.add(sum2).sum(sumAxis)
     }
 
-    private fun euclideanScore(
+    /**
+             * Computes the Euclidean-space score for a triple as the negative squared distance between (h + r) and t.
+             *
+             * @param h Head entity embedding.
+             * @param r Relation embedding.
+             * @param t Tail entity embedding.
+             * @return The negated sum of squared differences between (h + r) and t computed over the embedding axis.
+             */
+            private fun euclideanScore(
         h: NDArray,
         r: NDArray,
         t: NDArray,
@@ -399,6 +425,13 @@ class HyperComplEx(
             .sum(sumAxis)
             .neg()
 
+    /**
+     * Compute the Möbius addition of two batches of vectors in the Poincaré ball using the block's curvature.
+     *
+     * @param x Batch of hyperbolic vectors with shape (batchSize, dim).
+     * @param y Batch of hyperbolic vectors with shape (batchSize, dim).
+     * @return The Möbius sum of `x` and `y`, with shape (batchSize, dim).
+     */
     private fun mobiusAdd(
         x: NDArray,
         y: NDArray,
@@ -453,6 +486,14 @@ class HyperComplEx(
         }
     }
 
+    /**
+     * Projects each row vector in `x` onto the Euclidean ball of radius `maxNorm`, modifying `x` in place.
+     *
+     * If a row's Euclidean norm is greater than `maxNorm`, it is scaled down to have norm equal to `maxNorm`;
+     * rows with norm less than or equal to `maxNorm` are left unchanged.
+     *
+     * @param x NDArray containing row vectors with shape (N, D); the array is modified in place.
+     * @param maxNorm Maximum allowed Euclidean norm for each row vector.
     private fun projectToBall(
         x: NDArray,
         maxNorm: Float,
@@ -509,10 +550,20 @@ class HyperComplEx(
     /** Retrieve the complex relation embeddings array (caller must close). */
     fun getEdgesC(): NDArray = concatParamShards(relC)
 
-    /** Retrieve the Euclidean relation embeddings array (caller must close). */
+    /**
+ * Concatenates and exposes the Euclidean embeddings for all relations.
+ *
+ * The returned NDArray is a newly allocated view combining all relation shards; the caller is responsible for closing it.
+ *
+ * @return An NDArray containing all relation Euclidean embeddings stacked along axis 0.
+ */
     fun getEdgesE(): NDArray = concatParamShards(relE)
 
-    /** Retrieve relation attention weights (do NOT close; this is the live parameter). */
+    /**
+ * Live attention weight matrix for relations; the returned NDArray is the live parameter and must not be closed.
+ *
+ * @return An NDArray of shape (numEdge, 3) containing per-relation attention weights. The caller must not close this NDArray.
+ */
     fun getAttention(): NDArray = getParameters().get("attnW").array
 
     /** Retrieve hyperbolic entity embeddings on the requested device. */
@@ -565,9 +616,13 @@ class HyperComplEx(
     ): NDArray = parameterStore.getValue(attnW, device, training)
 
     /**
-     * Compute L2 regularization loss over all embeddings.
+     * Compute the mean L2 regularization loss over all entity and relation embeddings.
      *
-     * The loss is averaged by `(numEnt + numEdge)` to make it scale-invariant with graph size.
+     * The returned scalar is the sum of squared values of all embedding parameters divided by
+     * (numEnt + numEdge) to make the regularization scale invariant to graph size.
+     *
+     * @return A scalar NDArray containing the averaged L2 regularization loss.
+     * @throws IllegalArgumentException if no embedding parameters are present to compute the loss.
      */
     fun l2RegLoss(
         parameterStore: ParameterStore,
@@ -576,6 +631,14 @@ class HyperComplEx(
     ): NDArray {
         var sum: NDArray? = null
 
+        /**
+         * Adds the parameter's squared L2 norm to the running sum.
+         *
+         * Retrieves the parameter's array for the current device/training mode, computes the sum of its squared elements,
+         * and accumulates that value into the enclosing `sum` variable.
+         *
+         * @param param The parameter whose squared L2 norm will be accumulated.
+         */
         fun addParam(param: Parameter) {
             val arr = parameterStore.getValue(param, device, training)
             val term = arr.pow(2).use { it.sum() }
@@ -606,6 +669,11 @@ class HyperComplEx(
         }
     }
 
+    /**
+     * Collects every model parameter (entity and relation shards across spaces, plus attention) into a single list.
+     *
+     * @return A list containing all `Parameter` instances: entity hyperbolic/complex/euclidean shards, relation hyperbolic/complex/euclidean shards, and the attention weight parameter.
+     */
     private fun allParameters(): List<Parameter> {
         val params = ArrayList<Parameter>(entH.size + entC.size + entE.size + relH.size + relC.size + relE.size + 1)
         params.addAll(entH)
@@ -623,6 +691,18 @@ class HyperComplEx(
         val sizes: LongArray,
     )
 
+    /**
+     * Compute a balanced shard specification for dividing `total` items into up to `shards` parts.
+     *
+     * The returned `ShardSpec` contains `offsets` and `sizes` arrays describing each shard. Sizes
+     * sum to `total` and differ by at most one between any two shards. If `shards` is less than 1
+     * it is treated as 1; if `shards` is greater than `total`, the number of shards will be reduced
+     * to at most `total`.
+     *
+     * @param total The total number of items to split across shards.
+     * @param shards The desired number of shards.
+     * @return A `ShardSpec` whose `offsets` and `sizes` partition `total` items into balanced shards.
+     */
     private fun shardSpec(
         total: Long,
         shards: Int,
@@ -643,6 +723,17 @@ class HyperComplEx(
         return ShardSpec(offsets, sizes)
     }
 
+    /**
+     * Creates a list of parameter shards named with the given prefix and indexed suffixes.
+     *
+     * Each shard is a weight Parameter with shape (sizes[i], dim) and the provided initializer.
+     *
+     * @param prefix Base name used for each shard; final names are `"$prefix-0"`, `"$prefix-1"`, etc.
+     * @param sizes Array of row counts for each shard.
+     * @param dim Number of columns (embedding dimension) for every shard.
+     * @param initializer Initializer applied to each shard parameter.
+     * @return A list of created Parameter objects, one per entry in `sizes`, in the same order.
+     */
     private fun createShards(
         prefix: String,
         sizes: LongArray,
@@ -721,6 +812,12 @@ class HyperComplEx(
         return requireNotNull(output) { "Failed to gather sharded embeddings." }
     }
 
+    /**
+     * Concatenates a list of NDArrays along axis 0.
+     *
+     * @param shards The list of NDArrays to join; must not be empty.
+     * @return The concatenated NDArray along axis 0. If `shards` contains a single array, that array is returned unchanged.
+     */
     private fun concatNdShards(shards: List<NDArray>): NDArray {
         require(shards.isNotEmpty()) { "No shards to concat." }
         return if (shards.size == 1) {
@@ -730,5 +827,11 @@ class HyperComplEx(
         }
     }
 
-    private fun concatParamShards(shards: List<Parameter>): NDArray = concatNdShards(shards.map { it.array })
+    /**
+ * Concatenates a list of parameter shards into a single NDArray.
+ *
+ * @param shards Parameter shards whose underlying arrays will be concatenated along axis 0.
+ * @return An NDArray containing all shard arrays stacked along the first (0th) axis.
+ */
+private fun concatParamShards(shards: List<Parameter>): NDArray = concatNdShards(shards.map { it.array })
 }

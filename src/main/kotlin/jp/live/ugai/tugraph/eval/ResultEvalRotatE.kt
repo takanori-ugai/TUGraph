@@ -20,6 +20,15 @@ class ResultEvalRotatE(
     private val col0Index = NDIndex(":, 0")
     private val col1Index = NDIndex(":, 1")
 
+    /**
+     * Compute 1-based ranks for each evaluation triple using the RotatE scoring function.
+     *
+     * @param evalBatchSize Maximum number of triples to process in a single evaluation batch.
+     * @param entityChunkSize Number of candidate entities to compare at once when computing ranks (used to chunk entity set).
+     * @param mode Whether to score by replacing the head or the tail (EvalMode.HEAD or EvalMode.TAIL).
+     * @param buildBatch Function that builds an EvalBatch for the half-open index range [start, end).
+     * @return An IntArray of 1-based ranks corresponding to entries in `inputList`. Returns an empty array when `inputList` is empty.
+     */
     protected override fun computeRanks(
         evalBatchSize: Int,
         entityChunkSize: Int,

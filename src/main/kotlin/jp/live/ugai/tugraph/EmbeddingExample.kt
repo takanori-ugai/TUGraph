@@ -21,7 +21,13 @@ import ai.djl.translate.NoopTranslator
 
 /** Example driver for training and evaluating a toy word embedding model. */
 object EmbeddingExample {
-    /** Runs the embedding example workflow. */
+    /**
+     * Runs a self-contained toy word-embedding training and inference example using DJL.
+     *
+     * Builds a small vocabulary and synthetic dataset, constructs a network composed of a trainable
+     * embedding, a transformer encoder, and a linear output layer, trains the model for a fixed
+     * number of epochs while collecting metrics, and performs a sample prediction printed to stdout.
+     */
     @JvmStatic
     fun main(args: Array<String>) {
         val sentence = listOf("I", "am", "a", "dog", "am", "a", "<START>", "<END>")
@@ -127,14 +133,14 @@ object EmbeddingExample {
     }
 
     /**
-     * Builds an ArrayDataset from feature and label NDArrays.
-     *
-     * @param features Input features.
-     * @param labels Target labels.
-     * @param batchSize Batch size for sampling.
-     * @param shuffle Whether to shuffle the dataset.
-     * @return Configured ArrayDataset instance.
-     */
+             * Create an ArrayDataset from the given feature and label NDArrays with the specified batching and shuffle behavior.
+             *
+             * @param features Feature NDArray containing the input examples (examples aligned along the first axis).
+             * @param labels Label NDArray aligned with `features`.
+             * @param batchSize Number of examples per batch.
+             * @param shuffle Whether to sample batches in random order.
+             * @return An ArrayDataset that yields batches of the provided features and labels according to `batchSize` and `shuffle`.
+             */
     fun loadArray(
         features: NDArray,
         labels: NDArray,

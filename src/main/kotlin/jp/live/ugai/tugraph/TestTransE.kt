@@ -22,6 +22,13 @@ import jp.live.ugai.tugraph.eval.ResultEvalTransE
  * prints progress and results to standard output. DJL resources (managers, model, trainer, predictor) are
  * created and closed within the function's scope.
  */
+/**
+ * Runs an end-to-end TransE training and evaluation pipeline using the TSV dataset at `data/ex/train2id-hrt.txt`.
+ *
+ * Loads triples from the TSV file, constructs and initializes a TransE model, trains embeddings with a DJL trainer,
+ * performs prediction and head/tail evaluations, prints progress and results, and ensures all DJL/NDManager resources
+ * are closed before exit.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val tsvReader = TsvToNdarray(manager)

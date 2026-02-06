@@ -20,6 +20,11 @@ import jp.live.ugai.tugraph.eval.ResultEvalComplEx
  * configures training with a DenseAdagrad optimizer, runs embedding training, performs a sample prediction, and
  * computes head/tail evaluation results which are printed to stdout.
  */
+/**
+ * Runs a full demo that loads triples from data/sample.csv, trains a ComplEx embedding model, and evaluates results.
+ *
+ * Loads CSV triples into NDArrays, constructs and initializes a ComplEx model and DJL Trainer, trains embeddings with an EmbeddingTrainer, prints training results and model entities/edges, runs a sample prediction, and computes head/tail evaluation scores with ResultEvalComplEx before cleaning up resources.
+ */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)
