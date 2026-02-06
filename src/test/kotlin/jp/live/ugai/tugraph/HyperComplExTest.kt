@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 
 /**
  * Comprehensive test class for HyperComplEx knowledge graph embedding model.
@@ -287,6 +286,8 @@ class HyperComplExTest {
                 numEntities,
                 numEdges,
                 dim,
+                dim,
+                dim,
                 mixedPrecision = true,
                 lossScale = 1024.0f,
             ).also {
@@ -340,6 +341,8 @@ class HyperComplExTest {
             HyperComplEx(
                 numEntities,
                 numEdges,
+                dim,
+                dim,
                 dim,
                 entityShards = entityShards,
                 relationShards = relationShards,

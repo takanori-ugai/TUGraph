@@ -2,6 +2,8 @@ package jp.live.ugai.tugraph
 
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.index.NDIndex
+import ai.djl.ndarray.types.DataType
+import ai.djl.ndarray.types.Shape
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -285,14 +287,14 @@ class EvalQuatETest {
         val trueScoreData = floatArrayOf(10.0f, 20.0f)
         val trueScore = manager.create(trueScoreData).reshape(batchSize.toLong(), 1)
 
-        val countBetter = manager.zeros(batchSize.toLong())
+        val countBetter = manager.zeros(Shape(batchSize.toLong()), DataType.INT64)
 
         val rIndex = NDIndex(":, 0:$dim")
         val iIndex = NDIndex(":, $dim:${dim * 2}")
         val jIndex = NDIndex(":, ${dim * 2}:${dim * 3}")
         val kIndex = NDIndex(":, ${dim * 3}:")
 
-        val aParts = EvalQuatE.sliceQuat(aEmb, rIndex, iIndex, jIndex, kIndex, manager.newSubManager())
+        val aParts = EvalQuatE.sliceQuat(aEmb, rIndex, iIndex, jIndex, kIndex, manager)
 
         EvalQuatE.accumulateCountBetter(
             entities,
@@ -312,9 +314,9 @@ class EvalQuatETest {
         assertEquals(batchSize.toLong(), countBetter.shape[0])
 
         // Count better should be non-negative
-        val countValues = countBetter.toIntArray()
+        val countValues = countBetter.toLongArray()
         for (value in countValues) {
-            assertTrue(value >= 0, "Count better should be non-negative")
+            assertTrue(value >= 0L, "Count better should be non-negative")
         }
 
         aParts.r.close()
@@ -329,10 +331,10 @@ class EvalQuatETest {
 
     @Test
     fun testQuaternionPartsDataClass() {
-        val r = manager.zeros(2, 4)
-        val i = manager.zeros(2, 4)
-        val j = manager.zeros(2, 4)
-        val k = manager.zeros(2, 4)
+        val r = manager.zeros(Shape(2, 4), DataType.FLOAT32)
+        val i = manager.zeros(Shape(2, 4), DataType.FLOAT32)
+        val j = manager.zeros(Shape(2, 4), DataType.FLOAT32)
+        val k = manager.zeros(Shape(2, 4), DataType.FLOAT32)
 
         val parts = EvalQuatE.Parts(r, i, j, k)
 
@@ -438,14 +440,14 @@ class EvalQuatETest {
         val trueScoreData = floatArrayOf(10.0f, 20.0f)
         val trueScore = manager.create(trueScoreData).reshape(batchSize.toLong(), 1)
 
-        val countBetter = manager.zeros(batchSize.toLong())
+        val countBetter = manager.zeros(Shape(batchSize.toLong()), DataType.INT64)
 
         val rIndex = NDIndex(":, 0:$dim")
         val iIndex = NDIndex(":, $dim:${dim * 2}")
         val jIndex = NDIndex(":, ${dim * 2}:${dim * 3}")
         val kIndex = NDIndex(":, ${dim * 3}:")
 
-        val aParts = EvalQuatE.sliceQuat(aEmb, rIndex, iIndex, jIndex, kIndex, manager.newSubManager())
+        val aParts = EvalQuatE.sliceQuat(aEmb, rIndex, iIndex, jIndex, kIndex, manager)
 
         EvalQuatE.accumulateCountBetter(
             entities,
@@ -462,9 +464,9 @@ class EvalQuatETest {
         )
 
         assertNotNull(countBetter)
-        val countValues = countBetter.toIntArray()
+        val countValues = countBetter.toLongArray()
         for (value in countValues) {
-            assertTrue(value >= 0, "Count better should be non-negative")
+            assertTrue(value >= 0L, "Count better should be non-negative")
         }
 
         aParts.r.close()
