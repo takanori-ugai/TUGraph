@@ -12,6 +12,7 @@ import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 import jp.live.ugai.tugraph.eval.ResultEvalTransR
+import jp.live.ugai.tugraph.train.EmbeddingTrainer
 
 /**
  * Runs an end-to-end example that trains and evaluates a TransR embedding model from CSV data.

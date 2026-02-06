@@ -10,6 +10,7 @@ import ai.djl.training.listener.TrainingListener
 import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
+import jp.live.ugai.tugraph.train.EmbeddingTrainer
 
 /** Runs a basic TransE training smoke test. */
 fun main() {

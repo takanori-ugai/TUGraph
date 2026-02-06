@@ -12,6 +12,7 @@ import ai.djl.training.loss.Loss
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 import jp.live.ugai.tugraph.eval.ResultEvalQuatE
+import jp.live.ugai.tugraph.train.EmbeddingTrainer
 
 /**
  * Runs a complete example: loads triples from data/sample.csv, builds and trains a QuatE embedding model, performs a sample prediction, evaluates head/tail rankings, and prints results.
