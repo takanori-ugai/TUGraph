@@ -215,16 +215,17 @@ open class ResultEval(
     }
 
     /**
-         * Compute per-example ranks for the configured evaluation mode.
-         *
-         * The default implementation constructs model inputs for either tail or head prediction,
-         * scores true and candidate entities in memory-efficient chunks, and returns a rank per input example.
-         *
-         * @param evalBatchSize Maximum number of input triples processed in an outer batch.
-         * @param entityChunkSize Maximum number of candidate entities processed per inner chunk.
-         * @param mode Evaluation mode determining whether to predict tails or heads.
-         * @param buildBatch Function that builds an EvalBatch for input indices in [start, end).
-         * @return An IntArray of ranks for each evaluated example where `1` indicates the top rank (best).
+     * Compute per-example ranks for the configured evaluation mode.
+     *
+     * The default implementation constructs model inputs for either tail or head prediction,
+     * scores true and candidate entities in memory-efficient chunks, and returns a rank per input example.
+     *
+     * @param evalBatchSize Maximum number of input triples processed in an outer batch.
+     * @param entityChunkSize Maximum number of candidate entities processed per inner chunk.
+     * @param mode Evaluation mode determining whether to predict tails or heads.
+     * @param buildBatch Function that builds an EvalBatch for input indices in [start, end).
+     * @return An IntArray of ranks for each evaluated example where `1` indicates the top rank (best).
+     */
     protected open fun computeRanks(
         evalBatchSize: Int,
         entityChunkSize: Int,

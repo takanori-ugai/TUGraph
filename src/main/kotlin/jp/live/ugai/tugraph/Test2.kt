@@ -18,13 +18,6 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /**
- * Runs a self-contained example that trains a TransE embedding model on a small synthetic dataset.
- *
- * Creates an NDManager-scoped dataset and model, initializes a TransE block and trainer, performs a training
- * loop that accumulates per-epoch loss for a fixed number of epochs using L2 loss and SGD, and prints the
- * trained model's edges, entities, and example predictions on training and test inputs.
- */
-/**
  * Trains a small TransE model on a toy dataset and prints the learned relation/entity embeddings and sample predictions.
  *
  * This program:

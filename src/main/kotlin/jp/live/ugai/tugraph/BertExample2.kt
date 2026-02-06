@@ -8,7 +8,6 @@ import ai.djl.repository.zoo.Criteria
 import ai.djl.repository.zoo.ZooModel
 import ai.djl.training.util.ProgressBar
 
-/** Runs a fill-mask example using a HuggingFace model. */
 /**
  * Runs a fill-mask example that predicts the [MASK] token in a predefined sentence.
  *

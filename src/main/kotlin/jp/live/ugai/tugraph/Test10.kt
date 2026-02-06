@@ -8,13 +8,6 @@ import ai.djl.ndarray.types.DataType
 import ai.djl.training.ParameterStore
 
 /**
- * Demonstrates creating and using a TrainableWordEmbedding with a small vocabulary and prints example embeddings
- * and encodings.
- *
- * Sets up an NDManager and a ParameterStore, constructs a vocabulary and a trainable embedding, initializes it,
- * and runs several embed/encode/forward operations whose results are printed to standard output.
- */
-/**
  * Demonstrates creating and using a TrainableWordEmbedding with a small vocabulary and prints various embeddings and outputs.
  *
  * Creates a base NDManager and ParameterStore, builds a DefaultVocabulary from ["2","1","4","3"], constructs and

@@ -40,6 +40,7 @@ class ResultEvalHyperComplEx(
      *   batch size used for scoring.
      * @return An IntArray of 1-based ranks for each input triple (length equals number of inputs;
      *   may be shorter if processing was interrupted).
+     */
     protected override fun computeRanks(
         evalBatchSize: Int,
         entityChunkSize: Int,
@@ -211,14 +212,14 @@ class ResultEvalHyperComplEx(
     }
 
     /**
-         * Casts the given NDArray to the specified data type when the model is using mixed precision.
-         *
-         * @param array The array to potentially cast.
-         * @param target The desired data type.
-         * @param model The HyperComplEx model whose `mixedPrecision` flag controls casting.
-         * @return The original array, or a converted array with `target` data type if `model.mixedPrecision` is true and the array's data type differs.
-         */
-        private fun maybeCast(
+     * Casts the given NDArray to the specified data type when the model is using mixed precision.
+     *
+     * @param array The array to potentially cast.
+     * @param target The desired data type.
+     * @param model The HyperComplEx model whose `mixedPrecision` flag controls casting.
+     * @return The original array, or a converted array with `target` data type if `model.mixedPrecision` is true and the array's data type differs.
+     */
+    private fun maybeCast(
         array: NDArray,
         target: DataType,
         model: HyperComplEx,
@@ -290,14 +291,14 @@ class ResultEvalHyperComplEx(
     }
 
     /**
-         * Computes the Euclidean score component for 2D embeddings: negative summed squared error of (h + r - t).
-         *
-         * @param h 2D embedding for the head (batch × features), with the feature axis at index 1.
-         * @param r 2D embedding for the relation (batch × features), with the feature axis at index 1.
-         * @param t 2D embedding for the tail (batch × features), with the feature axis at index 1.
-         * @return 1D `NDArray` of per-example scores equal to -sum((h + r - t)^2) summed over the feature axis.
-         */
-        private fun euclideanScore2d(
+     * Computes the Euclidean score component for 2D embeddings: negative summed squared error of (h + r - t).
+     *
+     * @param h 2D embedding for the head (batch × features), with the feature axis at index 1.
+     * @param r 2D embedding for the relation (batch × features), with the feature axis at index 1.
+     * @param t 2D embedding for the tail (batch × features), with the feature axis at index 1.
+     * @return 1D `NDArray` of per-example scores equal to -sum((h + r - t)^2) summed over the feature axis.
+     */
+    private fun euclideanScore2d(
         h: NDArray,
         r: NDArray,
         t: NDArray,
@@ -431,6 +432,7 @@ class ResultEvalHyperComplEx(
      * @param imagIndex NDIndex selecting the imaginary components from embeddings.
      * @return An NDArray of scores with shape (batchSize, chunkSize) representing the complex component
      *         of the score for each head-relation pair against each tail candidate.
+     */
     private fun complexScoreTail(
         h: NDArray,
         r: NDArray,
@@ -463,6 +465,7 @@ class ResultEvalHyperComplEx(
      * @param realIndex2d NDIndex used to select the real components from 2D embedding arrays.
      * @param imagIndex2d NDIndex used to select the imaginary components from 2D embedding arrays.
      * @return An NDArray of shape (batchSize, chunkSize) containing the summed complex scores for each candidate head.
+     */
     private fun complexScoreHead(
         r: NDArray,
         t: NDArray,
@@ -530,7 +533,7 @@ class ResultEvalHyperComplEx(
      * @param t Tail embeddings with shape (batchSize, dim).
      * @param hChunk Candidate head embeddings chunk with shape (chunkSize, dim).
      * @return An NDArray of shape (batchSize, chunkSize) containing the negative sum of squared
-     *         differences (-(h + (r - t))^2 summed over the feature axis) for each candidate head. 
+     *         differences (-(h + (r - t))^2 summed over the feature axis) for each candidate head.
      */
     private fun euclideanScoreHead(
         r: NDArray,

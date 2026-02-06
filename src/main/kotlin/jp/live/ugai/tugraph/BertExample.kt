@@ -14,9 +14,6 @@ import ai.djl.training.dataset.Dataset
 import ai.djl.training.optimizer.Adam
 
 /**
- * Main function to run the program.
- */
-/**
  * Example entry point that constructs a BERT masked language model block, a synthetic dataset, and a training configuration.
  *
  * Creates an Engine and NDManager, builds a BertMaskedLanguageModelBlock with a token dictionary size of 100, assembles an ArrayDataset

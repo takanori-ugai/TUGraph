@@ -33,7 +33,7 @@ class ResultEvalTransE(
      * @param entityChunkSize Maximum number of entities loaded at once when comparing candidates.
      * @param mode Whether to score by replacing the head or tail (affects how the base embedding is formed).
      * @param buildBatch Function that builds an EvalBatch for the input slice [start, end).
-     * @return An IntArray of 1-based ranks corresponding to `inputList` order; length equals the number of processed inputs. 
+     * @return An IntArray of 1-based ranks corresponding to `inputList` order; length equals the number of processed inputs.
      */
     protected override fun computeRanks(
         evalBatchSize: Int,

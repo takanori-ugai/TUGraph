@@ -15,13 +15,6 @@ import ai.djl.translate.NoopTranslator
 import jp.live.ugai.tugraph.eval.ResultEvalHyperComplEx
 
 /**
- * Runs an end-to-end HyperComplEx demo.
- *
- * The demo loads triples from `data/sample.csv`, builds a model and trainer, runs embedding training,
- * prints learned parameters and a sample prediction, evaluates head/tail ranking metrics, and then
- * closes all resources.
- */
-/**
  * Runs an end-to-end HyperComplEx demo that loads triples from CSV, trains embeddings, prints learned
  * model parameters and a sample prediction, evaluates head/tail ranking metrics, and closes all resources.
  *

@@ -18,14 +18,6 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /**
- * Entry point that constructs a small TransE example, trains it on a toy dataset, and prints metrics and predictions.
- *
- * The function creates feature and label tensors, builds training and validation datasets, initializes a TransE
- * model, configures training (L2 loss, SGD optimizer, devices, and logging), runs training for `NEPOCH` epochs,
- * and prints the training result, metric names, a specific L2 loss metric value, the model's edges and entities,
- * and predictions for the training inputs and a small test input.
- */
-/**
  * Executes a self-contained TransE training example on synthetic data and prints training results, model state, and predictions.
  *
  * Initializes tensors and datasets, constructs and initializes a TransE model, configures training (L2 loss, SGD),

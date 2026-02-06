@@ -351,13 +351,13 @@ class HyperComplEx(
     }
 
     /**
-         * Casts the given NDArray to the target data type only when mixed-precision mode is enabled and the array's type differs from the target.
-         *
-         * @param array The array to potentially cast.
-         * @param target The desired data type.
-         * @return The input `array` converted to `target` if mixed precision is enabled and types differ, otherwise the original `array`.
-         */
-        private fun maybeCast(
+     * Casts the given NDArray to the target data type only when mixed-precision mode is enabled and the array's type differs from the target.
+     *
+     * @param array The array to potentially cast.
+     * @param target The desired data type.
+     * @return The input `array` converted to `target` if mixed precision is enabled and types differ, otherwise the original `array`.
+     */
+    private fun maybeCast(
         array: NDArray,
         target: DataType,
     ): NDArray =
@@ -406,14 +406,14 @@ class HyperComplEx(
     }
 
     /**
-             * Computes the Euclidean-space score for a triple as the negative squared distance between (h + r) and t.
-             *
-             * @param h Head entity embedding.
-             * @param r Relation embedding.
-             * @param t Tail entity embedding.
-             * @return The negated sum of squared differences between (h + r) and t computed over the embedding axis.
-             */
-            private fun euclideanScore(
+     * Computes the Euclidean-space score for a triple as the negative squared distance between (h + r) and t.
+     *
+     * @param h Head entity embedding.
+     * @param r Relation embedding.
+     * @param t Tail entity embedding.
+     * @return The negated sum of squared differences between (h + r) and t computed over the embedding axis.
+     */
+    private fun euclideanScore(
         h: NDArray,
         r: NDArray,
         t: NDArray,
@@ -494,6 +494,7 @@ class HyperComplEx(
      *
      * @param x NDArray containing row vectors with shape (N, D); the array is modified in place.
      * @param maxNorm Maximum allowed Euclidean norm for each row vector.
+     */
     private fun projectToBall(
         x: NDArray,
         maxNorm: Float,
@@ -551,19 +552,19 @@ class HyperComplEx(
     fun getEdgesC(): NDArray = concatParamShards(relC)
 
     /**
- * Concatenates and exposes the Euclidean embeddings for all relations.
- *
- * The returned NDArray is a newly allocated view combining all relation shards; the caller is responsible for closing it.
- *
- * @return An NDArray containing all relation Euclidean embeddings stacked along axis 0.
- */
+     * Concatenates and exposes the Euclidean embeddings for all relations.
+     *
+     * The returned NDArray is a newly allocated view combining all relation shards; the caller is responsible for closing it.
+     *
+     * @return An NDArray containing all relation Euclidean embeddings stacked along axis 0.
+     */
     fun getEdgesE(): NDArray = concatParamShards(relE)
 
     /**
- * Live attention weight matrix for relations; the returned NDArray is the live parameter and must not be closed.
- *
- * @return An NDArray of shape (numEdge, 3) containing per-relation attention weights. The caller must not close this NDArray.
- */
+     * Live attention weight matrix for relations; the returned NDArray is the live parameter and must not be closed.
+     *
+     * @return An NDArray of shape (numEdge, 3) containing per-relation attention weights. The caller must not close this NDArray.
+     */
     fun getAttention(): NDArray = getParameters().get("attnW").array
 
     /** Retrieve hyperbolic entity embeddings on the requested device. */
@@ -828,10 +829,10 @@ class HyperComplEx(
     }
 
     /**
- * Concatenates a list of parameter shards into a single NDArray.
- *
- * @param shards Parameter shards whose underlying arrays will be concatenated along axis 0.
- * @return An NDArray containing all shard arrays stacked along the first (0th) axis.
- */
-private fun concatParamShards(shards: List<Parameter>): NDArray = concatNdShards(shards.map { it.array })
+     * Concatenates a list of parameter shards into a single NDArray.
+     *
+     * @param shards Parameter shards whose underlying arrays will be concatenated along axis 0.
+     * @return An NDArray containing all shard arrays stacked along the first (0th) axis.
+     */
+    private fun concatParamShards(shards: List<Parameter>): NDArray = concatNdShards(shards.map { it.array })
 }

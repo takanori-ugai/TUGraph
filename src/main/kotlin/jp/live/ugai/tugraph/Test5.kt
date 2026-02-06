@@ -22,13 +22,6 @@ import java.io.InputStreamReader
 import java.util.concurrent.ThreadLocalRandom
 
 /**
- * Runs a complete TransE training and inference workflow using data from `data/sample.csv`.
- *
- * Loads CSV records into an NDArray dataset, constructs labels and an ArrayDataset, initializes
- * and trains a TransE model for a fixed number of epochs, and prints model edges, entities,
- * and predictions for the training input and a sample test tensor.
- */
-/**
  * Runs a minimal TransE training and prediction example using the CSV file at `data/sample.csv`.
  *
  * Reads records from the CSV into tensors and an in-memory list, constructs an ArrayDataset,

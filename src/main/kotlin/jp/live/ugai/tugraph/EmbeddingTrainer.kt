@@ -582,22 +582,22 @@ class EmbeddingTrainer(
     }
 
     /**
-         * Compute per-sample loss from positive and negative scores using either a similarity-based
-         * objective or a hinge (margin) objective.
-         *
-         * When `useSimilarityLoss` is true, loss per sample is softplus(-pos) plus an aggregate of
-         * softplus(neg) across negatives; the aggregate is the mean unless `useSelfAdversarial` is true,
-         * in which case negatives are weighted by a softmax over `neg` scaled by `SELF_ADVERSARIAL_TEMP`.
-         * When `useSimilarityLoss` is false, the hinge loss with margin `margin` is applied and averaged
-         * across negatives; `higherIsBetter` controls the hinge direction.
-         *
-         * @param pos Positive scores shaped (batchSize,).
-         * @param neg Negative scores shaped so they can be viewed as (batchSize, numNegatives).
-         * @param useSimilarityLoss If true, use the softplus-based similarity loss; otherwise use hinge loss.
-         * @param useSelfAdversarial If true and `useSimilarityLoss` is true, apply self-adversarial weighting to negatives.
-         * @param higherIsBetter If true, higher scores indicate better predictions and affect hinge sign.
-         * @return 1D NDArray of per-sample losses with length equal to `batchSize`.
-         */
+     * Compute per-sample loss from positive and negative scores using either a similarity-based
+     * objective or a hinge (margin) objective.
+     *
+     * When `useSimilarityLoss` is true, loss per sample is softplus(-pos) plus an aggregate of
+     * softplus(neg) across negatives; the aggregate is the mean unless `useSelfAdversarial` is true,
+     * in which case negatives are weighted by a softmax over `neg` scaled by `SELF_ADVERSARIAL_TEMP`.
+     * When `useSimilarityLoss` is false, the hinge loss with margin `margin` is applied and averaged
+     * across negatives; `higherIsBetter` controls the hinge direction.
+     *
+     * @param pos Positive scores shaped (batchSize,).
+     * @param neg Negative scores shaped so they can be viewed as (batchSize, numNegatives).
+     * @param useSimilarityLoss If true, use the softplus-based similarity loss; otherwise use hinge loss.
+     * @param useSelfAdversarial If true and `useSimilarityLoss` is true, apply self-adversarial weighting to negatives.
+     * @param higherIsBetter If true, higher scores indicate better predictions and affect hinge sign.
+     * @return 1D NDArray of per-sample losses with length equal to `batchSize`.
+     */
     private fun computeLossFromScores(
         pos: NDArray,
         neg: NDArray,

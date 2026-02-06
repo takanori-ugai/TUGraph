@@ -133,14 +133,14 @@ object EmbeddingExample {
     }
 
     /**
-             * Create an ArrayDataset from the given feature and label NDArrays with the specified batching and shuffle behavior.
-             *
-             * @param features Feature NDArray containing the input examples (examples aligned along the first axis).
-             * @param labels Label NDArray aligned with `features`.
-             * @param batchSize Number of examples per batch.
-             * @param shuffle Whether to sample batches in random order.
-             * @return An ArrayDataset that yields batches of the provided features and labels according to `batchSize` and `shuffle`.
-             */
+     * Create an ArrayDataset from the given feature and label NDArrays with the specified batching and shuffle behavior.
+     *
+     * @param features Feature NDArray containing the input examples (examples aligned along the first axis).
+     * @param labels Label NDArray aligned with `features`.
+     * @param batchSize Number of examples per batch.
+     * @param shuffle Whether to sample batches in random order.
+     * @return An ArrayDataset that yields batches of the provided features and labels according to `batchSize` and `shuffle`.
+     */
     fun loadArray(
         features: NDArray,
         labels: NDArray,

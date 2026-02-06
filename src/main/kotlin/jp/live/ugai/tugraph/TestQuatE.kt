@@ -14,14 +14,6 @@ import ai.djl.translate.NoopTranslator
 import jp.live.ugai.tugraph.eval.ResultEvalQuatE
 
 /**
- * Runs an end-to-end QuatE workflow: loads triples from data/sample.csv, trains embeddings,
- * performs a sample prediction, and evaluates head/tail prediction results.
- *
- * The function reads CSV triples, prepares entity and relation counts, initializes a QuatE model
- * and DJL trainer, executes embedding training, prints learned parameters and a sample prediction,
- * evaluates tail and head ranking results, and closes all resources.
- */
-/**
  * Runs a complete example: loads triples from data/sample.csv, builds and trains a QuatE embedding model, performs a sample prediction, evaluates head/tail rankings, and prints results.
  *
  * The function covers data loading, model and trainer initialization, embedding training with EmbeddingTrainer, prediction via a NoopTranslator-based predictor, evaluation using ResultEvalQuatE, and prints training metrics and evaluation outputs. All created resources are closed before the function exits.

@@ -218,10 +218,10 @@ class QuatE(
     }
 
     /**
- * Access the entity embedding matrix.
- *
- * @return The entities embeddings NDArray with shape (numEnt, dim * 4).
- */
+     * Access the entity embedding matrix.
+     *
+     * @return The entities embeddings NDArray with shape (numEnt, dim * 4).
+     */
     fun getEntities(): NDArray = getParameters().get("entities").array
 
     /**

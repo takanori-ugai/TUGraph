@@ -20,12 +20,6 @@ import ai.djl.training.optimizer.Optimizer
 import ai.djl.util.PairList
 
 /**
- * Runs a self-contained example that trains and evaluates a tiny causal transformer language model.
- *
- * Trains a toy model on two short token sequences using DJL utilities, prints epoch loss every 20 epochs,
- * and prints final token-level accuracy after training.
- */
-/**
  * Trains and evaluates a minimal causal transformer language model on two toy sentences.
  *
  * Builds a small vocabulary, constructs a CausalTransformerLMBlock wrapped in a DJL Model,

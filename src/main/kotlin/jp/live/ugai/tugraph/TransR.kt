@@ -206,17 +206,17 @@ class TransR(
     fun getEntities(): NDArray = getParameters().get("entities").array
 
     /**
- * Accesses the relation embedding tensor for all relations.
- *
- * @return The relation embeddings as an NDArray with shape (numEdge, relDim).
- */
+     * Accesses the relation embedding tensor for all relations.
+     *
+     * @return The relation embeddings as an NDArray with shape (numEdge, relDim).
+     */
     fun getEdges(): NDArray = getParameters().get("edges").array
 
     /**
- * Retrieves the relation projection matrices for all relations.
- *
- * @return NDArray with shape (numEdge, relDim, entDim) containing the per-relation projection matrices.
- */
+     * Retrieves the relation projection matrices for all relations.
+     *
+     * @return NDArray with shape (numEdge, relDim, entDim) containing the per-relation projection matrices.
+     */
     fun getMatrix(): NDArray = getParameters().get("matrix").array
 
     /**

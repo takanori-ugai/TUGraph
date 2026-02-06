@@ -6,12 +6,6 @@ import ai.djl.ndarray.types.Shape
 import ai.djl.training.dataset.ArrayDataset
 
 /**
- * Demonstrates NDArray creation, indexing, basic tensor operations, and ArrayDataset assembly using NDManager.
- *
- * Performs examples of reshaping, slicing, transposing, arithmetic between arrays, concatenation, repetition,
- * and builds a small ArrayDataset with sampling configuration; outputs intermediate results to standard output.
- */
-/**
  * Demonstrates NDArray creation, indexing, basic tensor operations, and ArrayDataset assembly using an NDManager, printing intermediate results.
  *
  * Performs a small example workflow: sorts a map of ranks and prints the index and sorted list; creates a 4×5 matrix and prints various slices, reductions, transposes, concatenations, and repeats; builds and prepares an ArrayDataset. All outputs are written to standard output and NDManager resources are released after use.

@@ -149,16 +149,16 @@ class ComplEx(
     }
 
     /**
- * Access the entity embeddings matrix.
- *
- * @return The entity embeddings NDArray with shape (numEnt, dim * 2).
- */
+     * Access the entity embeddings matrix.
+     *
+     * @return The entity embeddings NDArray with shape (numEnt, dim * 2).
+     */
     fun getEntities(): NDArray = getParameters().get("entities").array
 
     /**
- * Access relation (edge) embeddings.
- *
- * @return NDArray of shape (numEdge, dim * 2) with concatenated real and imaginary components for each relation.
- */
+     * Access relation (edge) embeddings.
+     *
+     * @return NDArray of shape (numEdge, dim * 2) with concatenated real and imaginary components for each relation.
+     */
     fun getEdges(): NDArray = getParameters().get("edges").array
 }
