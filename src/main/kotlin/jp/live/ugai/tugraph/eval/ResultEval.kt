@@ -32,8 +32,8 @@ open class ResultEval(
     /** Whether to perform filtered evaluation by removing other true triples from candidate sets. */
     val filtered: Boolean = false,
 ) : AutoCloseable {
-    private val col0Index = NDIndex(":, 0")
-    private val col1Index = NDIndex(":, 1")
+    protected val col0Index = NDIndex(":, 0")
+    protected val col1Index = NDIndex(":, 1")
 
     private data class PairKey(
         val a: Long,
@@ -62,6 +62,12 @@ open class ResultEval(
         map.mapValues { (_, v) -> v.toIntArray() }
     }
 
+    /**
+     * Adjusts tail ranks by filtering known true tails for each (head, relation) pair.
+     *
+     * This path scores candidates per triple and calls the predictor for each triple's filtered set,
+     * which can be slow for large datasets. It is intended for evaluation-time use only.
+     */
     private fun applyFilteredTail(rawRanks: IntArray): IntArray {
         if (!filtered) return rawRanks
         val adjusted = rawRanks.copyOf()
@@ -109,6 +115,12 @@ open class ResultEval(
         return adjusted
     }
 
+    /**
+     * Adjusts head ranks by filtering known true heads for each (relation, tail) pair.
+     *
+     * This path scores candidates per triple and calls the predictor for each triple's filtered set,
+     * which can be slow for large datasets. It is intended for evaluation-time use only.
+     */
     private fun applyFilteredHead(rawRanks: IntArray): IntArray {
         if (!filtered) return rawRanks
         val adjusted = rawRanks.copyOf()

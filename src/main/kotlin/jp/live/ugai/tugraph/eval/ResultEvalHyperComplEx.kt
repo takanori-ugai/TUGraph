@@ -19,8 +19,6 @@ class ResultEvalHyperComplEx(
     higherIsBetter: Boolean = true,
     filtered: Boolean = false,
 ) : ResultEval(inputList, manager, predictor, numEntities, higherIsBetter, filtered) {
-    private val col0Index = NDIndex(":, 0")
-    private val col1Index = NDIndex(":, 1")
     private val sumAxis2d = intArrayOf(1)
     private val sumAxis3d = intArrayOf(2)
 

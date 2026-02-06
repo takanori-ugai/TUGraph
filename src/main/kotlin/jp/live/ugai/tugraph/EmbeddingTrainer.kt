@@ -174,7 +174,7 @@ class EmbeddingTrainer(
                         )
                     trainer.newGradientCollector().use { gc ->
                         if (useHyperComplEx) {
-                            val hyperBlock = block as HyperComplEx
+                            val hyperBlock = block
                             val lossResult =
                                 computeHyperComplExLossWithScores(
                                     hyperBlock,
@@ -328,6 +328,7 @@ class EmbeddingTrainer(
                         trainer.step()
                         true
                     } catch (e: IllegalStateException) {
+                        // DJL throws an IllegalStateException with this message when gradients are all zeros (observed in 0.26.x).
                         if (e.message?.contains("Gradient values are all zeros") == true) {
                             logger.debug("Skipping trainer.step() due to zero gradients in batch {}:{}", start, end)
                             false

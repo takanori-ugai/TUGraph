@@ -503,9 +503,9 @@ class ComplExTest {
         val numTestTriples = 10
         val triples = LongArray(numTestTriples * 3)
         for (i in 0 until numTestTriples) {
-            triples[i * 3] = (i % numEntities).toLong()
-            triples[i * 3 + 1] = (i % numEdges).toLong()
-            triples[i * 3 + 2] = ((i + 1) % numEntities).toLong()
+            triples[i * 3] = i % numEntities
+            triples[i * 3 + 1] = i % numEdges
+            triples[i * 3 + 2] = (i + 1) % numEntities
         }
 
         val testTriples = manager.create(triples)

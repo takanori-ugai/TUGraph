@@ -17,9 +17,6 @@ class ResultEvalDistMult(
     higherIsBetter: Boolean = true,
     filtered: Boolean = false,
 ) : ResultEval(inputList, manager, predictor, numEntities, higherIsBetter, filtered) {
-    private val col0Index = NDIndex(":, 0")
-    private val col1Index = NDIndex(":, 1")
-
     protected override fun computeRanks(
         evalBatchSize: Int,
         entityChunkSize: Int,

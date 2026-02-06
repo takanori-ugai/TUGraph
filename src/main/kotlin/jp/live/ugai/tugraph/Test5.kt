@@ -19,7 +19,6 @@ import ai.djl.translate.NoopTranslator
 import org.apache.commons.csv.CSVFormat
 import java.io.FileInputStream
 import java.io.InputStreamReader
-import java.util.concurrent.ThreadLocalRandom
 
 /**
  * Runs a complete TransE training and inference workflow using data from `data/sample.csv`.
@@ -57,9 +56,11 @@ fun main() {
                 .setSampling(batchSize, true) // set the batch size and random sampling
                 .build()
 
-        val transe = TransE(4, 2, 100)
+        val numEntities = 4L
+        val numEdges = 2L
+        val dim = 100L
+        val transe = TransE(numEntities, numEdges, dim)
         transe.setInitializer(NormalInitializer(), Parameter.Type.WEIGHT)
-        transe.initialize(manager, DataType.FLOAT32, input.shape)
 
         Model.newInstance("transe").use { model ->
             model.block = transe
@@ -70,7 +71,7 @@ fun main() {
 
             val config =
                 DefaultTrainingConfig(l2loss)
-                    .optOptimizer(sgd) // Optimizer (loss function)
+                    .optOptimizer(sgd) // Optimizer
                     .optDevices(manager.engine.getDevices(1)) // single GPU
                     .apply { TrainingListener.Defaults.logging().forEach { addTrainingListeners(it) } } // Logging
 
@@ -80,34 +81,17 @@ fun main() {
                     val metrics = Metrics()
                     trainer.metrics = metrics
 
-                    val loss = mutableListOf<Float>()
                     val epochNum = 1
                     repeat(epochNum) {
-                        var l0 = 0f
                         for (batch in trainer.iterateDataset(dataset)) {
-                            val x = batch.data.head()
-                            println(x.toLongArray()[2])
-                            val z = x.toLongArray().clone()
-                            val n = ThreadLocalRandom.current().nextLong(4)
-                            z[2] = n
-                            println("$n, ${z.toList()}, ${arr.contains(z.toList())}")
-                            val y = batch.labels.head()
-                            val f0 = trainer.forward(NDList(x))
-                            val l = f0.singletonOrThrow().sub(y).abs()
-                            //                print(l)
-                            l0 += l.sum().toFloatArray()[0] / x.size(1)
                             EasyTrain.trainBatch(trainer, batch)
                             trainer.step()
                             batch.close()
                         }
-                        //        trainer.notifyListeners { listener -> listener.onEpoch(trainer) }
-                        loss.add(l0)
-                        //        transe.normalize()
                     }
 
                     println(transe.getEdges())
                     println(transe.getEntities())
-                    //    println(loss)
                     println(predictor.predict(NDList(input)).singletonOrThrow())
                     val test = manager.create(longArrayOf(1, 1, 2))
                     println(predictor.predict(NDList(test)).singletonOrThrow())
