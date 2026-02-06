@@ -20,7 +20,7 @@ import org.apache.commons.csv.CSVFormat
 import java.io.FileInputStream
 import java.io.InputStream
 import java.io.InputStreamReader
-import kotlin.random.Random
+import java.util.concurrent.ThreadLocalRandom
 
 /**
  * Runs a complete TransE training and inference workflow using data from `data/sample.csv`.
@@ -91,7 +91,7 @@ fun main() {
                 val x = batch.data.head()
                 println(x.toLongArray()[2])
                 val z = x.toLongArray().clone()
-                val n = Random.nextLong(4)
+                val n = ThreadLocalRandom.current().nextLong(4)
                 z[2] = n
                 println("$n, ${z.toList()}, ${arr.contains(z.toList())}")
                 val y = batch.labels.head()

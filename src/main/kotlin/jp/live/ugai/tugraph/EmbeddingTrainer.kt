@@ -8,6 +8,7 @@ import ai.djl.ndarray.types.Shape
 import ai.djl.nn.Activation
 import ai.djl.training.ParameterStore
 import ai.djl.training.Trainer
+import java.util.concurrent.ThreadLocalRandom
 import kotlin.math.min
 
 /**
@@ -502,13 +503,13 @@ class EmbeddingTrainer(
             val trd = flat[base + 2]
             val headProb = if (useBernoulli) bernoulliProb[sec] ?: 0.5f else 0.5f
             for (n in 0 until numNegatives) {
-                var replaceHeadFlag = kotlin.random.Random.nextFloat() < headProb
+                var replaceHeadFlag = ThreadLocalRandom.current().nextFloat() < headProb
                 var ran: Long = 0L
                 var checkTriplet = TripleKey(0L, 0L, 0L)
                 var attempts = 0
                 var found = false
                 while (attempts < maxResample) {
-                    ran = kotlin.random.Random.nextLong(numEntities)
+                    ran = ThreadLocalRandom.current().nextLong(numEntities)
                     if (replaceHeadFlag) {
                         if (ran == fst) {
                             attempts += 1
