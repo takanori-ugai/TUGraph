@@ -8,6 +8,7 @@ import ai.djl.ndarray.types.Shape
 import ai.djl.translate.NoopTranslator
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -219,6 +220,7 @@ class ComplExTest {
 
         assertNotNull(prediction)
 
+        prediction.close()
         testTriple.close()
         predictor.close()
         model.close()
@@ -317,6 +319,7 @@ class ComplExTest {
 
         assertNotNull(prediction)
 
+        prediction.close()
         testTriple.close()
         predictor.close()
         model.close()
@@ -372,7 +375,7 @@ class ComplExTest {
     }
 
     @Test
-    fun testComplExComplexConjugateProperty() {
+    fun testComplExAsymmetricScoring() {
         val numEntities = 10L
         val numEdges = 3L
         val dim = 8L
@@ -393,6 +396,9 @@ class ComplExTest {
 
         assertNotNull(score1)
         assertNotNull(score2)
+        val score1Value = score1.toFloatArray()[0]
+        val score2Value = score2.toFloatArray()[0]
+        assertNotEquals(score1Value, score2Value, "ComplEx should score (h,r,t) differently than (t,r,h)")
 
         score1.close()
         score2.close()

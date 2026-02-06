@@ -219,6 +219,7 @@ class DistMultTest {
 
         assertNotNull(prediction)
 
+        prediction.close()
         testTriple.close()
         predictor.close()
         model.close()
@@ -291,6 +292,7 @@ class DistMultTest {
 
         assertNotNull(prediction)
 
+        prediction.close()
         testTriple.close()
         predictor.close()
         model.close()

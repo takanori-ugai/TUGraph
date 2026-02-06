@@ -22,6 +22,11 @@ import org.slf4j.LoggerFactory
  */
 object BertQaInference {
     private val logger = LoggerFactory.getLogger(BertQaInference::class.java)
+    const val QUESTION: String = "When did BBC Japan start broadcasting?"
+    const val PARAGRAPH: String =
+        "BBC Japan was a general entertainment Channel. " +
+            "Which operated between December 2004 and April 2006. " +
+            "It ceased operations after its Japanese distributor folded."
 
     /** Runs a simple question-answering inference demo. */
     @JvmStatic
@@ -36,14 +41,7 @@ object BertQaInference {
      * @return The predicted answer string.
      */
     fun predict(): String {
-        val question = "When did BBC Japan start broadcasting?"
-        // val paragraph = "help"
-        val paragraph = (
-            "BBC Japan was a general entertainment Channel. " +
-                "Which operated between December 2004 and April 2006. " +
-                "It ceased operations after its Japanese distributor folded."
-        )
-        val input = QAInput(question, paragraph)
+        val input = QAInput(QUESTION, PARAGRAPH)
         logger.info("Paragraph: {}", input.paragraph)
         logger.info("Question: {}", input.question)
         val criteria =

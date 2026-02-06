@@ -263,6 +263,7 @@ class EmbeddingTrainer(
                                             higherIsBetter,
                                         )
                                     }
+                                var baseLoss: NDArray? = null
                                 if (regWeight > 0.0f) {
                                     block.parameters.valueAt(0).array.pow(2).use { pow1 ->
                                         pow1.sum().use { reg1 ->
@@ -270,7 +271,9 @@ class EmbeddingTrainer(
                                                 pow2.sum().use { reg2 ->
                                                     reg1.add(reg2).use { regSum ->
                                                         regSum.mul(regWeight).use { reg ->
-                                                            lossValue = lossValue.add(reg)
+                                                            val newLoss = lossValue.add(reg)
+                                                            baseLoss = lossValue
+                                                            lossValue = newLoss
                                                         }
                                                     }
                                                 }
@@ -302,24 +305,42 @@ class EmbeddingTrainer(
                                         }
                                     }
                                 }
-                                lossValue.mean().use { meanLoss ->
-                                    val batchLoss = meanLoss.getFloat()
-                                    lossValue.sum().use { lossSum ->
-                                        epochLoss += lossSum.getFloat()
+                                try {
+                                    lossValue.mean().use { meanLoss ->
+                                        val batchLoss = meanLoss.getFloat()
+                                        lossValue.sum().use { lossSum ->
+                                            epochLoss += lossSum.getFloat()
+                                        }
+                                        trainer.metrics?.addMetric("train_loss", batchLoss)
+                                        trainer.metrics?.addMetric("train_L1Loss", batchLoss)
+                                        gc.backward(meanLoss)
                                     }
-                                    trainer.metrics?.addMetric("train_loss", batchLoss)
-                                    trainer.metrics?.addMetric("train_L1Loss", batchLoss)
-                                    gc.backward(meanLoss)
+                                } finally {
+                                    lossValue.close()
+                                    baseLoss?.close()
                                 }
                             }
                         }
                     }
                 }
-                trainer.step()
-                when (val block = trainer.model.block) {
-                    is TransE -> block.normalize()
-                    is TransR -> block.normalize()
-                    is HyperComplEx -> block.projectHyperbolic()
+                val stepCompleted =
+                    try {
+                        trainer.step()
+                        true
+                    } catch (e: IllegalStateException) {
+                        if (e.message?.contains("Gradient values are all zeros") == true) {
+                            logger.debug("Skipping trainer.step() due to zero gradients in batch {}:{}", start, end)
+                            false
+                        } else {
+                            throw e
+                        }
+                    }
+                if (stepCompleted) {
+                    when (val block = trainer.model.block) {
+                        is TransE -> block.normalize()
+                        is TransR -> block.normalize()
+                        is HyperComplEx -> block.projectHyperbolic()
+                    }
                 }
                 start = end
             }
@@ -438,6 +459,7 @@ class EmbeddingTrainer(
                         val neg = f0[1].reshape(pos.shape[0], numNegatives.toLong())
                         var lossValue =
                             computeLossFromScores(pos, neg, useSimilarityLoss, useSelfAdversarial, higherIsBetter)
+                        var baseLoss: NDArray? = null
                         if (regWeight > 0.0f) {
                             trainer.model.block.parameters.valueAt(0).array.pow(2).use { pow1 ->
                                 pow1.sum().use { reg1 ->
@@ -445,7 +467,9 @@ class EmbeddingTrainer(
                                         pow2.sum().use { reg2 ->
                                             reg1.add(reg2).use { regSum ->
                                                 regSum.mul(regWeight).use { reg ->
-                                                    lossValue = lossValue.add(reg)
+                                                    val newLoss = lossValue.add(reg)
+                                                    baseLoss = lossValue
+                                                    lossValue = newLoss
                                                 }
                                             }
                                         }
@@ -453,8 +477,13 @@ class EmbeddingTrainer(
                                 }
                             }
                         }
-                        lossValue.sum().use { lossSumNd ->
-                            lossSum += lossSumNd.getFloat()
+                        try {
+                            lossValue.sum().use { lossSumNd ->
+                                lossSum += lossSumNd.getFloat()
+                            }
+                        } finally {
+                            lossValue.close()
+                            baseLoss?.close()
                         }
                     }
                 }

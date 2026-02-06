@@ -30,6 +30,13 @@ class EvalQuatETest {
         manager.close()
     }
 
+    private fun closeParts(parts: EvalQuatE.Parts) {
+        parts.r.close()
+        parts.i.close()
+        parts.j.close()
+        parts.k.close()
+    }
+
     @Test
     fun testSliceQuat() {
         val batchSize = 2
@@ -60,10 +67,7 @@ class EvalQuatETest {
         assertEquals(batchSize.toLong(), parts.k.shape[0])
         assertEquals(dim, parts.k.shape[1])
 
-        parts.r.close()
-        parts.i.close()
-        parts.j.close()
-        parts.k.close()
+        closeParts(parts)
         batchManager.close()
         embeddings.close()
     }
@@ -99,18 +103,9 @@ class EvalQuatETest {
         assertEquals(batchSize.toLong(), aTail.r.shape[0])
         assertEquals(dim, aTail.r.shape[1])
 
-        fixedParts.r.close()
-        fixedParts.i.close()
-        fixedParts.j.close()
-        fixedParts.k.close()
-        relParts.r.close()
-        relParts.i.close()
-        relParts.j.close()
-        relParts.k.close()
-        aTail.r.close()
-        aTail.i.close()
-        aTail.j.close()
-        aTail.k.close()
+        closeParts(fixedParts)
+        closeParts(relParts)
+        closeParts(aTail)
         batchManager.close()
         fixedEmb.close()
         relEmb.close()
@@ -158,14 +153,8 @@ class EvalQuatETest {
 
         assertEquals(batchSize.toLong(), aHead.r.shape[0])
 
-        relParts.r.close()
-        relParts.i.close()
-        relParts.j.close()
-        relParts.k.close()
-        aHead.r.close()
-        aHead.i.close()
-        aHead.j.close()
-        aHead.k.close()
+        closeParts(relParts)
+        closeParts(aHead)
         batchManager.close()
         entities.close()
         relEmb.close()
@@ -211,10 +200,7 @@ class EvalQuatETest {
         assertEquals(batchSize.toLong(), scores.shape[0])
         assertEquals(1L, scores.shape[1])
 
-        aParts.r.close()
-        aParts.i.close()
-        aParts.j.close()
-        aParts.k.close()
+        closeParts(aParts)
         scores.close()
         batchManager.close()
         entities.close()
@@ -261,10 +247,7 @@ class EvalQuatETest {
         assertEquals(batchSize.toLong(), scores.shape[0])
         assertEquals(1L, scores.shape[1])
 
-        aParts.r.close()
-        aParts.i.close()
-        aParts.j.close()
-        aParts.k.close()
+        closeParts(aParts)
         scores.close()
         batchManager.close()
         entities.close()
@@ -294,7 +277,8 @@ class EvalQuatETest {
         val jIndex = NDIndex(":, ${dim * 2}:${dim * 3}")
         val kIndex = NDIndex(":, ${dim * 3}:")
 
-        val aParts = EvalQuatE.sliceQuat(aEmb, rIndex, iIndex, jIndex, kIndex, manager)
+        val batchManager = manager.newSubManager()
+        val aParts = EvalQuatE.sliceQuat(aEmb, rIndex, iIndex, jIndex, kIndex, batchManager)
 
         EvalQuatE.accumulateCountBetter(
             entities,
@@ -319,10 +303,8 @@ class EvalQuatETest {
             assertTrue(value >= 0L, "Count better should be non-negative")
         }
 
-        aParts.r.close()
-        aParts.i.close()
-        aParts.j.close()
-        aParts.k.close()
+        closeParts(aParts)
+        batchManager.close()
         entities.close()
         aEmb.close()
         trueScore.close()
@@ -373,10 +355,7 @@ class EvalQuatETest {
         assertEquals(batchSize.toLong(), parts.r.shape[0])
         assertEquals(dim, parts.r.shape[1])
 
-        parts.r.close()
-        parts.i.close()
-        parts.j.close()
-        parts.k.close()
+        closeParts(parts)
         batchManager.close()
         embeddings.close()
     }
@@ -408,18 +387,9 @@ class EvalQuatETest {
         val rValues = aTail.r.toFloatArray()
         assertTrue(rValues.all { it == 0.0f }, "Result should be zero for zero relation")
 
-        fixedParts.r.close()
-        fixedParts.i.close()
-        fixedParts.j.close()
-        fixedParts.k.close()
-        relParts.r.close()
-        relParts.i.close()
-        relParts.j.close()
-        relParts.k.close()
-        aTail.r.close()
-        aTail.i.close()
-        aTail.j.close()
-        aTail.k.close()
+        closeParts(fixedParts)
+        closeParts(relParts)
+        closeParts(aTail)
         batchManager.close()
         fixedEmb.close()
         relEmb.close()
@@ -447,7 +417,8 @@ class EvalQuatETest {
         val jIndex = NDIndex(":, ${dim * 2}:${dim * 3}")
         val kIndex = NDIndex(":, ${dim * 3}:")
 
-        val aParts = EvalQuatE.sliceQuat(aEmb, rIndex, iIndex, jIndex, kIndex, manager)
+        val batchManager = manager.newSubManager()
+        val aParts = EvalQuatE.sliceQuat(aEmb, rIndex, iIndex, jIndex, kIndex, batchManager)
 
         EvalQuatE.accumulateCountBetter(
             entities,
@@ -469,10 +440,8 @@ class EvalQuatETest {
             assertTrue(value >= 0L, "Count better should be non-negative")
         }
 
-        aParts.r.close()
-        aParts.i.close()
-        aParts.j.close()
-        aParts.k.close()
+        closeParts(aParts)
+        batchManager.close()
         entities.close()
         aEmb.close()
         trueScore.close()

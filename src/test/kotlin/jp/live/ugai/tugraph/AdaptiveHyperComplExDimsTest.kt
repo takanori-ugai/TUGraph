@@ -1,9 +1,11 @@
 package jp.live.ugai.tugraph
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import kotlin.math.abs
 
 /**
  * Test class for adaptiveHyperComplExDims function in Commons.kt.
@@ -147,11 +149,11 @@ class AdaptiveHyperComplExDimsTest {
 
         // Ratios should be approximately equal (within 10% tolerance)
         assertTrue(
-            kotlin.math.abs(ratio100H - ratio200H) < 0.1f,
+            abs(ratio100H - ratio200H) < 0.1f,
             "Proportions should be similar across different base dimensions",
         )
         assertTrue(
-            kotlin.math.abs(ratio200H - ratio400H) < 0.1f,
+            abs(ratio200H - ratio400H) < 0.1f,
             "Proportions should be similar across different base dimensions",
         )
     }
@@ -251,9 +253,5 @@ class AdaptiveHyperComplExDimsTest {
                 "Total dimensions should exactly equal baseDim for $numEntities entities",
             )
         }
-    }
-
-    private fun assertNotNull(value: Any?) {
-        assertTrue(value != null, "Value should not be null")
     }
 }

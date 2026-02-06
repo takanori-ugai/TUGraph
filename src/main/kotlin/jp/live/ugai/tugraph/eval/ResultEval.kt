@@ -273,11 +273,15 @@ open class ResultEval(
             val end = minOf(start + evalBatchSize, totalSize)
             val batch = buildBatch(start, end)
             batch.use {
-                val trueInput = buildTrueInput(batch.basePair, batch.trueEntityCol)
-                val trueScores = predictor.predict(NDList(trueInput)).singletonOrThrow()
-                val trueScores2d = trueScores.reshape(batch.batchSize.toLong(), 1)
-                val countBetter = manager.zeros(Shape(batch.batchSize.toLong()), DataType.INT64)
+                var trueInput: NDArray? = null
+                var trueScores: NDArray? = null
+                var trueScores2d: NDArray? = null
+                var countBetter: NDArray? = null
                 try {
+                    trueInput = buildTrueInput(batch.basePair, batch.trueEntityCol)
+                    trueScores = predictor.predict(NDList(trueInput)).singletonOrThrow()
+                    trueScores2d = trueScores.reshape(batch.batchSize.toLong(), 1)
+                    countBetter = manager.zeros(Shape(batch.batchSize.toLong()), DataType.INT64)
                     val chunkSize = maxOf(1, entityChunkSize)
                     var chunkStart = 0
                     while (chunkStart < numEntitiesInt) {
@@ -321,10 +325,10 @@ open class ResultEval(
                         ranksNd.close()
                     }
                 } finally {
-                    countBetter.close()
-                    trueScores2d.close()
-                    trueScores.close()
-                    trueInput.close()
+                    countBetter?.close()
+                    trueScores2d?.close()
+                    trueScores?.close()
+                    trueInput?.close()
                 }
             }
             start = end
@@ -408,7 +412,7 @@ open class ResultEval(
             headRel.set(col1Index, relCol)
             val trueTailCol =
                 manager
-                    .create(tailIds.map { it.toLong() }.toLongArray())
+                    .create(LongArray(batchSize) { tailIds[it].toLong() })
                     .reshape(batchSize.toLong(), 1)
             EvalBatch(
                 basePair = headRel,
@@ -469,7 +473,7 @@ open class ResultEval(
             relTail.set(col1Index, tailCol)
             val trueHeadCol =
                 manager
-                    .create(headIds.map { it.toLong() }.toLongArray())
+                    .create(LongArray(batchSize) { headIds[it].toLong() })
                     .reshape(batchSize.toLong(), 1)
             EvalBatch(
                 basePair = relTail,

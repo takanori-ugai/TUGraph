@@ -1,6 +1,7 @@
 package jp.live.ugai.tugraph.eval
 
 import ai.djl.inference.Predictor
+import ai.djl.ndarray.NDArray
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.index.NDIndex
@@ -83,36 +84,19 @@ class ResultEvalComplEx(
                             .reshape(batchSize.toLong(), 1)
                             .also { it.attach(batchManager) }
                     val countBetter = batchManager.zeros(Shape(batchSize.toLong()), DataType.INT64)
-                    var chunkStart = 0
-                    while (chunkStart < numEntitiesInt) {
-                        val chunkEnd = minOf(chunkStart + chunkSize, numEntitiesInt)
-                        entities.get(NDIndex("$chunkStart:$chunkEnd, :")).use { entityChunk ->
-                            val eRe = entityChunk.get(realIndex)
-                            val eIm = entityChunk.get(imagIndex)
-                            eRe.use { er ->
-                                eIm.use { ei ->
-                                    er.transpose().use { erT ->
-                                        ei.transpose().use { eiT ->
-                                            a.matMul(erT).use { sc ->
-                                                b.matMul(eiT).use { sc.addi(it) }
-                                                val cmp =
-                                                    if (higherIsBetter) {
-                                                        sc.gt(trueScore)
-                                                    } else {
-                                                        sc.lt(trueScore)
-                                                    }
-                                                val countBetterNd = cmp.sum(intArrayOf(1))
-                                                cmp.close()
-                                                countBetter.addi(countBetterNd)
-                                                countBetterNd.close()
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        chunkStart = chunkEnd
-                    }
+                    accumulateCountBetter(
+                        entities = entities,
+                        realIndex = realIndex,
+                        imagIndex = imagIndex,
+                        a = a,
+                        b = b,
+                        trueScore = trueScore,
+                        countBetter = countBetter,
+                        higherIsBetter = higherIsBetter,
+                        chunkSize = chunkSize,
+                        numEntitiesInt = numEntitiesInt,
+                        batchManager = batchManager,
+                    )
                     val ranksNd = countBetter.add(1)
                     val batchRanks = ranksNd.toLongArray()
                     ranksNd.close()
@@ -124,5 +108,44 @@ class ResultEvalComplEx(
             start = end
         }
         return if (outIndex == totalSize) ranks else ranks.copyOf(outIndex)
+    }
+
+    private fun accumulateCountBetter(
+        entities: NDArray,
+        realIndex: NDIndex,
+        imagIndex: NDIndex,
+        a: NDArray,
+        b: NDArray,
+        trueScore: NDArray,
+        countBetter: NDArray,
+        higherIsBetter: Boolean,
+        chunkSize: Int,
+        numEntitiesInt: Int,
+        batchManager: NDManager,
+    ) {
+        var chunkStart = 0
+        while (chunkStart < numEntitiesInt) {
+            val chunkEnd = minOf(chunkStart + chunkSize, numEntitiesInt)
+            batchManager.newSubManager().use { chunkManager ->
+                val entityChunk =
+                    entities.get(NDIndex("$chunkStart:$chunkEnd, :")).also { it.attach(chunkManager) }
+                val eRe = entityChunk.get(realIndex).also { it.attach(chunkManager) }
+                val eIm = entityChunk.get(imagIndex).also { it.attach(chunkManager) }
+                val erT = eRe.transpose().also { it.attach(chunkManager) }
+                val eiT = eIm.transpose().also { it.attach(chunkManager) }
+                val sc = a.matMul(erT).also { it.attach(chunkManager) }
+                val sc2 = b.matMul(eiT).also { it.attach(chunkManager) }
+                sc.addi(sc2)
+                val cmp =
+                    if (higherIsBetter) {
+                        sc.gt(trueScore)
+                    } else {
+                        sc.lt(trueScore)
+                    }.also { it.attach(chunkManager) }
+                val countBetterNd = cmp.sum(intArrayOf(1)).also { it.attach(chunkManager) }
+                countBetter.addi(countBetterNd)
+            }
+            chunkStart = chunkEnd
+        }
     }
 }

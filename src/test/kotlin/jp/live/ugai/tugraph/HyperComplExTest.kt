@@ -69,6 +69,7 @@ class HyperComplExTest {
         assertNotNull(attention)
         assertEquals(numEdges, attention.shape[0])
         assertEquals(3L, attention.shape[1], "Attention should have 3 weights per relation (H, C, E)")
+        attention.close()
     }
 
     @Test
@@ -389,6 +390,7 @@ class HyperComplExTest {
         for (value in attentionValues) {
             assertTrue(value.isFinite(), "Attention weights should be finite")
         }
+        attention.close()
     }
 
     @Test
@@ -586,6 +588,7 @@ class HyperComplExTest {
         val attention = hyperComplEx.getAttention(parameterStore, device, false)
         assertNotNull(attention)
         assertEquals(numEdges, attention.shape[0])
+        attention.close()
     }
 
     @Test
