@@ -184,7 +184,14 @@ class RotatE(
     fun getEntities(): NDArray = getParameters().get("entities").array
 
     /**
-     * Access the entities embedding parameter array on the requested device.
+     * Retrieve the entities embedding parameter array for the specified device and mode.
+     *
+     * The returned array has shape (numEnt, dim*2) where the second dimension concatenates real and imaginary components.
+     *
+     * @param parameterStore Source used to fetch the parameter value.
+     * @param device Device on which the array should reside.
+     * @param training Whether to return the parameter prepared for training.
+     * @return An NDArray of entity embeddings with real and imaginary parts concatenated across the last dimension.
      */
     fun getEntities(
         parameterStore: ParameterStore,
@@ -200,7 +207,12 @@ class RotatE(
     fun getEdges(): NDArray = getParameters().get("edges").array
 
     /**
-     * Retrieve the relation (edge) embeddings on the requested device.
+     * Get relation (edge) embeddings for the specified device and training mode.
+     *
+     * @param parameterStore The ParameterStore used to fetch the parameter.
+     * @param device The Device on which the embeddings should reside.
+     * @param training `true` to fetch parameters for training, `false` for inference.
+     * @return An NDArray of shape (numEdge, dim) containing relation embeddings.
      */
     fun getEdges(
         parameterStore: ParameterStore,

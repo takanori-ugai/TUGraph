@@ -18,6 +18,21 @@ class ResultEvalQuatE(
     higherIsBetter: Boolean = true,
     filtered: Boolean = false,
 ) : ResultEval(inputList, manager, predictor, numEntities, higherIsBetter, filtered) {
+    /**
+     * Computes 1-based ranks for each input example under the QuatE model using batched evaluation.
+     *
+     * Processes inputs in batches (size controlled by `evalBatchSize`) and scans entity embeddings in chunks
+     * (size controlled by `entityChunkSize`) to count how many entities score better than the true entity
+     * for each example. Respects `mode` (HEAD or TAIL) when selecting relation/fixed entity roles and returns
+     * an IntArray of per-example ranks in the same order as `inputList`.
+     *
+     * @param evalBatchSize Maximum number of examples to evaluate in a single batch.
+     * @param entityChunkSize Maximum number of entities to score at once when comparing against all entities.
+     * @param mode Evaluation mode that determines whether the head or tail is predicted.
+     * @param buildBatch Function that constructs an EvalBatch for a half-open range [start, end).
+     * @return An IntArray of 1-based ranks for each input example.
+     * @throws IllegalArgumentException If the QuatE entity embedding dimension is not divisible by 4.
+     */
     protected override fun computeRanks(
         evalBatchSize: Int,
         entityChunkSize: Int,

@@ -90,6 +90,14 @@ private fun prepareModel(): Model {
     }
 }
 
+/**
+ * Create a TrainingConfig configured for training the transformer model.
+ *
+ * Uses softmax cross-entropy loss, an Accuracy evaluator, the Adam optimizer with a fixed
+ * learning rate of 0.001, and the default logging training listeners.
+ *
+ * @return A TrainingConfig configured with the specified loss, evaluator, optimizer, and listeners.
+ */
 private fun prepareTrainingConfig(): TrainingConfig {
     val learningRate = Tracker.fixed(0.001f)
     val loss = Loss.softmaxCrossEntropyLoss()
@@ -107,6 +115,11 @@ private class CustomDataset(
     private val sentences: Array<String>,
     private val labels: LongArray,
 ) : Dataset {
+    /**
+     * Perform any required preparation before the dataset is used.
+     *
+     * @param progress Optional progress tracker provided by the caller; ignored by this implementation.
+     */
     override fun prepare(progress: Progress?) {
         // No specific preparation required for this custom dataset
     }

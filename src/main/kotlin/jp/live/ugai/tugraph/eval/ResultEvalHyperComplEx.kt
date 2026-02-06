@@ -22,6 +22,23 @@ class ResultEvalHyperComplEx(
     private val sumAxis2d = intArrayOf(1)
     private val sumAxis3d = intArrayOf(2)
 
+    /**
+     * Compute 1-based ranks for each evaluation triple by scoring all candidate entities and comparing
+     * them to the ground-truth entity according to the HyperComplEx model.
+     *
+     * This method processes inputs in batches and in entity chunks, combines hyperbolic, complex,
+     * and Euclidean score components with per-relation attention weights, and counts how many
+     * candidate entities produce a better score than the true entity to produce a rank = count + 1.
+     *
+     * @param evalBatchSize Number of evaluation examples processed per batch.
+     * @param entityChunkSize Maximum number of entities evaluated at once when scanning candidates.
+     * @param mode Whether to replace HEAD or TAIL when scoring candidates.
+     * @param buildBatch Function that builds an EvalBatch for a given [start, end) range of the
+     *   input list; the returned EvalBatch must provide the base pair, true entity column, and
+     *   batch size used for scoring.
+     * @return An IntArray of 1-based ranks for each input triple (length equals number of inputs;
+     *   may be shorter if processing was interrupted).
+     */
     protected override fun computeRanks(
         evalBatchSize: Int,
         entityChunkSize: Int,
@@ -192,6 +209,14 @@ class ResultEvalHyperComplEx(
         return if (outIndex == totalSize) ranks else ranks.copyOf(outIndex)
     }
 
+    /**
+     * Casts the given NDArray to the specified data type when the model is using mixed precision.
+     *
+     * @param array The array to potentially cast.
+     * @param target The desired data type.
+     * @param model The HyperComplEx model whose `mixedPrecision` flag controls casting.
+     * @return The original array, or a converted array with `target` data type if `model.mixedPrecision` is true and the array's data type differs.
+     */
     private fun maybeCast(
         array: NDArray,
         target: DataType,
@@ -203,6 +228,18 @@ class ResultEvalHyperComplEx(
             array
         }
 
+    /**
+     * Computes the negated hyperbolic distance between the Möbius sum of `h` and `r` and `t`.
+     *
+     * Uses the model's curvature to perform Möbius addition on `h` and `r`, then measures the
+     * hyperbolic distance to `t` and returns its negation.
+     *
+     * @param h Head/entity embeddings in 2D representation.
+     * @param r Relation embeddings in 2D representation.
+     * @param t Tail/entity embeddings in 2D representation.
+     * @param model HyperComplEx model providing curvature and related settings.
+     * @return An NDArray of negated hyperbolic distances for each example.
+     */
     private fun hyperbolicScore2d(
         h: NDArray,
         r: NDArray,
@@ -217,6 +254,17 @@ class ResultEvalHyperComplEx(
         }
     }
 
+    /**
+     * Computes the complex-component score for (h, r, t) by combining their real and imaginary parts
+     * and summing across the feature axis.
+     *
+     * @param h Entity embeddings for the source (head or tail) in interleaved or split complex layout.
+     * @param r Relation embeddings in the same layout as `h`.
+     * @param t Candidate target entity embeddings aligned with `h`/`r`.
+     * @param realIndex Index used to extract the real-part slice from complex-formatted arrays.
+     * @param imagIndex Index used to extract the imaginary-part slice from complex-formatted arrays.
+     * @return An NDArray containing the per-example complex scores summed over the feature axis.
+     */
     private fun complexScore2d(
         h: NDArray,
         r: NDArray,
@@ -240,6 +288,14 @@ class ResultEvalHyperComplEx(
         }
     }
 
+    /**
+     * Computes the Euclidean score component for 2D embeddings: negative summed squared error of (h + r - t).
+     *
+     * @param h 2D embedding for the head (batch × features), with the feature axis at index 1.
+     * @param r 2D embedding for the relation (batch × features), with the feature axis at index 1.
+     * @param t 2D embedding for the tail (batch × features), with the feature axis at index 1.
+     * @return 1D `NDArray` of per-example scores equal to -sum((h + r - t)^2) summed over the feature axis.
+     */
     private fun euclideanScore2d(
         h: NDArray,
         r: NDArray,
@@ -256,6 +312,27 @@ class ResultEvalHyperComplEx(
                 .also { it.attach(parent) }
         }
 
+    /**
+     * Computes combined scores for candidate tail entities in a chunk by weighting
+     * hyperbolic, complex, and Euclidean components with the provided attention alphas.
+     *
+     * @param hH Head embeddings in the hyperbolic space.
+     * @param rH Relation embeddings in the hyperbolic space.
+     * @param hC Head embeddings in the complex space.
+     * @param rC Relation embeddings in the complex space.
+     * @param hE Head embeddings in the Euclidean space.
+     * @param rE Relation embeddings in the Euclidean space.
+     * @param chunkH Candidate tail embeddings in the hyperbolic space (chunk).
+     * @param chunkC Candidate tail embeddings in the complex space (chunk).
+     * @param chunkE Candidate tail embeddings in the Euclidean space (chunk).
+     * @param alphaH Attention weights for the hyperbolic component (broadcastable to result shape).
+     * @param alphaC Attention weights for the complex component (broadcastable to result shape).
+     * @param alphaE Attention weights for the Euclidean component (broadcastable to result shape).
+     * @param model The HyperComplEx model providing curvature and mixed-precision settings.
+     * @param realIndex2d Index for selecting real parts from 2D complex embeddings.
+     * @param imagIndex2d Index for selecting imaginary parts from 2D complex embeddings.
+     * @return An NDArray of combined scores for each input example against each candidate tail in the chunk.
+     */
     private fun scoreTailChunk(
         hH: NDArray,
         rH: NDArray,
@@ -289,6 +366,27 @@ class ResultEvalHyperComplEx(
         }
     }
 
+    /**
+     * Compute combined scores for a batch of head candidates by aggregating hyperbolic,
+     * complex, and Euclidean components weighted by the provided attention alphas.
+     *
+     * @param rH Relation embeddings in the hyperbolic space.
+     * @param tH Tail embeddings in the hyperbolic space.
+     * @param rC Relation embeddings in the complex space.
+     * @param tC Tail embeddings in the complex space.
+     * @param rE Relation embeddings in the Euclidean space.
+     * @param tE Tail embeddings in the Euclidean space.
+     * @param chunkH Chunk of candidate head embeddings in the hyperbolic space.
+     * @param chunkC Chunk of candidate head embeddings in the complex space.
+     * @param chunkE Chunk of candidate head embeddings in the Euclidean space.
+     * @param alphaH Attention weights for the hyperbolic component (broadcastable to scores).
+     * @param alphaC Attention weights for the complex component (broadcastable to scores).
+     * @param alphaE Attention weights for the Euclidean component (broadcastable to scores).
+     * @param model HyperComplEx model instance (used for hyperbolic curvature).
+     * @param realIndex2d Index selector for real parts in 2D complex tensors.
+     * @param imagIndex2d Index selector for imaginary parts in 2D complex tensors.
+     * @return An NDArray containing the combined scores for each example in the batch against the candidate head chunk.
+     */
     private fun scoreHeadChunk(
         rH: NDArray,
         tH: NDArray,
@@ -319,6 +417,20 @@ class ResultEvalHyperComplEx(
         }
     }
 
+    /**
+     * Compute the complex-component scores for a batch of tail candidates given head and relation embeddings.
+     *
+     * Extracts real and imaginary parts using the provided indices and returns the complex score matrix
+     * between each head-relation pair and each tail in the chunk.
+     *
+     * @param h Head embeddings containing interleaved real/imaginary parts.
+     * @param r Relation embeddings containing interleaved real/imaginary parts.
+     * @param tChunk Chunk of tail embeddings to score against.
+     * @param realIndex NDIndex selecting the real components from embeddings.
+     * @param imagIndex NDIndex selecting the imaginary components from embeddings.
+     * @return An NDArray of scores with shape (batchSize, chunkSize) representing the complex component
+     *         of the score for each head-relation pair against each tail candidate.
+     */
     private fun complexScoreTail(
         h: NDArray,
         r: NDArray,
@@ -342,6 +454,16 @@ class ResultEvalHyperComplEx(
         }
     }
 
+    /**
+     * Compute the Complex-space scoring component for candidate head entities given relations and tails.
+     *
+     * @param r Relation embeddings arranged for 2D access (contains real and imaginary parts).
+     * @param t Tail embeddings arranged for 2D access (contains real and imaginary parts).
+     * @param hChunk Chunk of candidate head embeddings to score against `r` and `t`.
+     * @param realIndex2d NDIndex used to select the real components from 2D embedding arrays.
+     * @param imagIndex2d NDIndex used to select the imaginary components from 2D embedding arrays.
+     * @return An NDArray of shape (batchSize, chunkSize) containing the summed complex scores for each candidate head.
+     */
     private fun complexScoreHead(
         r: NDArray,
         t: NDArray,
@@ -373,6 +495,16 @@ class ResultEvalHyperComplEx(
         }
     }
 
+    /**
+     * Compute Euclidean-based scores for candidate tails given head and relation embeddings.
+     *
+     * Computes -sum((h + r - t)^2) over the embedding dimension for each pair of batch heads and candidate tails.
+     *
+     * @param h Head embeddings with shape (batchSize, dim).
+     * @param r Relation embeddings with shape (batchSize, dim).
+     * @param tChunk Candidate tail embeddings with shape (chunkSize, dim).
+     * @return An NDArray of shape (batchSize, chunkSize) containing the negative squared Euclidean distances (higher values indicate closer/more similar candidates).
+     */
     private fun euclideanScoreTail(
         h: NDArray,
         r: NDArray,
@@ -392,6 +524,15 @@ class ResultEvalHyperComplEx(
         }
     }
 
+    /**
+     * Compute Euclidean scores for candidate head entities given relation and tail embeddings.
+     *
+     * @param r Relation embeddings with shape (batchSize, dim).
+     * @param t Tail embeddings with shape (batchSize, dim).
+     * @param hChunk Candidate head embeddings chunk with shape (chunkSize, dim).
+     * @return An NDArray of shape (batchSize, chunkSize) containing the negative sum of squared
+     *         differences (-(h + (r - t))^2 summed over the feature axis) for each candidate head.
+     */
     private fun euclideanScoreHead(
         r: NDArray,
         t: NDArray,
@@ -411,6 +552,15 @@ class ResultEvalHyperComplEx(
         }
     }
 
+    /**
+     * Compute hyperbolic scores for a chunk of candidate heads given a relation and target tail.
+     *
+     * @param r Relation embeddings in 2D form.
+     * @param t Tail embeddings in 2D form.
+     * @param hChunk Chunk of candidate head embeddings (may contain multiple candidates).
+     * @param curvature Positive curvature scalar used for the hyperbolic geometry.
+     * @return An `NDArray` of negated hyperbolic distances between (hChunk ⊕ r) and `t` under the given curvature; larger values indicate closer distance in hyperbolic space.
+     */
     private fun hyperbolicScoreHead(
         r: NDArray,
         t: NDArray,
@@ -427,6 +577,16 @@ class ResultEvalHyperComplEx(
         }
     }
 
+    /**
+     * Compute the Möbius addition of two batches of vectors under a given curvature.
+     *
+     * Both `x` and `y` are expected to be 2D NDArrays shaped (batch, features); the operation is applied per-row.
+     *
+     * @param x Left operand batch of vectors.
+     * @param y Right operand batch of vectors.
+     * @param curvature Positive float controlling the Möbius curvature.
+     * @return An NDArray with the same shape as `x` and `y` containing the Möbius sum of each pair of rows.
+     */
     private fun mobiusAdd2d(
         x: NDArray,
         y: NDArray,
@@ -466,6 +626,16 @@ class ResultEvalHyperComplEx(
         }
     }
 
+    /**
+     * Compute the Möbius addition of two 3D tensors under the specified curvature.
+     *
+     * Performs Möbius addition elementwise across the last dimension for two tensors with matching shapes.
+     *
+     * @param x A 3D tensor where the last axis is the feature dimension used in the Möbius operation.
+     * @param y A 3D tensor with the same shape as `x`.
+     * @param curvature Positive curvature scalar controlling the hyperbolic geometry.
+     * @return An NDArray with the same shape as `x` and `y` representing their Möbius sum.
+     */
     private fun mobiusAdd3d(
         x: NDArray,
         y: NDArray,
@@ -505,6 +675,14 @@ class ResultEvalHyperComplEx(
         }
     }
 
+    /**
+     * Compute the hyperbolic distance between corresponding 2D point tensors under the specified curvature.
+     *
+     * @param x Tensor of 2D points; must have the same shape as `y`.
+     * @param y Tensor of 2D points; must have the same shape as `x`.
+     * @param curvature Positive curvature scalar used for the hyperbolic metric.
+     * @return An NDArray containing the hyperbolic distances between `x` and `y`.
+     */
     private fun hyperbolicDistance2d(
         x: NDArray,
         y: NDArray,
@@ -538,6 +716,14 @@ class ResultEvalHyperComplEx(
         }
     }
 
+    /**
+     * Compute the hyperbolic distance between corresponding vectors in `x` and `y` under the given curvature.
+     *
+     * @param x Tensor of points (batch-compatible) where the distance is measured from; last feature axis is folded into the distance.
+     * @param y Tensor of points (batch-compatible) where the distance is measured to; must be broadcastable with `x`.
+     * @param curvature Positive curvature scalar for the hyperbolic model.
+     * @return An NDArray of distances computed per pair in `x` and `y`, with the feature axis reduced (shape reflects the remaining batch dimensions).
+     */
     private fun hyperbolicDistance3d(
         x: NDArray,
         y: NDArray,
@@ -571,6 +757,12 @@ class ResultEvalHyperComplEx(
         }
     }
 
+    /**
+     * Compute the elementwise inverse hyperbolic cosine (arcosh) of the input NDArray.
+     *
+     * @param x Input array; each element is expected to be greater than or equal to 1.
+     * @return An NDArray containing the elementwise inverse hyperbolic cosine of `x`. Elements with `x < 1` will produce `NaN`.
+     */
     private fun acosh(x: NDArray): NDArray {
         val parent = x.manager
         return parent.newSubManager().use { sm ->

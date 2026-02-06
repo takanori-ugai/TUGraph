@@ -36,9 +36,9 @@ object BertQaInference {
     }
 
     /**
-     * Performs a QA prediction with a fixed question and paragraph.
+     * Predicts an answer for the fixed QUESTION and PARAGRAPH using a BERT QA model.
      *
-     * @return The predicted answer string.
+     * @return The predicted answer.
      */
     fun predict(): String {
         val input = QAInput(QUESTION, PARAGRAPH)

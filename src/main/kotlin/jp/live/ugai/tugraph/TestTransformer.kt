@@ -20,10 +20,11 @@ import ai.djl.training.optimizer.Optimizer
 import ai.djl.util.PairList
 
 /**
- * Runs a self-contained example that trains and evaluates a tiny causal transformer language model.
+ * Trains and evaluates a minimal causal transformer language model on two toy sentences.
  *
- * Trains a toy model on two short token sequences using DJL utilities, prints epoch loss every 20 epochs,
- * and prints final token-level accuracy after training.
+ * Builds a small vocabulary, constructs a CausalTransformerLMBlock wrapped in a DJL Model,
+ * trains next-token prediction (causal LM) for 100 epochs on short example sequences,
+ * prints loss every 20 epochs, and computes final accuracy on the training dataset.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->
