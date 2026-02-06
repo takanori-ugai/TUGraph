@@ -78,7 +78,11 @@ const val HYPERCOMPLEX_MIXED_PRECISION = true
 const val HYPERCOMPLEX_LOSS_SCALE = 1024.0f
 
 /** Adaptive dimension allocation result for HyperComplEx. */
-data class HyperComplExDims(val dH: Long, val dC: Long, val dE: Long)
+data class HyperComplExDims(
+    val dH: Long,
+    val dC: Long,
+    val dE: Long,
+)
 
 /**
  * Allocate HyperComplEx dimensions based on graph size while keeping a constant base budget.

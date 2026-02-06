@@ -10,14 +10,12 @@ import ai.djl.training.listener.EpochTrainingListener
 import ai.djl.training.loss.Loss
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
+import jp.live.ugai.tugraph.eval.ResultEvalComplEx
 
 /**
- * Entry point that loads triples from "data/sample.csv", trains a ComplEx embedding model, evaluates it, and prints
- * training and evaluation outputs.
+ * Runs a full demo that loads triples from data/sample.csv, trains a ComplEx embedding model, and evaluates results.
  *
- * This function manages NDManager resources, constructs and initializes the ComplEx model and DJL components,
- * configures training with a DenseAdagrad optimizer, runs embedding training, performs a sample prediction, and
- * computes head/tail evaluation results which are printed to stdout.
+ * Loads CSV triples into NDArrays, constructs and initializes a ComplEx model and DJL Trainer, trains embeddings with an EmbeddingTrainer, prints training results and model entities/edges, runs a sample prediction, and computes head/tail evaluation scores with ResultEvalComplEx before cleaning up resources.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->
@@ -72,13 +70,13 @@ fun main() {
         println(predictor.predict(NDList(test)).singletonOrThrow())
 
         val result =
-            ResultEval(
+            ResultEvalComplEx(
                 inputList,
                 manager.newSubManager(),
                 predictor,
                 numEntities,
-                higherIsBetter = true,
                 complEx = complex,
+                higherIsBetter = true,
             )
         println("Tail")
         result.getTailResult().forEach {

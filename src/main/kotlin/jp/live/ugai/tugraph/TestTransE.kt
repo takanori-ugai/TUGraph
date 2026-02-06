@@ -12,14 +12,14 @@ import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
+import jp.live.ugai.tugraph.eval.ResultEvalTransE
 
 /**
- * Runs an end-to-end TransE training and evaluation pipeline using the TSV dataset at "data/ex/train2id-hrt.txt".
+ * Runs an end-to-end TransE training and evaluation pipeline using the TSV dataset at `data/ex/train2id-hrt.txt`.
  *
- * Loads triples into memory, constructs and initializes a TransE model and DJL Trainer with an SGD optimizer,
- * performs embedding training for the configured number of epochs, evaluates head and tail predictions, and
- * prints progress and results to standard output. DJL resources (managers, model, trainer, predictor) are
- * created and closed within the function's scope.
+ * Loads triples from the TSV file, constructs and initializes a TransE model, trains embeddings with a DJL trainer,
+ * performs prediction and head/tail evaluations, prints progress and results, and ensures all DJL/NDManager resources
+ * are closed before exit.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->
@@ -87,7 +87,7 @@ fun main() {
             println(predictor.predict(NDList(it)).singletonOrThrow().toFloatArray()[0])
         }
 
-        val result = ResultEval(inputList, manager.newSubManager(), predictor, numEntities, transE = transe)
+        val result = ResultEvalTransE(inputList, manager.newSubManager(), predictor, numEntities, transE = transe)
         println("Tail")
         result.getTailResult().forEach {
             println("${it.key} : ${it.value}")

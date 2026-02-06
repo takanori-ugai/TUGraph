@@ -6,6 +6,7 @@ import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
 import ai.djl.translate.NoopTranslator
+import jp.live.ugai.tugraph.eval.ResultEvalRotatE
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -251,7 +252,7 @@ class RotatETest {
             )
 
         val resultEval =
-            ResultEval(
+            ResultEvalRotatE(
                 inputList,
                 manager.newSubManager(),
                 predictor,

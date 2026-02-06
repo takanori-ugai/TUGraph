@@ -12,13 +12,21 @@ import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Adam
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
+import jp.live.ugai.tugraph.eval.ResultEvalHyperComplEx
 
 /**
- * Runs an end-to-end HyperComplEx demo.
+ * Runs an end-to-end HyperComplEx demo that loads triples from CSV, trains embeddings, prints learned
+ * model parameters and a sample prediction, evaluates head/tail ranking metrics, and closes all resources.
  *
- * The demo loads triples from `data/sample.csv`, builds a model and trainer, runs embedding training,
- * prints learned parameters and a sample prediction, evaluates head/tail ranking metrics, and then
- * closes all resources.
+ * The program:
+ * - Loads triples from data/sample.csv and builds an in-memory list of (head, relation, tail) triples.
+ * - Determines entity and relation counts and computes adaptive HyperComplEx dimensions.
+ * - Initializes a HyperComplEx block, wraps it in a DJL Model, configures training (optimizer, listeners),
+ *   and trains embeddings via EmbeddingTrainer.
+ * - Prints training results, the internal HyperComplEx parameter tensors, and a sample prediction.
+ * - Evaluates and prints tail and head ranking results using ResultEvalHyperComplEx.
+ *
+ * All created NDManager, model, trainer, predictor, and evaluator resources are closed before exit.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->
@@ -59,7 +67,8 @@ fun main() {
 
         val lrt = Tracker.fixed(HYPERCOMPLEX_ADAM_LEARNING_RATE)
         val adam =
-            Adam.builder()
+            Adam
+                .builder()
                 .optLearningRateTracker(lrt)
                 .optBeta1(HYPERCOMPLEX_ADAM_BETA1)
                 .optBeta2(HYPERCOMPLEX_ADAM_BETA2)
@@ -98,11 +107,12 @@ fun main() {
         }
 
         val result =
-            ResultEval(
+            ResultEvalHyperComplEx(
                 inputList,
                 manager.newSubManager(),
                 predictor,
                 numEntities,
+                hyperComplEx = hyperComplEx,
                 higherIsBetter = true,
             )
         println("Tail")

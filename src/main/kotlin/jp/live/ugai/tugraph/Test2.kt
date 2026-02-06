@@ -18,11 +18,12 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /**
- * Runs a self-contained example that trains a TransE embedding model on a small synthetic dataset.
+ * Trains a small TransE model on a toy dataset and prints the learned relation/entity embeddings and sample predictions.
  *
- * Creates an NDManager-scoped dataset and model, initializes a TransE block and trainer, performs a training
- * loop that accumulates per-epoch loss for a fixed number of epochs using L2 loss and SGD, and prints the
- * trained model's edges, entities, and example predictions on training and test inputs.
+ * This program:
+ * - Constructs a tiny dataset of 4 triples and their labels, builds a TransE block and DJL model,
+ * - Configures training (L2 loss, SGD optimizer, single device) and runs a training loop for 1000 epochs,
+ * - After training, prints the model's learned edges and entities and outputs predictions for the training inputs and a test input.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->
@@ -30,7 +31,8 @@ fun main() {
         val labels = manager.create(floatArrayOf(0f, 0f, 1f, 0f))
         val batchSize = 3
         val dataset =
-            ArrayDataset.Builder()
+            ArrayDataset
+                .Builder()
                 .setData(input) // set the features
                 .optLabels(labels) // set the labels
                 .setSampling(batchSize, true) // set the batch size and random sampling

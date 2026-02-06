@@ -45,7 +45,8 @@ class DenseAdagradTest {
         val tracker = Tracker.fixed(learningRate)
 
         val optimizer =
-            DenseAdagrad.builder()
+            DenseAdagrad
+                .builder()
                 .optLearningRateTracker(tracker)
                 .build()
 
@@ -57,7 +58,8 @@ class DenseAdagradTest {
         val epsilon = 1e-6f
 
         val optimizer =
-            DenseAdagrad.builder()
+            DenseAdagrad
+                .builder()
                 .optEpsilon(epsilon)
                 .build()
 
@@ -70,7 +72,8 @@ class DenseAdagradTest {
         val tracker = Tracker.fixed(learningRate)
 
         val optimizer =
-            DenseAdagrad.builder()
+            DenseAdagrad
+                .builder()
                 .optLearningRateTracker(tracker)
                 .build()
 
@@ -103,7 +106,8 @@ class DenseAdagradTest {
         val tracker = Tracker.fixed(learningRate)
 
         val optimizer =
-            DenseAdagrad.builder()
+            DenseAdagrad
+                .builder()
                 .optLearningRateTracker(tracker)
                 .build()
 
@@ -143,7 +147,8 @@ class DenseAdagradTest {
         val weightDecay = 0.01f
 
         val optimizer =
-            DenseAdagrad.builder()
+            DenseAdagrad
+                .builder()
                 .optLearningRateTracker(tracker)
                 .optWeightDecays(weightDecay)
                 .build()
@@ -176,7 +181,8 @@ class DenseAdagradTest {
         val clipGrad = 1.0f
 
         val optimizer =
-            DenseAdagrad.builder()
+            DenseAdagrad
+                .builder()
                 .optLearningRateTracker(tracker)
                 .optClipGrad(clipGrad)
                 .build()
@@ -213,7 +219,8 @@ class DenseAdagradTest {
         val rescaleGrad = 0.5f
 
         val optimizer =
-            DenseAdagrad.builder()
+            DenseAdagrad
+                .builder()
                 .optLearningRateTracker(tracker)
                 .setRescaleGrad(rescaleGrad)
                 .build()
@@ -235,7 +242,8 @@ class DenseAdagradTest {
         val tracker = Tracker.fixed(learningRate)
 
         val optimizer =
-            DenseAdagrad.builder()
+            DenseAdagrad
+                .builder()
                 .optLearningRateTracker(tracker)
                 .build()
 
@@ -262,7 +270,8 @@ class DenseAdagradTest {
         val tracker = Tracker.fixed(Float.NaN)
 
         val optimizer =
-            DenseAdagrad.builder()
+            DenseAdagrad
+                .builder()
                 .optLearningRateTracker(tracker)
                 .build()
 
@@ -282,7 +291,8 @@ class DenseAdagradTest {
         val tracker = Tracker.fixed(0.1f)
 
         val optimizer =
-            DenseAdagrad.builder()
+            DenseAdagrad
+                .builder()
                 .optLearningRateTracker(tracker)
                 .optWeightDecays(Float.POSITIVE_INFINITY)
                 .build()
@@ -305,7 +315,8 @@ class DenseAdagradTest {
         val weightDecay = 0.001f
 
         val optimizer =
-            DenseAdagrad.builder()
+            DenseAdagrad
+                .builder()
                 .optLearningRateTracker(tracker)
                 .optEpsilon(epsilon)
                 .optWeightDecays(weightDecay)
@@ -321,7 +332,8 @@ class DenseAdagradTest {
         val epsilon = 1e-12f
 
         val optimizer =
-            DenseAdagrad.builder()
+            DenseAdagrad
+                .builder()
                 .optLearningRateTracker(tracker)
                 .optEpsilon(epsilon)
                 .build()
@@ -343,7 +355,8 @@ class DenseAdagradTest {
         val tracker = Tracker.fixed(learningRate)
 
         val optimizer =
-            DenseAdagrad.builder()
+            DenseAdagrad
+                .builder()
                 .optLearningRateTracker(tracker)
                 .build()
 
@@ -378,7 +391,8 @@ class DenseAdagradTest {
         val tracker = Tracker.fixed(learningRate)
 
         val optimizer =
-            DenseAdagrad.builder()
+            DenseAdagrad
+                .builder()
                 .optLearningRateTracker(tracker)
                 .build()
 
@@ -406,7 +420,8 @@ class DenseAdagradTest {
         val tracker = Tracker.fixed(learningRate)
 
         val optimizer =
-            DenseAdagrad.builder()
+            DenseAdagrad
+                .builder()
                 .optLearningRateTracker(tracker)
                 .build()
 
@@ -431,7 +446,8 @@ class DenseAdagradTest {
         val tracker = Tracker.fixed(learningRate)
 
         val optimizer =
-            DenseAdagrad.builder()
+            DenseAdagrad
+                .builder()
                 .optLearningRateTracker(tracker)
                 .build()
 

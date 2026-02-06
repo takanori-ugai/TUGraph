@@ -6,6 +6,10 @@ import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
 import ai.djl.translate.NoopTranslator
+import jp.live.ugai.tugraph.eval.ResultEvalComplEx
+import jp.live.ugai.tugraph.eval.ResultEvalDistMult
+import jp.live.ugai.tugraph.eval.ResultEvalTransE
+import jp.live.ugai.tugraph.eval.ResultEvalTransR
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -205,7 +209,7 @@ class EmbeddingModelsIntegrationTest {
             )
 
         val resultEval =
-            ResultEval(
+            ResultEvalTransE(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -249,7 +253,7 @@ class EmbeddingModelsIntegrationTest {
             )
 
         val resultEval =
-            ResultEval(
+            ResultEvalDistMult(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -287,7 +291,7 @@ class EmbeddingModelsIntegrationTest {
             )
 
         val resultEval =
-            ResultEval(
+            ResultEvalComplEx(
                 inputList,
                 manager.newSubManager(),
                 predictor,
@@ -326,7 +330,7 @@ class EmbeddingModelsIntegrationTest {
             )
 
         val resultEval =
-            ResultEval(
+            ResultEvalTransR(
                 inputList,
                 manager.newSubManager(),
                 predictor,

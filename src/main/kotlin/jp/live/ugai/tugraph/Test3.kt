@@ -18,25 +18,26 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /**
- * Entry point that constructs a small TransE example, trains it on a toy dataset, and prints metrics and predictions.
+ * Executes a self-contained TransE training example on synthetic data and prints training results, model state, and predictions.
  *
- * The function creates feature and label tensors, builds training and validation datasets, initializes a TransE
- * model, configures training (L2 loss, SGD optimizer, devices, and logging), runs training for `NEPOCH` epochs,
- * and prints the training result, metric names, a specific L2 loss metric value, the model's edges and entities,
- * and predictions for the training inputs and a small test input.
+ * Initializes tensors and datasets, constructs and initializes a TransE model, configures training (L2 loss, SGD),
+ * runs training for the configured number of epochs, and prints the training result, metric names and values,
+ * learned edges and entities, and predictions for training and test inputs.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val input = manager.create(longArrayOf(2, 0, 1, 2, 1, 3, 0, 0, 1, 0, 1, 2), Shape(4, 3))
         val labels = manager.create(floatArrayOf(0f, 0f, 1f, 0f))
         val dataset =
-            ArrayDataset.Builder()
+            ArrayDataset
+                .Builder()
                 .setData(input) // set the features
                 .optLabels(labels) // set the labels
                 .setSampling(BATCH_SIZE, true) // set the batch size and random sampling
                 .build()
         val validationSet =
-            ArrayDataset.Builder()
+            ArrayDataset
+                .Builder()
                 .setData(input) // set the features
                 .optLabels(labels) // set the labels
                 .setSampling(BATCH_SIZE, false) // set the batch size and random sampling

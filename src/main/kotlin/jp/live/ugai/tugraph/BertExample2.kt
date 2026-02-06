@@ -8,12 +8,19 @@ import ai.djl.repository.zoo.Criteria
 import ai.djl.repository.zoo.ZooModel
 import ai.djl.training.util.ProgressBar
 
-/** Runs a fill-mask example using a HuggingFace model. */
+/**
+ * Runs a fill-mask example that predicts the [MASK] token in a predefined sentence.
+ *
+ * Builds a DJL Criteria for a fill-mask NLP task, loads a ZooModel<String, Classifications>,
+ * runs a predictor on the sentence "I have watched this [MASK] and it was awesome.", and
+ * prints the top-5 classification results to standard output.
+ */
 fun main() {
     val sentence = "I have watched this [MASK] and it was awesome."
 
     val criteria =
-        Criteria.builder()
+        Criteria
+            .builder()
             .optApplication(Application.NLP.FILL_MASK)
             .setTypes(String::class.java, Classifications::class.java)
             .optTranslatorFactory(FillMaskTranslatorFactory())

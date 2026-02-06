@@ -256,10 +256,18 @@ class MatryoshkaTest {
 
         // Set first half to 1 in left, second half to 1 in right
         for (i in 0 until 64) {
-            left.set(ai.djl.ndarray.index.NDIndex("0, $i"), 1.0f)
+            left.set(
+                ai.djl.ndarray.index
+                    .NDIndex("0, $i"),
+                1.0f,
+            )
         }
         for (i in 64 until 128) {
-            right.set(ai.djl.ndarray.index.NDIndex("0, $i"), 1.0f)
+            right.set(
+                ai.djl.ndarray.index
+                    .NDIndex("0, $i"),
+                1.0f,
+            )
         }
 
         val scores = matryoshka.dotScores(left, right)

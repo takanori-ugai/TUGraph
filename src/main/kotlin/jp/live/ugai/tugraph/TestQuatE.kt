@@ -11,14 +11,12 @@ import ai.djl.training.listener.EpochTrainingListener
 import ai.djl.training.loss.Loss
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
+import jp.live.ugai.tugraph.eval.ResultEvalQuatE
 
 /**
- * Runs an end-to-end QuatE workflow: loads triples from data/sample.csv, trains embeddings,
- * performs a sample prediction, and evaluates head/tail prediction results.
+ * Runs a complete example: loads triples from data/sample.csv, builds and trains a QuatE embedding model, performs a sample prediction, evaluates head/tail rankings, and prints results.
  *
- * The function reads CSV triples, prepares entity and relation counts, initializes a QuatE model
- * and DJL trainer, executes embedding training, prints learned parameters and a sample prediction,
- * evaluates tail and head ranking results, and closes all resources.
+ * The function covers data loading, model and trainer initialization, embedding training with EmbeddingTrainer, prediction via a NoopTranslator-based predictor, evaluation using ResultEvalQuatE, and prints training metrics and evaluation outputs. All created resources are closed before the function exits.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->
@@ -86,13 +84,13 @@ fun main() {
         }
 
         val result =
-            ResultEval(
+            ResultEvalQuatE(
                 inputList,
                 manager.newSubManager(),
                 predictor,
                 numEntities,
-                higherIsBetter = true,
                 quatE = quate,
+                higherIsBetter = true,
             )
         println("Tail")
         result.getTailResult().forEach {

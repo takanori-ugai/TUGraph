@@ -11,16 +11,12 @@ import ai.djl.training.listener.EpochTrainingListener
 import ai.djl.training.loss.Loss
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
+import jp.live.ugai.tugraph.eval.ResultEvalRotatE
 
 /**
- * Runs an end-to-end example that reads triples from data/sample.csv, trains a RotatE knowledge-graph
- * embedding model, performs a sample prediction, evaluates head/tail predictions, prints results, and
- * cleans up resources.
+ * Runs a full demonstration workflow: loads triples from "data/sample.csv", trains a RotatE embedding model, and evaluates its predictions.
  *
- * The program loads triples, infers entity and relation counts, initializes the RotatE block and DJL
- * model, configures training (optimizer, devices, listeners), runs embedding training, prints learned
- * parameters and a sample prediction, computes evaluation metrics for tails and heads, and closes all
- * opened resources.
+ * The workflow loads and prepares triple data, initializes the RotatE model and training pipeline, trains entity and relation embeddings, prints model state and a sample prediction, and computes head/tail evaluation results which are printed to stdout.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->
@@ -88,13 +84,13 @@ fun main() {
         }
 
         val result =
-            ResultEval(
+            ResultEvalRotatE(
                 inputList,
                 manager.newSubManager(),
                 predictor,
                 numEntities,
-                higherIsBetter = false,
                 rotatE = rotate,
+                higherIsBetter = false,
             )
         println("Tail")
         result.getTailResult().forEach {

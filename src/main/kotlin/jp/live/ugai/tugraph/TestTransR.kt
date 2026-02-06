@@ -11,14 +11,18 @@ import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
+import jp.live.ugai.tugraph.eval.ResultEvalTransR
 
 /**
- * Runs a complete TransR embedding example: loads triples from CSV, trains the TransR model,
- * performs a test prediction, and prints evaluation results.
+ * Runs an end-to-end example that trains and evaluates a TransR embedding model from CSV data.
  *
- * The function loads input triples, constructs and initializes a TransR model and trainer,
- * runs embedding training, prints training results as well as learned edges and entities,
- * performs a single example prediction, and prints tail/head evaluation summaries.
+ * This function performs the complete workflow for the example:
+ * - Reads triples from "data/sample.csv" into an NDArray and converts them to a list of long triples.
+ * - Constructs and initializes a TransR model and wraps it in a DJL Model and predictor.
+ * - Configures an optimizer and training setup, creates a Trainer, and runs embedding training via EmbeddingTrainer.
+ * - Prints training results, learned entity and edge embeddings, and a sample model prediction.
+ * - Evaluates head and tail prediction performance using ResultEvalTransR and prints the evaluation results.
+ * - Closes all managed resources before exiting.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->
@@ -72,7 +76,7 @@ fun main() {
         val test = manager.create(longArrayOf(1, 1, 2))
         println(predictor.predict(NDList(test)).singletonOrThrow())
 
-        val result = ResultEval(inputList, manager.newSubManager(), predictor, numEntities, transR = transr)
+        val result = ResultEvalTransR(inputList, manager.newSubManager(), predictor, numEntities, transR = transr)
         println("Tail")
         result.getTailResult().forEach {
             println("${it.key} : ${it.value}")

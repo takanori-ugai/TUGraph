@@ -6,10 +6,9 @@ import ai.djl.ndarray.types.Shape
 import ai.djl.training.dataset.ArrayDataset
 
 /**
- * Demonstrates NDArray creation, indexing, basic tensor operations, and ArrayDataset assembly using NDManager.
+ * Demonstrates NDArray creation, indexing, basic tensor operations, and ArrayDataset assembly using an NDManager, printing intermediate results.
  *
- * Performs examples of reshaping, slicing, transposing, arithmetic between arrays, concatenation, repetition,
- * and builds a small ArrayDataset with sampling configuration; outputs intermediate results to standard output.
+ * Performs a small example workflow: sorts a map of ranks and prints the index and sorted list; creates a 4×5 matrix and prints various slices, reductions, transposes, concatenations, and repeats; builds and prepares an ArrayDataset. All outputs are written to standard output and NDManager resources are released after use.
  */
 fun main() {
     val rank =
@@ -29,15 +28,28 @@ fun main() {
         val mini2 = manager.arange(5).reshape(1, 5)
         println(mini2.transpose())
         println(mini.sum(intArrayOf(0)).sub(mini2))
-        println(mini.sum(intArrayOf(0)).transpose().sub(mini2.transpose()).transpose())
+        println(
+            mini
+                .sum(intArrayOf(0))
+                .transpose()
+                .sub(mini2.transpose())
+                .transpose(),
+        )
         val mini3 = manager.arange(4).reshape(1, 4)
         println(matrix.get(NDIndex("0:-1")))
-        println(matrix.transpose().get(NDIndex("0:-1")).concat(mini3).transpose())
+        println(
+            matrix
+                .transpose()
+                .get(NDIndex("0:-1"))
+                .concat(mini3)
+                .transpose(),
+        )
         val mini4 = manager.arange(5).reshape(1, 5)
         println(mini4.repeat(0, 2))
 
         val dataset =
-            ArrayDataset.Builder()
+            ArrayDataset
+                .Builder()
                 .setData(manager.arange(0, 4), manager.arange(5, 9))
                 .optLabels(manager.ones(Shape(1)), manager.zeros(Shape(1)))
                 .setSampling(20, false)

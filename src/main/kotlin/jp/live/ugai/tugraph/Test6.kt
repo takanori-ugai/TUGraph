@@ -11,14 +11,15 @@ import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
+import jp.live.ugai.tugraph.eval.ResultEvalTransE
 
 /**
- * Runs the end-to-end embedding training and evaluation pipeline using DJL within a managed NDManager scope.
+ * Runs the full TransE experiment: loads triples from CSV, constructs and initializes the model,
+ * trains entity and relation embeddings, performs a sample prediction, evaluates head/tail rankings,
+ * prints results, and releases resources.
  *
- * Loads triples from "data/sample.csv", constructs and initializes a TransE model, configures training
- * (optimizer, devices, and listeners), and performs training with EmbeddingTrainer. After training, prints
- * training results, model edges and entities, performs a sample prediction, and computes head/tail evaluation
- * results; all DJL resources are created and released inside the managed NDManager scope.
+ * This function is the program entry point and orchestrates data loading, model/trainer setup,
+ * training via EmbeddingTrainer, a sanity prediction, evaluation with ResultEvalTransE, and cleanup.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->
@@ -77,7 +78,7 @@ fun main() {
         println(predictor.predict(NDList(test)).singletonOrThrow().toFloatArray()[0])
         test.close()
 
-        val result = ResultEval(inputList, manager.newSubManager(), predictor, numEntities, transE = transe)
+        val result = ResultEvalTransE(inputList, manager.newSubManager(), predictor, numEntities, transE = transe)
         println("Tail")
         result.getTailResult().forEach {
             println("${it.key} : ${it.value}")

@@ -11,13 +11,15 @@ import ai.djl.training.listener.EpochTrainingListener
 import ai.djl.training.loss.Loss
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
+import jp.live.ugai.tugraph.eval.ResultEvalQuatE
 
 /**
- * Runs a self-contained demonstration that trains and evaluates a QuatE model augmented with Matryoshka embeddings.
+ * Runs an end-to-end example that trains, inspects, predicts with, and evaluates a QuatE embedding model using "data/sample.csv".
  *
- * Reads triples from data/sample.csv, prepares entity and relation counts, initializes and trains embeddings,
- * computes Matryoshka dot scores for a small batch, runs a predictor on a test triple, and prints head/tail
- * evaluation results and diagnostics.
+ * Reads triples from the CSV, derives dataset sizes (entities/relations), initializes a QuatE block and a Model, configures and runs
+ * an embedding training loop, computes Matryoshka dot scores for a small batch of triples, performs a single prediction, evaluates
+ * head and tail prediction quality using ResultEvalQuatE, and prints training results, Matryoshka scores, a sample prediction, and
+ * evaluation summaries. All created DJL/NDManager resources are closed before exit.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->
@@ -111,13 +113,13 @@ fun main() {
         }
 
         val result =
-            ResultEval(
+            ResultEvalQuatE(
                 inputList,
                 manager.newSubManager(),
                 predictor,
                 numEntities,
-                higherIsBetter = true,
                 quatE = quate,
+                higherIsBetter = true,
             )
         println("Tail")
         result.getTailResult().forEach {

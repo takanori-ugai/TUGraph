@@ -40,7 +40,8 @@ class ComplEx(
         setInitializer(UniformInitializer(bound), Parameter.Type.WEIGHT)
         entities =
             addParameter(
-                Parameter.builder()
+                Parameter
+                    .builder()
                     .setName("entities")
                     .setType(Parameter.Type.WEIGHT)
                     .optShape(Shape(numEnt, dim * 2))
@@ -48,7 +49,8 @@ class ComplEx(
             )
         edges =
             addParameter(
-                Parameter.builder()
+                Parameter
+                    .builder()
                     .setName("edges")
                     .setType(Parameter.Type.WEIGHT)
                     .optShape(Shape(numEdge, dim * 2))
@@ -147,20 +149,16 @@ class ComplEx(
     }
 
     /**
-     * Retrieve the entities embeddings array.
+     * Access the entity embeddings matrix.
      *
-     * @return The entities embeddings NDArray with shape (numEnt, dim * 2).
+     * @return The entity embeddings NDArray with shape (numEnt, dim * 2).
      */
-    fun getEntities(): NDArray {
-        return getParameters().get("entities").array
-    }
+    fun getEntities(): NDArray = getParameters().get("entities").array
 
     /**
-     * Gets relation (edge) embeddings.
+     * Access relation (edge) embeddings.
      *
-     * @return NDArray of shape (numEdge, dim * 2) containing concatenated real and imaginary parts for each relation.
+     * @return NDArray of shape (numEdge, dim * 2) with concatenated real and imaginary components for each relation.
      */
-    fun getEdges(): NDArray {
-        return getParameters().get("edges").array
-    }
+    fun getEdges(): NDArray = getParameters().get("edges").array
 }

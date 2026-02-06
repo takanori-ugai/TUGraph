@@ -22,6 +22,11 @@ import org.slf4j.LoggerFactory
  */
 object BertQaInference {
     private val logger = LoggerFactory.getLogger(BertQaInference::class.java)
+    const val QUESTION: String = "When did BBC Japan start broadcasting?"
+    const val PARAGRAPH: String =
+        "BBC Japan was a general entertainment Channel. " +
+            "Which operated between December 2004 and April 2006. " +
+            "It ceased operations after its Japanese distributor folded."
 
     /** Runs a simple question-answering inference demo. */
     @JvmStatic
@@ -31,23 +36,17 @@ object BertQaInference {
     }
 
     /**
-     * Performs a QA prediction with a fixed question and paragraph.
+     * Predicts an answer for the fixed QUESTION and PARAGRAPH using a BERT QA model.
      *
-     * @return The predicted answer string.
+     * @return The predicted answer.
      */
     fun predict(): String {
-        val question = "When did BBC Japan start broadcasting?"
-        // val paragraph = "help"
-        val paragraph = (
-            "BBC Japan was a general entertainment Channel. " +
-                "Which operated between December 2004 and April 2006. " +
-                "It ceased operations after its Japanese distributor folded."
-        )
-        val input = QAInput(question, paragraph)
+        val input = QAInput(QUESTION, PARAGRAPH)
         logger.info("Paragraph: {}", input.paragraph)
         logger.info("Question: {}", input.question)
         val criteria =
-            Criteria.builder()
+            Criteria
+                .builder()
                 .optApplication(Application.NLP.QUESTION_ANSWER)
                 .setTypes(QAInput::class.java, String::class.java)
                 .optFilter("backbone", "bert")

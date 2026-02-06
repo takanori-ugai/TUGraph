@@ -14,7 +14,11 @@ import ai.djl.training.dataset.Dataset
 import ai.djl.training.optimizer.Adam
 
 /**
- * Main function to run the program.
+ * Example entry point that constructs a BERT masked language model block, a synthetic dataset, and a training configuration.
+ *
+ * Creates an Engine and NDManager, builds a BertMaskedLanguageModelBlock with a token dictionary size of 100, assembles an ArrayDataset
+ * of random integer features and labels (batch size 3, random sampling), and prepares a DefaultTrainingConfig using
+ * BertMaskedLanguageModelLoss and the Adam optimizer. The actual training invocation is present but commented out.
  */
 fun main() {
     // Create an engine.
@@ -29,7 +33,8 @@ fun main() {
 
     // Create a dataset.
     val dataset: Dataset =
-        ArrayDataset.Builder()
+        ArrayDataset
+            .Builder()
             .setData(manager.randomInteger(100, 128, Shape(128), DataType.INT32)) // set the features
             .optLabels(manager.randomInteger(100, 128, Shape(128), DataType.INT32)) // set the labels
             .setSampling(3, true) // set the batch size and random sampling

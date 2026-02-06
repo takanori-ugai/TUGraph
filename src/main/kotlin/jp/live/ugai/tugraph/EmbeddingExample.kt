@@ -21,11 +21,22 @@ import ai.djl.translate.NoopTranslator
 
 /** Example driver for training and evaluating a toy word embedding model. */
 object EmbeddingExample {
-    /** Runs the embedding example workflow. */
+    /**
+     * Runs a self-contained toy word-embedding training and inference example using DJL.
+     *
+     * Builds a small vocabulary and synthetic dataset, constructs a network composed of a trainable
+     * embedding, a transformer encoder, and a linear output layer, trains the model for a fixed
+     * number of epochs while collecting metrics, and performs a sample prediction printed to stdout.
+     */
     @JvmStatic
     fun main(args: Array<String>) {
         val sentence = listOf("I", "am", "a", "dog", "am", "a", "<START>", "<END>")
-        val dic = DefaultVocabulary.builder().add(sentence).optUnknownToken().build()
+        val dic =
+            DefaultVocabulary
+                .builder()
+                .add(sentence)
+                .optUnknownToken()
+                .build()
 
         NDManager.newBaseManager().use { manager ->
             val sizeOfSentence = 8L
@@ -36,15 +47,19 @@ object EmbeddingExample {
             val lang = manager.randomInteger(0, numOfWords, Shape(sizeOfMatrix), DataType.INT32)
             println("LANG: $lang")
             val features =
-                manager.full(Shape(numOfSentence, 1), 4)
+                manager
+                    .full(Shape(numOfSentence, 1), 4)
                     .concat(lang.reshape(numOfSentence, sizeOfSentence), 1)
             println("Features: $features")
             val lang2 =
-                lang.reshape(numOfSentence, sizeOfSentence).concat(manager.full(Shape(numOfSentence, 1), 5), 1)
+                lang
+                    .reshape(numOfSentence, sizeOfSentence)
+                    .concat(manager.full(Shape(numOfSentence, 1), 5), 1)
                     .reshape((sizeOfSentence + 1) * numOfSentence)
             println(lang2)
             val labels =
-                manager.eye(numOfWords.toInt() + 2)
+                manager
+                    .eye(numOfWords.toInt() + 2)
                     .get(lang2)
                     .reshape(numOfSentence, sizeOfSentence + 1, numOfWords + 2)
             println("Labels: $labels")
@@ -52,7 +67,12 @@ object EmbeddingExample {
             println(dic.getIndex("<END>"))
             val emb = TrainableWordEmbedding(dic, 20)
             val net = SequentialBlock()
-            val linearBlock = Linear.builder().optBias(true).setUnits(numOfWords + 2).build()
+            val linearBlock =
+                Linear
+                    .builder()
+                    .optBias(true)
+                    .setUnits(numOfWords + 2)
+                    .build()
             val trans = TransformerEncoderBlock(20, 2, 6, 0.5F, Activation::relu)
             net.add(emb)
             net.add(trans)
@@ -113,24 +133,24 @@ object EmbeddingExample {
     }
 
     /**
-     * Builds an ArrayDataset from feature and label NDArrays.
+     * Create an ArrayDataset from the given feature and label NDArrays with the specified batching and shuffle behavior.
      *
-     * @param features Input features.
-     * @param labels Target labels.
-     * @param batchSize Batch size for sampling.
-     * @param shuffle Whether to shuffle the dataset.
-     * @return Configured ArrayDataset instance.
+     * @param features Feature NDArray containing the input examples (examples aligned along the first axis).
+     * @param labels Label NDArray aligned with `features`.
+     * @param batchSize Number of examples per batch.
+     * @param shuffle Whether to sample batches in random order.
+     * @return An ArrayDataset that yields batches of the provided features and labels according to `batchSize` and `shuffle`.
      */
     fun loadArray(
         features: NDArray,
         labels: NDArray,
         batchSize: Int,
         shuffle: Boolean,
-    ): ArrayDataset {
-        return ArrayDataset.Builder()
+    ): ArrayDataset =
+        ArrayDataset
+            .Builder()
             .setData(features) // set the features
             .optLabels(labels) // set the labels
             .setSampling(batchSize, shuffle) // set the batch size and random sampling
             .build()
-    }
 }
