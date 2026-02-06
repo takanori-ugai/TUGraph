@@ -41,6 +41,9 @@ fun main() {
 
         println(transe.getEdges())
         println(transe.getEntities())
+
+        eTrainer.close()
+        trainer.close()
     }
 }
 

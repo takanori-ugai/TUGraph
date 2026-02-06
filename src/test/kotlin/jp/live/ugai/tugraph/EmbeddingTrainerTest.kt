@@ -306,6 +306,7 @@ class EmbeddingTrainerTest {
         }
 
         embeddingTrainer.close()
+        trainer.close()
         model.close()
         triples.close()
     }
@@ -348,6 +349,7 @@ class EmbeddingTrainerTest {
         assertEquals(2, embeddingTrainer.lossList.size)
 
         embeddingTrainer.close()
+        trainer.close()
         model.close()
         triples.close()
     }
@@ -398,6 +400,7 @@ class EmbeddingTrainerTest {
         assertEquals(2, embeddingTrainer.lossList.size)
 
         embeddingTrainer.close()
+        trainer.close()
         model.close()
         triples.close()
     }
@@ -434,6 +437,7 @@ class EmbeddingTrainerTest {
         val embeddingTrainer = EmbeddingTrainer(manager.newSubManager(), triples, numEntities, trainer, 1)
 
         embeddingTrainer.close()
+        trainer.close()
 
         model.close()
         triples.close()
@@ -574,6 +578,7 @@ class EmbeddingTrainerTest {
         )
 
         embeddingTrainer.close()
+        trainer.close()
         model.close()
         triples.close()
     }

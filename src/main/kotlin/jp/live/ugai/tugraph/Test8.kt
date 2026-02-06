@@ -58,6 +58,8 @@ fun main() {
         val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, numEntities, trainer, 10)
         eTrainer.training()
         println(trainer.trainingResult)
+        eTrainer.close()
+        trainer.close()
 
         val test = manager.create(longArrayOf(1, 1, 2))
         print("Predict (False):")

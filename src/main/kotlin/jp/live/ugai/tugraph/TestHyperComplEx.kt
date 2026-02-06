@@ -9,18 +9,16 @@ import ai.djl.ndarray.types.Shape
 import ai.djl.training.DefaultTrainingConfig
 import ai.djl.training.listener.EpochTrainingListener
 import ai.djl.training.loss.Loss
+import ai.djl.training.optimizer.Adam
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 
 /**
- * Runs an end-to-end example that reads triples from data/sample.csv, trains a RotatE knowledge-graph
- * embedding model, performs a sample prediction, evaluates head/tail predictions, prints results, and
- * cleans up resources.
+ * Runs an end-to-end HyperComplEx demo.
  *
- * The program loads triples, infers entity and relation counts, initializes the RotatE block and DJL
- * model, configures training (optimizer, devices, listeners), runs embedding training, prints learned
- * parameters and a sample prediction, computes evaluation metrics for tails and heads, and closes all
- * opened resources.
+ * The demo loads triples from `data/sample.csv`, builds a model and trainer, runs embedding training,
+ * prints learned parameters and a sample prediction, evaluates head/tail ranking metrics, and then
+ * closes all resources.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->
@@ -49,21 +47,29 @@ fun main() {
             }
         val numEntities = maxOf(headMax, tailMax) + 1
         val numEdges = relMax + 1
-        val rotate =
-            RotatE(numEntities, numEdges, DIMENSION).also {
+        val dims = adaptiveHyperComplExDims(numEntities, DIMENSION)
+        val hyperComplEx =
+            HyperComplEx(numEntities, numEdges, dims.dH, dims.dC, dims.dE).also {
                 it.initialize(manager, DataType.FLOAT32, input.shape)
             }
         val model =
-            Model.newInstance("rotate").also {
-                it.block = rotate
+            Model.newInstance("hyper-complex").also {
+                it.block = hyperComplEx
             }
 
-        val lrt = Tracker.fixed(ADAGRAD_LEARNING_RATE)
-        val adagrad = DenseAdagrad.builder().optLearningRateTracker(lrt).build()
+        val lrt = Tracker.fixed(HYPERCOMPLEX_ADAM_LEARNING_RATE)
+        val adam =
+            Adam.builder()
+                .optLearningRateTracker(lrt)
+                .optBeta1(HYPERCOMPLEX_ADAM_BETA1)
+                .optBeta2(HYPERCOMPLEX_ADAM_BETA2)
+                .optEpsilon(HYPERCOMPLEX_ADAM_EPSILON)
+                .optClipGrad(HYPERCOMPLEX_ADAM_CLIP_GRAD)
+                .build()
 
         val config =
             DefaultTrainingConfig(Loss.l1Loss()) // Placeholder loss; EmbeddingTrainer computes its own.
-                .optOptimizer(adagrad) // Optimizer
+                .optOptimizer(adam) // Optimizer
                 .optDevices(manager.engine.getDevices(1)) // single GPU
                 .addTrainingListeners(EpochTrainingListener(), HingeLossLoggingListener()) // Hinge loss logging
 
@@ -78,8 +84,12 @@ fun main() {
         eTrainer.close()
         println(trainer.trainingResult)
 
-        println(rotate.getEdges())
-        println(rotate.getEntities())
+        hyperComplEx.getEdgesH().use { println(it) }
+        hyperComplEx.getEdgesC().use { println(it) }
+        hyperComplEx.getEdgesE().use { println(it) }
+        hyperComplEx.getEntitiesH().use { println(it) }
+        hyperComplEx.getEntitiesC().use { println(it) }
+        hyperComplEx.getEntitiesE().use { println(it) }
 
         val predictor = model.newPredictor(NoopTranslator())
         val test = manager.create(longArrayOf(1, 1, 2))
@@ -93,8 +103,7 @@ fun main() {
                 manager.newSubManager(),
                 predictor,
                 numEntities,
-                higherIsBetter = false,
-                rotatE = rotate,
+                higherIsBetter = true,
             )
         println("Tail")
         result.getTailResult().forEach {
@@ -111,5 +120,5 @@ fun main() {
     }
 }
 
-/** Marker class for TestRotatE example. */
-class TestRotatE
+/** Marker class for the HyperComplEx demo entry point. */
+class TestHyperComplEx

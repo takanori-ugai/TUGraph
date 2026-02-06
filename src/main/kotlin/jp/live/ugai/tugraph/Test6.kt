@@ -87,7 +87,9 @@ fun main() {
             println("${it.key} : ${it.value}")
         }
         result.close()
+        trainer.close()
         predictor.close()
+        model.close()
     }
 }
 

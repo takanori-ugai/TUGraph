@@ -62,6 +62,8 @@ fun main() {
         val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, numEntities, trainer, NEPOCH)
         eTrainer.training()
         println(trainer.trainingResult)
+        eTrainer.close()
+        trainer.close()
 
         println(complex.getEdges())
         println(complex.getEntities())
