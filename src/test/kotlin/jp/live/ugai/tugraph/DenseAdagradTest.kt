@@ -3,6 +3,7 @@ package jp.live.ugai.tugraph
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.Shape
 import ai.djl.training.tracker.Tracker
+import jp.live.ugai.tugraph.train.DenseAdagrad
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull

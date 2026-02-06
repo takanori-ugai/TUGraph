@@ -13,6 +13,8 @@ import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 import jp.live.ugai.tugraph.eval.ResultEvalDistMult
+import jp.live.ugai.tugraph.train.EmbeddingTrainer
+import jp.live.ugai.tugraph.train.HingeLossLoggingListener
 
 /**
  * Trains and evaluates a DistMult knowledge-graph embedding model using triples loaded from "data/sample.csv" and prints training progress, model state, a sample prediction, and head/tail evaluation results.

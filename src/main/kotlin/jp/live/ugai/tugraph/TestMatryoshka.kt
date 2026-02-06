@@ -12,6 +12,9 @@ import ai.djl.training.loss.Loss
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 import jp.live.ugai.tugraph.eval.ResultEvalQuatE
+import jp.live.ugai.tugraph.train.DenseAdagrad
+import jp.live.ugai.tugraph.train.EmbeddingTrainer
+import jp.live.ugai.tugraph.train.HingeLossLoggingListener
 
 /**
  * Runs an end-to-end example that trains, inspects, predicts with, and evaluates a QuatE embedding model using "data/sample.csv".

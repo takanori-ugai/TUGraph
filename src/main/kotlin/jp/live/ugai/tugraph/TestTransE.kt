@@ -13,6 +13,8 @@ import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 import jp.live.ugai.tugraph.eval.ResultEvalTransE
+import jp.live.ugai.tugraph.train.EmbeddingTrainer
+import jp.live.ugai.tugraph.train.HingeLossLoggingListener
 
 /**
  * Runs an end-to-end TransE training and evaluation pipeline using the TSV dataset at `data/ex/train2id-hrt.txt`.

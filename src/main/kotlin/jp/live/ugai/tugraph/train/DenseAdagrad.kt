@@ -1,4 +1,4 @@
-package jp.live.ugai.tugraph
+package jp.live.ugai.tugraph.train
 
 import ai.djl.Device
 import ai.djl.ndarray.NDArray

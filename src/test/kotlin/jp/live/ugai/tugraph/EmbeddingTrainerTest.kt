@@ -1,4 +1,5 @@
 package jp.live.ugai.tugraph
+
 import ai.djl.Model
 import ai.djl.metric.Metrics
 import ai.djl.ndarray.NDManager
@@ -7,6 +8,8 @@ import ai.djl.ndarray.types.Shape
 import ai.djl.training.DefaultTrainingConfig
 import ai.djl.training.loss.Loss
 import ai.djl.training.tracker.Tracker
+import jp.live.ugai.tugraph.train.DenseAdagrad
+import jp.live.ugai.tugraph.train.EmbeddingTrainer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull

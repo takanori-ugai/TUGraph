@@ -13,6 +13,8 @@ import ai.djl.training.optimizer.Adam
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 import jp.live.ugai.tugraph.eval.ResultEvalHyperComplEx
+import jp.live.ugai.tugraph.train.EmbeddingTrainer
+import jp.live.ugai.tugraph.train.HingeLossLoggingListener
 
 /**
  * Runs an end-to-end HyperComplEx demo that loads triples from CSV, trains embeddings, prints learned
