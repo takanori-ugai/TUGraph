@@ -20,6 +20,15 @@ class ResultEvalDistMult(
     private val col0Index = NDIndex(":, 0")
     private val col1Index = NDIndex(":, 1")
 
+    /**
+     * Computes per-input ranks by comparing true entity scores against all entity scores in chunks.
+     *
+     * @param evalBatchSize Number of input rows processed per evaluation batch.
+     * @param entityChunkSize Maximum number of entities loaded into memory at once when scoring.
+     * @param mode Determines which column (head or tail) is treated as the fixed entity for scoring.
+     * @param buildBatch Function that builds an EvalBatch for inputs in the half-open range [start, end).
+     * @return An IntArray of length equal to the number of processed inputs (or fewer if truncated) where each entry is the rank (1 + count of entities with a better score than the true entity) for the corresponding input.
+     */
     protected override fun computeRanks(
         evalBatchSize: Int,
         entityChunkSize: Int,

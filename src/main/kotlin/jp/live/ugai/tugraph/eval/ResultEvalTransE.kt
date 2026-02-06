@@ -20,6 +20,21 @@ class ResultEvalTransE(
     private val col0Index = NDIndex(":, 0")
     private val col1Index = NDIndex(":, 1")
 
+    /**
+     * Compute 1-based ranks of the true entities for each input pair according to TransE scores.
+     *
+     * Processes inputs in evaluation batches and iterates candidate entities in chunks to limit memory usage.
+     * For each pair it builds the base embedding according to `mode`, computes the L1 distance to the true entity,
+     * compares that true score against all candidate entity scores (respecting `higherIsBetter`), counts how many
+     * candidates are ranked better, and produces a rank by adding 1 to that count. Returns an empty array if there
+     * are no inputs.
+     *
+     * @param evalBatchSize Number of evaluation examples processed per batch.
+     * @param entityChunkSize Maximum number of entities loaded at once when comparing candidates.
+     * @param mode Whether to score by replacing the head or tail (affects how the base embedding is formed).
+     * @param buildBatch Function that builds an EvalBatch for the input slice [start, end).
+     * @return An IntArray of 1-based ranks corresponding to `inputList` order; length equals the number of processed inputs.
+     */
     protected override fun computeRanks(
         evalBatchSize: Int,
         entityChunkSize: Int,

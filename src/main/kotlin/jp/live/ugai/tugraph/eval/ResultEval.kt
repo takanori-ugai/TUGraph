@@ -62,6 +62,18 @@ open class ResultEval(
         map.mapValues { (_, v) -> v.toIntArray() }
     }
 
+    /**
+     * Adjusts tail-prediction ranks using filtered evaluation by removing competing true tails.
+     *
+     * If `filtered` is false the input `rawRanks` are returned unchanged. When filtered evaluation
+     * is enabled, for each input triple this subtracts the number of other true tail candidates
+     * (from `tailFilter`) that score better than the true tail, clamping each adjusted rank to a
+     * minimum of 1.
+     *
+     * @param rawRanks Per-example raw ranks for tail predictions.
+     * @return An IntArray of adjusted ranks where each rank is decreased by the count of other true
+     * tails that outperform the true tail, with a minimum value of 1 for every rank.
+     */
     private fun applyFilteredTail(rawRanks: IntArray): IntArray {
         if (!filtered) return rawRanks
         val adjusted = rawRanks.copyOf()
@@ -109,6 +121,16 @@ open class ResultEval(
         return adjusted
     }
 
+    /**
+     * Adjusts head-prediction ranks by removing competing true heads when filtered evaluation is enabled.
+     *
+     * When `filtered` is false, the input `rawRanks` array is returned unchanged. Otherwise, for each
+     * input triple this computes how many true candidate heads (from `headFilter`) score better than
+     * the true head and subtracts that count from the corresponding raw rank, with a minimum rank of 1.
+     *
+     * @param rawRanks Per-example raw ranks for head prediction, aligned with `inputList`.
+     * @return A new `IntArray` of adjusted ranks aligned with `inputList`, where each value is at least 1.
+     */
     private fun applyFilteredHead(rawRanks: IntArray): IntArray {
         if (!filtered) return rawRanks
         val adjusted = rawRanks.copyOf()
@@ -163,6 +185,11 @@ open class ResultEval(
         val batchSize: Int,
         private val closeables: List<NDArray>,
     ) : AutoCloseable {
+        /**
+         * Closes all managed resources.
+         *
+         * Calls `close()` on each entry in `closeables`.
+         */
         override fun close() {
             closeables.forEach { it.close() }
         }
@@ -172,6 +199,11 @@ open class ResultEval(
         val modelInput: NDArray,
         private val closeables: List<NDArray>,
     ) : AutoCloseable {
+        /**
+         * Closes all managed resources.
+         *
+         * Calls `close()` on each entry in `closeables`.
+         */
         override fun close() {
             closeables.forEach { it.close() }
         }
@@ -183,10 +215,16 @@ open class ResultEval(
     }
 
     /**
-     * Computes per-example ranks for the current evaluation mode.
+     * Compute per-example ranks for the configured evaluation mode.
      *
-     * Subclasses override this to use model-specific scoring. The default implementation uses
-     * predictor-based scoring via [computeRanksChunked].
+     * The default implementation constructs model inputs for either tail or head prediction,
+     * scores true and candidate entities in memory-efficient chunks, and returns a rank per input example.
+     *
+     * @param evalBatchSize Maximum number of input triples processed in an outer batch.
+     * @param entityChunkSize Maximum number of candidate entities processed per inner chunk.
+     * @param mode Evaluation mode determining whether to predict tails or heads.
+     * @param buildBatch Function that builds an EvalBatch for input indices in [start, end).
+     * @return An IntArray of ranks for each evaluated example where `1` indicates the top rank (best).
      */
     protected open fun computeRanks(
         evalBatchSize: Int,
@@ -375,9 +413,11 @@ open class ResultEval(
     }
 
     /**
-     * Computes evaluation metrics for tail prediction.
+     * Compute standard evaluation metrics for tail (object) prediction over the evaluator's input triples.
      *
-     * @return A map containing the evaluation metrics: HIT@1, HIT@10, HIT@100, and MRR.
+     * If filtered evaluation is enabled on this ResultEval instance, metrics are computed using filtered ranks.
+     *
+     * @return A map with keys "HIT@1", "HIT@10", "HIT@100", and "MRR". "HIT@k" is the proportion of examples whose rank is less than or equal to k; "MRR" is the mean reciprocal rank (mean of 1/rank).
      */
     fun getTailResult(): Map<String, Float> {
         require(numEntities <= Int.MAX_VALUE.toLong()) {
@@ -497,7 +537,7 @@ open class ResultEval(
     }
 
     /**
-     * Closes the NDManager instance.
+     * Releases resources held by this evaluator by closing its NDManager.
      */
     override fun close() {
         manager.close()

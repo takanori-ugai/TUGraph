@@ -21,6 +21,15 @@ class ResultEvalComplEx(
     private val col0Index = NDIndex(":, 0")
     private val col1Index = NDIndex(":, 1")
 
+    /**
+     * Compute 1-based ranks for each input example using ComplEx scoring.
+     *
+     * @param evalBatchSize Maximum number of examples processed in a single evaluation batch.
+     * @param entityChunkSize Number of entities processed per internal chunk when comparing scores; used to limit memory/compute per step.
+     * @param mode Evaluation mode indicating whether the model predicts the head or the tail (affects how scores are computed).
+     * @param buildBatch Function that constructs an EvalBatch for the half-open index range [start, end).
+     * @return An IntArray of length equal to the number of processed inputs (or a truncated copy if interrupted), where each element is the 1-based rank of the true entity for that example.
+     */
     protected override fun computeRanks(
         evalBatchSize: Int,
         entityChunkSize: Int,
@@ -110,6 +119,26 @@ class ResultEvalComplEx(
         return if (outIndex == totalSize) ranks else ranks.copyOf(outIndex)
     }
 
+    /**
+     * Accumulates, into `countBetter`, how many entities score better than the true scores for each example.
+     *
+     * Processes `entities` in chunks of up to `chunkSize`, computes ComplEx-style scores for each chunk using
+     * the provided score components `a` and `b`, compares those scores to `trueScore` according to
+     * `higherIsBetter`, and increments `countBetter` (in-place) by the number of entities in each chunk
+     * whose score is strictly better than the true score for each example.
+     *
+     * @param entities 2-D array of all entity embeddings shaped (numEntities, embeddingDim).
+     * @param realIndex Index selecting the real part slice from an entity embedding.
+     * @param imagIndex Index selecting the imaginary part slice from an entity embedding.
+     * @param a First score component for the batch shaped (batchSize, embeddingHalfDim).
+     * @param b Second score component for the batch shaped (batchSize, embeddingHalfDim).
+     * @param trueScore True entity scores shaped (batchSize, 1) used as the comparison baseline.
+     * @param countBetter 1-D integer array shaped (batchSize) that is updated in-place with counts of better-scoring entities.
+     * @param higherIsBetter If `true`, an entity is counted when its score is greater than `trueScore`; otherwise when it is less.
+     * @param chunkSize Maximum number of entities processed per chunk to limit memory usage.
+     * @param numEntitiesInt Total number of entities to iterate over (as an Int).
+     * @param batchManager NDManager used to create sub-managers for chunk-scoped tensors.
+     */
     private fun accumulateCountBetter(
         entities: NDArray,
         realIndex: NDIndex,

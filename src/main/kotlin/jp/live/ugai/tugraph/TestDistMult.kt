@@ -15,12 +15,9 @@ import ai.djl.translate.NoopTranslator
 import jp.live.ugai.tugraph.eval.ResultEvalDistMult
 
 /**
- * Entry point that trains and evaluates a DistMult knowledge-graph embedding model from CSV triples.
+ * Trains and evaluates a DistMult knowledge-graph embedding model using triples loaded from "data/sample.csv" and prints training progress, model state, a sample prediction, and head/tail evaluation results.
  *
- * Reads triples from "data/sample.csv", constructs entity and relation counts, initializes and trains a
- * DistMult model using an EmbeddingTrainer, then prints training results, model embeddings, a sample
- * prediction, and head/tail evaluation results. All resources (NDManager, trainer, predictor, evaluator,
- * and model) are closed before exit.
+ * The program loads triples, derives entity and relation counts, initializes the DistMult model and trainer, runs embedding training, runs a sample prediction, evaluates results with ResultEvalDistMult, prints the tail and head metrics, and closes resources.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->

@@ -14,12 +14,11 @@ import ai.djl.translate.NoopTranslator
 import jp.live.ugai.tugraph.eval.ResultEvalRotatE
 
 /**
- * Runs a self-contained demonstration that trains RotatE entity embeddings, scores them with
- * Matryoshka projections, performs a sample prediction, and prints evaluation results.
+ * Runs a complete example that loads triple data, trains a RotatE embedding model, evaluates results, and computes Matryoshka scores.
  *
- * Reads triples from "data/sample.csv", constructs model and trainer resources, runs embedding
- * training, computes Matryoshka dot scores for a small batch of triples, performs a single
- * prediction, and prints head/tail evaluation metrics and training results.
+ * Loads triples from data/sample.csv, constructs and trains a RotatE model with an EmbeddingTrainer, computes nested-dimension
+ * Matryoshka dot scores for a small batch of entities, performs a single prediction, evaluates head/tail metrics using ResultEvalRotatE,
+ * and closes all allocated resources.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->
