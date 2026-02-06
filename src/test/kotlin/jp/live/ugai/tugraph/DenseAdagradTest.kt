@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import jp.live.ugai.tugraph.train.DenseAdagrad
 
 /**
  * Comprehensive test class for DenseAdagrad optimizer.

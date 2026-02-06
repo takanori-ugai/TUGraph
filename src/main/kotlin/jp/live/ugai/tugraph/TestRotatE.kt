@@ -13,6 +13,8 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 import jp.live.ugai.tugraph.eval.ResultEvalRotatE
 import jp.live.ugai.tugraph.train.EmbeddingTrainer
+import jp.live.ugai.tugraph.train.HingeLossLoggingListener
+import jp.live.ugai.tugraph.train.DenseAdagrad
 
 /**
  * Runs a full demonstration workflow: loads triples from "data/sample.csv", trains a RotatE embedding model, and evaluates its predictions.

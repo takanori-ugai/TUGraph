@@ -1,4 +1,4 @@
-package jp.live.ugai.tugraph
+package jp.live.ugai.tugraph.train
 
 import ai.djl.training.Trainer
 import ai.djl.training.listener.EvaluatorTrainingListener

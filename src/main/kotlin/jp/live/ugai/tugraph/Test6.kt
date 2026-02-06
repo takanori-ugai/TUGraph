@@ -13,6 +13,7 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 import jp.live.ugai.tugraph.eval.ResultEvalTransE
 import jp.live.ugai.tugraph.train.EmbeddingTrainer
+import jp.live.ugai.tugraph.train.HingeLossLoggingListener
 
 /**
  * Runs the full TransE experiment: loads triples from CSV, constructs and initializes the model,

@@ -12,6 +12,8 @@ import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
 import jp.live.ugai.tugraph.eval.ResultEvalComplEx
 import jp.live.ugai.tugraph.train.EmbeddingTrainer
+import jp.live.ugai.tugraph.train.HingeLossLoggingListener
+import jp.live.ugai.tugraph.train.DenseAdagrad
 
 /**
  * Runs a full demo that loads triples from data/sample.csv, trains a ComplEx embedding model, and evaluates results.

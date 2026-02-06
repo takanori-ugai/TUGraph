@@ -6,7 +6,6 @@ import jp.live.ugai.tugraph.TransR
 
 internal sealed interface ModelAdapter {
     val block: Any
-    val isHyperComplEx: Boolean
 
     fun postUpdateHook() {
         val current = block
@@ -14,6 +13,7 @@ internal sealed interface ModelAdapter {
             is TransE -> current.normalize()
             is TransR -> current.normalize()
             is HyperComplEx -> current.projectHyperbolic()
+            else -> Unit // Other blocks do not require post-update normalization.
         }
     }
 
@@ -28,12 +28,8 @@ internal sealed interface ModelAdapter {
 
 internal class HyperComplExAdapter(
     override val block: HyperComplEx,
-) : ModelAdapter {
-    override val isHyperComplEx: Boolean = true
-}
+) : ModelAdapter
 
 internal class DefaultAdapter(
     override val block: Any,
-) : ModelAdapter {
-    override val isHyperComplEx: Boolean = false
-}
+) : ModelAdapter

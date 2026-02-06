@@ -11,7 +11,6 @@ import jp.live.ugai.tugraph.ComplEx
 import jp.live.ugai.tugraph.DISTMULT_L2
 import jp.live.ugai.tugraph.DistMult
 import jp.live.ugai.tugraph.EVAL_EVERY
-import jp.live.ugai.tugraph.HingeLossLoggingListener
 import jp.live.ugai.tugraph.HyperComplEx
 import jp.live.ugai.tugraph.NEGATIVE_SAMPLES
 import jp.live.ugai.tugraph.QuatE
@@ -37,17 +36,19 @@ class EmbeddingTrainer(
     private val numOfEntities: Long,
     private val trainer: Trainer,
     private val epoch: Int,
-) {
+) : java.io.Closeable {
     private val triples: NDArray
 
     private val logger = org.slf4j.LoggerFactory.getLogger(EmbeddingTrainer::class.java)
 
     /** Per-epoch loss values collected during training. */
-    val lossList = mutableListOf<Float>()
+    private val _lossList = mutableListOf<Float>()
+    val lossList: List<Float> get() = _lossList
     private val numOfTriples: Long
 
     /** Materialized triples used for negative sampling. */
-    val inputList = mutableListOf<LongArray>()
+    private val _inputList = mutableListOf<LongArray>()
+    val inputList: List<LongArray> get() = _inputList
     private val inputSet: Set<TripleKey>
 
     private val bernoulliProb: Map<Long, Float>
@@ -83,7 +84,7 @@ class EmbeddingTrainer(
             val tail = flat[idx + 2]
             idx += 3
             val triple = longArrayOf(head, rel, tail)
-            inputList.add(triple)
+            _inputList.add(triple)
             inputSetMutable.add(TripleKey(head, rel, tail))
             relCounts[rel] = (relCounts[rel] ?: 0) + 1
             headSets.getOrPut(rel) { mutableSetOf() }.add(head)
@@ -120,30 +121,16 @@ class EmbeddingTrainer(
             val trainAvg = epochLoss / numOfTriples
             if (epochIndex % plan.evalEvery == 0 || epochIndex == epoch) {
                 state.lastValidate =
-                    evaluateEpochLoss(
-                        triples,
-                        plan.numTriplesInt,
-                        plan.batchSize,
-                        plan.numNegatives,
-                        plan.useBernoulli,
-                        plan.useSimilarityLoss,
-                        plan.useSelfAdversarial,
-                        plan.higherIsBetter,
-                        plan.regWeight,
-                        plan.adapter,
-                    )
+                    evaluateEpochLoss(triples, plan)
             }
             maybeLogEpoch(epochIndex, trainAvg, logEvery)
-            lossList.add(epochLoss)
+            _lossList.add(epochLoss)
             reportMetrics(trainAvg, state.lastValidate)
             trainer.notifyListeners { listener -> listener.onEpoch(trainer) }
         }
     }
 
     private fun validateInputs() {
-        require(numOfTriples <= Int.MAX_VALUE.toLong()) {
-            "Dataset exceeds Int.MAX_VALUE triples; Long indexing required (numOfTriples=$numOfTriples)."
-        }
         val numTriplesInt = numOfTriples.toInt()
         require(numTriplesInt > 0) { "No triples available for training (numOfTriples=0)." }
     }
@@ -237,8 +224,8 @@ class EmbeddingTrainer(
                     plan.useBernoulli,
                 )
             trainer.newGradientCollector().use { gc ->
-                if (plan.adapter.isHyperComplEx) {
-                    val hyperBlock = plan.adapter.block as HyperComplEx
+                if (plan.adapter is HyperComplExAdapter) {
+                    val hyperBlock = plan.adapter.block
                     val lossResult =
                         losses.computeHyperComplExLossWithScores(
                             hyperBlock,
@@ -306,7 +293,10 @@ class EmbeddingTrainer(
                     trainer.forward(NDList(sample, negativeSample)).use { f0 ->
                         f0.forEach { it.attach(batchManager) }
                         val pos = f0[0]
-                        val neg = f0[1].reshape(pos.shape[0], plan.numNegatives.toLong())
+                        val neg =
+                            f0[1].reshape(pos.shape[0], plan.numNegatives.toLong()).also {
+                                it.attach(batchManager)
+                            }
                         var lossValue =
                             if (plan.useMatryoshka) {
                                 losses.computeMatryoshkaLoss(
@@ -329,22 +319,11 @@ class EmbeddingTrainer(
                             }
                         var baseLoss: NDArray? = null
                         if (plan.regWeight > 0.0f) {
-                            val block = trainer.model.block
-                            block.parameters.valueAt(0).array.pow(2).use { pow1 ->
-                                pow1.sum().use { reg1 ->
-                                    block.parameters.valueAt(1).array.pow(2).use { pow2 ->
-                                        pow2.sum().use { reg2 ->
-                                            reg1.add(reg2).use { regSum ->
-                                                regSum.mul(plan.regWeight).use { reg ->
-                                                    val newLoss = lossValue.add(reg)
-                                                    baseLoss = lossValue
-                                                    lossValue = newLoss
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            val reg = computeL2Reg(plan.regWeight)
+                            val newLoss = lossValue.add(reg)
+                            reg.close()
+                            baseLoss = lossValue
+                            lossValue = newLoss
                         }
                         if (!state.firstNanReported && logger.isWarnEnabled) {
                             pos.isNaN().any().use { posNaNArr ->
@@ -445,45 +424,29 @@ class EmbeddingTrainer(
      * After calling this method the trainer's manager and any NDArrays attached to it become invalid and
      * should not be used.
      */
-    fun close() {
+    override fun close() {
         manager.close()
     }
 
     /**
-     * Computes the average training loss over the given triples using the current model and negative sampling settings.
+     * Computes the average training loss over the given triples using the current model and plan settings.
      *
-     * Evaluates loss in batches, generating `numNegatives` negatives per triple with optional Bernoulli sampling,
-     * and using either similarity-based loss (with optional self-adversarial weighting) or hinge loss. Applies
-     * L2 regularization to model block parameters when `regWeight` > 0.
+     * Evaluates loss in batches, generating negatives with optional Bernoulli sampling, using either
+     * similarity-based loss (with optional self-adversarial weighting) or hinge loss, and applying
+     * L2 regularization when enabled in the plan.
      *
      * @param data NDArray of triples to evaluate (shape: [totalTriples, 3]).
-     * @param totalTriples Total number of triples contained in `data`.
-     * @param batchSize Number of triples processed per evaluation batch.
-     * @param numEntities Total number of entities available for negative sampling.
-     * @param numNegatives Number of negative samples generated per positive triple.
-     * @param useBernoulli If true, use relation-specific Bernoulli probabilities when deciding whether to corrupt
-     *        head or tail.
-     * @param useSimilarityLoss If true, compute similarity-based loss; otherwise compute hinge (margin) loss.
-     * @param useSelfAdversarial If true and using similarity loss, weight negatives by self-adversarial softmax.
-     * @param regWeight L2 regularization weight applied to the model block parameters (0 disables regularization).
+     * @param plan Training settings used to evaluate the loss.
      * @return The average loss per triple across `data`.
      */
     private fun evaluateEpochLoss(
         data: NDArray,
-        totalTriples: Int,
-        batchSize: Int,
-        numNegatives: Int,
-        useBernoulli: Boolean,
-        useSimilarityLoss: Boolean,
-        useSelfAdversarial: Boolean,
-        higherIsBetter: Boolean,
-        regWeight: Float,
-        adapter: ModelAdapter,
+        plan: TrainingPlan,
     ): Float {
         var lossSum = 0f
         var start = 0
-        while (start < totalTriples) {
-            val end = min(start + batchSize, totalTriples)
+        while (start < plan.numTriplesInt) {
+            val end = min(start + plan.batchSize, plan.numTriplesInt)
             manager.newSubManager().use { batchManager ->
                 val sample =
                     data.get(NDIndex("$start:$end")).also {
@@ -493,16 +456,16 @@ class EmbeddingTrainer(
                     sampler.sample(
                         batchManager,
                         sample,
-                        numNegatives,
-                        useBernoulli,
+                        plan.numNegatives,
+                        plan.useBernoulli,
                     )
-                if (adapter.isHyperComplEx) {
+                if (plan.adapter is HyperComplExAdapter) {
                     val lossValue =
                         losses.computeHyperComplExLoss(
-                            adapter.block as HyperComplEx,
+                            plan.adapter.block,
                             sample,
                             negativeSample,
-                            numNegatives,
+                            plan.numNegatives,
                             training = false,
                         )
                     lossValue.use { lv ->
@@ -514,32 +477,25 @@ class EmbeddingTrainer(
                     trainer.evaluate(NDList(sample, negativeSample)).use { f0 ->
                         f0.forEach { it.attach(batchManager) }
                         val pos = f0[0]
-                        val neg = f0[1].reshape(pos.shape[0], numNegatives.toLong())
+                        val neg =
+                            f0[1].reshape(pos.shape[0], plan.numNegatives.toLong()).also {
+                                it.attach(batchManager)
+                            }
                         var lossValue =
                             losses.computeLossFromScores(
                                 pos,
                                 neg,
-                                useSimilarityLoss,
-                                useSelfAdversarial,
-                                higherIsBetter,
+                                plan.useSimilarityLoss,
+                                plan.useSelfAdversarial,
+                                plan.higherIsBetter,
                             )
                         var baseLoss: NDArray? = null
-                        if (regWeight > 0.0f) {
-                            trainer.model.block.parameters.valueAt(0).array.pow(2).use { pow1 ->
-                                pow1.sum().use { reg1 ->
-                                    trainer.model.block.parameters.valueAt(1).array.pow(2).use { pow2 ->
-                                        pow2.sum().use { reg2 ->
-                                            reg1.add(reg2).use { regSum ->
-                                                regSum.mul(regWeight).use { reg ->
-                                                    val newLoss = lossValue.add(reg)
-                                                    baseLoss = lossValue
-                                                    lossValue = newLoss
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                        if (plan.regWeight > 0.0f) {
+                            val reg = computeL2Reg(plan.regWeight)
+                            val newLoss = lossValue.add(reg)
+                            reg.close()
+                            baseLoss = lossValue
+                            lossValue = newLoss
                         }
                         try {
                             lossValue.sum().use { lossSumNd ->
@@ -554,6 +510,15 @@ class EmbeddingTrainer(
             }
             start = end
         }
-        return lossSum / totalTriples
+        return lossSum / plan.numTriplesInt
+    }
+
+    private fun computeL2Reg(regWeight: Float): NDArray {
+        val block = trainer.model.block
+        return block.parameters.valueAt(0).array.pow(2).sum().use { reg1 ->
+            block.parameters.valueAt(1).array.pow(2).sum().use { reg2 ->
+                reg1.add(reg2).mul(regWeight)
+            }
+        }
     }
 }

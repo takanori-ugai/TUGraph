@@ -49,20 +49,40 @@ internal class EmbeddingLosses(
         if (useSimilarityLoss) {
             // softplus(-pos) + softplus(neg)
             val posLoss =
-                pos
-                    .neg()
-                    .exp()
-                    .add(1f)
-                    .log()
-            val negLoss = neg.exp().add(1f).log()
+                pos.neg().use { negPos ->
+                    negPos.exp().use { expPos ->
+                        expPos.add(1f).use { addPos ->
+                            addPos.log()
+                        }
+                    }
+                }
+            val negLoss =
+                neg.exp().use { expNeg ->
+                    expNeg.add(1f).use { addNeg ->
+                        addNeg.log()
+                    }
+                }
             val negAgg =
                 if (useSelfAdversarial) {
-                    val weights = neg.mul(SELF_ADVERSARIAL_TEMP).softmax(1)
-                    weights.mul(negLoss).sum(intArrayOf(1))
+                    neg.mul(SELF_ADVERSARIAL_TEMP).use { scaled ->
+                        scaled.softmax(1).use { weights ->
+                            negLoss.use { nLoss ->
+                                weights.mul(nLoss).use { weighted ->
+                                    weighted.sum(intArrayOf(1))
+                                }
+                            }
+                        }
+                    }
                 } else {
-                    negLoss.mean(intArrayOf(1))
+                    negLoss.use { nLoss ->
+                        nLoss.mean(intArrayOf(1))
+                    }
                 }
-            posLoss.add(negAgg)
+            posLoss.use { pLoss ->
+                negAgg.use { nAgg ->
+                    pLoss.add(nAgg)
+                }
+            }
         } else {
             val hinge =
                 if (higherIsBetter) {
@@ -131,90 +151,73 @@ internal class EmbeddingLosses(
         val parameterStore = ParameterStore(trainer.manager, true)
         val posParts = block.scoreParts(sample, parameterStore, training)
         val negParts = block.scoreParts(negativeSample, parameterStore, training)
+        try {
+            val posScores = posParts.total
+            val negScores = negParts.total.reshape(posScores.shape[0], numNegatives.toLong())
 
-        val posScores = posParts.total
-        val negScores = negParts.total.reshape(posScores.shape[0], numNegatives.toLong())
-
-        val gamma = HYPERCOMPLEX_GAMMA
-        val beta = HYPERCOMPLEX_BETA
-        val posLogSig =
-            posScores
-                .neg()
-                .add(gamma)
-                .use { shifted ->
-                    Activation.sigmoid(shifted).use { sig ->
-                        sig.log()
+            val gamma = HYPERCOMPLEX_GAMMA
+            val beta = HYPERCOMPLEX_BETA
+            val posLogSig =
+                posScores
+                    .neg()
+                    .add(gamma)
+                    .use { shifted ->
+                        Activation.sigmoid(shifted).use { sig ->
+                            sig.log()
+                        }
                     }
-                }
-        val negLogSig =
-            negScores
-                .sub(gamma)
-                .use { shifted ->
-                    Activation.sigmoid(shifted).use { sig ->
-                        sig.log()
+            val negLogSig =
+                negScores
+                    .sub(gamma)
+                    .use { shifted ->
+                        Activation.sigmoid(shifted).use { sig ->
+                            sig.log()
+                        }
                     }
-                }
-        val posLoss = posLogSig.neg()
-        posLogSig.close()
-        val weightsScaled = negScores.mul(beta)
-        val weights = weightsScaled.softmax(1)
-        weightsScaled.close()
-        val negLoss =
-            try {
-                val weightedNeg = weights.mul(negLogSig)
-                val summed = weightedNeg.sum(intArrayOf(1))
-                weightedNeg.close()
-                val result = summed.neg()
-                summed.close()
-                result
-            } finally {
-                weights.close()
-                negLogSig.close()
-            }
-        val rankLoss =
-            try {
-                posLoss.add(negLoss)
-            } finally {
-                posLoss.close()
-                negLoss.close()
-            }
-
-        val posConsistency = computeConsistencyLoss(posParts)
-        val negConsistency = computeConsistencyLoss(negParts)
-        val consistency =
-            try {
-                posConsistency.add(negConsistency)
-            } finally {
-                posConsistency.close()
-                negConsistency.close()
-            }
-
-        val regLoss = block.l2RegLoss(parameterStore, device, training)
-        val loss =
-            try {
-                consistency.mul(HYPERCOMPLEX_LAMBDA1).use { consistencyScaled ->
-                    regLoss.mul(HYPERCOMPLEX_LAMBDA2).use { regScaled ->
-                        rankLoss.add(consistencyScaled).use { rankPlus ->
-                            rankPlus.add(regScaled)
+            val posLoss = posLogSig.use { it.neg() }
+            val weights = negScores.mul(beta).use { it.softmax(1) }
+            val negLoss =
+                weights.use { w ->
+                    negLogSig.use { nls ->
+                        w.mul(nls).use { weightedNeg ->
+                            weightedNeg.sum(intArrayOf(1)).use { summed ->
+                                summed.neg()
+                            }
                         }
                     }
                 }
-            } finally {
-                rankLoss.close()
-                consistency.close()
-                regLoss.close()
-            }
-        posParts.hyperbolic.close()
-        posParts.complex.close()
-        posParts.euclidean.close()
-        negParts.hyperbolic.close()
-        negParts.complex.close()
-        negParts.euclidean.close()
-        return HyperLossResult(
-            loss = loss,
-            posScores = posScores,
-            negScores = negScores,
-        )
+            val rankLoss = posLoss.use { p -> negLoss.use { n -> p.add(n) } }
+
+            val posConsistency = computeConsistencyLoss(posParts)
+            val negConsistency = computeConsistencyLoss(negParts)
+            val consistency = posConsistency.use { p -> negConsistency.use { n -> p.add(n) } }
+
+            val regLoss = block.l2RegLoss(parameterStore, device, training)
+            val loss =
+                rankLoss.use { r ->
+                    consistency.use { c ->
+                        regLoss.use { reg ->
+                            c.mul(HYPERCOMPLEX_LAMBDA1).use { cScaled ->
+                                reg.mul(HYPERCOMPLEX_LAMBDA2).use { regScaled ->
+                                    r.add(cScaled).add(regScaled)
+                                }
+                            }
+                        }
+                    }
+                }
+            return HyperLossResult(
+                loss = loss,
+                posScores = posScores,
+                negScores = negScores,
+            )
+        } finally {
+            posParts.hyperbolic.close()
+            posParts.complex.close()
+            posParts.euclidean.close()
+            negParts.hyperbolic.close()
+            negParts.complex.close()
+            negParts.euclidean.close()
+        }
     }
 
     private fun computeConsistencyLoss(parts: HyperComplEx.ScoreParts): NDArray {
@@ -267,7 +270,7 @@ internal class EmbeddingLosses(
         val device = sample.device
         // Create a local ParameterStore since Trainer no longer exposes it publicly.
         val parameterStore = ParameterStore(trainer.manager, true)
-        val (dims, weights, entities, edges) =
+        val config =
             when (block) {
                 is RotatE ->
                     MatryoshkaConfig(
@@ -285,6 +288,16 @@ internal class EmbeddingLosses(
                     )
                 else -> error("Matryoshka loss used with unsupported block.")
             }
+        val dims = config.dims
+        val weights = config.weights
+        val entities = config.entities
+        val edges = config.edges
+        val scorer: (NDArray, Long) -> NDArray =
+            when (block) {
+                is RotatE -> { input, dim -> block.score(input, entities, edges, dim) }
+                is QuatE -> { input, dim -> block.score(input, entities, edges, dim) }
+                else -> error("Matryoshka loss used with unsupported block.")
+            }
         require(dims.size == weights.size) { "Matryoshka dims and weights must have the same length." }
 
         val embDim = entities.shape[1]
@@ -300,18 +313,8 @@ internal class EmbeddingLosses(
         var total: NDArray? = null
         try {
             for ((dim, weight) in usable) {
-                val posScores =
-                    when (block) {
-                        is RotatE -> block.score(sample, entities, edges, dim)
-                        is QuatE -> block.score(sample, entities, edges, dim)
-                        else -> error("Matryoshka loss used with unsupported block.")
-                    }
-                val negScores =
-                    when (block) {
-                        is RotatE -> block.score(negativeSample, entities, edges, dim)
-                        is QuatE -> block.score(negativeSample, entities, edges, dim)
-                        else -> error("Matryoshka loss used with unsupported block.")
-                    }
+                val posScores = scorer(sample, dim)
+                val negScores = scorer(negativeSample, dim)
                 val negReshaped = negScores.reshape(posScores.shape[0], numNegatives.toLong())
                 val loss =
                     computeLossFromScores(
@@ -341,10 +344,12 @@ internal class EmbeddingLosses(
             return result
         } finally {
             total?.close()
+            entities.close()
+            edges.close()
         }
     }
 
-    private data class MatryoshkaConfig(
+    private class MatryoshkaConfig(
         val dims: LongArray,
         val weights: FloatArray,
         val entities: NDArray,

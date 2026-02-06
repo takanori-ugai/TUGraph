@@ -27,7 +27,11 @@ internal class NegativeSampler(
         }
         val batchCount = numTriples.toInt()
         val totalNegatives = batchCount.toLong() * numNegatives.toLong()
-        val negatives = LongArray((totalNegatives * TRIPLE).toInt())
+        val totalElements = totalNegatives * TRIPLE
+        require(totalElements <= Int.MAX_VALUE.toLong()) {
+            "Negative sample array exceeds Int capacity ($totalElements elements)."
+        }
+        val negatives = LongArray(totalElements.toInt())
         val maxResample = NEGATIVE_RESAMPLE_CAP
         val flat = input.toLongArray()
         for (i in 0 until batchCount) {
