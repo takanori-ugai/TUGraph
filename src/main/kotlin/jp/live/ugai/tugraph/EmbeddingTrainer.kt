@@ -670,22 +670,22 @@ class EmbeddingTrainer(
                         sig.log()
                     }
                 }
-        val weights =
-            negScores
-                .mul(beta)
-                .use { scaled -> scaled.softmax(1) }
-        val posLoss = posLogSig.neg().also { posLogSig.close() }
+        val posLoss = posLogSig.neg()
+        posLogSig.close()
+        val weightsScaled = negScores.mul(beta)
+        val weights = weightsScaled.softmax(1)
+        weightsScaled.close()
         val negLoss =
-            weights
-                .mul(negLogSig)
-                .sum(intArrayOf(1))
-                .neg()
-                .also {
-                    weights.close()
-                    negLogSig.close()
-                }
+            try {
+                weights.mul(negLogSig).sum(intArrayOf(1)).neg()
+            } finally {
+                weights.close()
+                negLogSig.close()
+            }
         val rankLoss =
-            posLoss.add(negLoss).also {
+            try {
+                posLoss.add(negLoss)
+            } finally {
                 posLoss.close()
                 negLoss.close()
             }
@@ -693,26 +693,31 @@ class EmbeddingTrainer(
         val posConsistency = computeConsistencyLoss(posParts)
         val negConsistency = computeConsistencyLoss(negParts)
         val consistency =
-            posConsistency.add(negConsistency).also {
+            try {
+                posConsistency.add(negConsistency)
+            } finally {
                 posConsistency.close()
                 negConsistency.close()
             }
 
         val regLoss = block.l2RegLoss(parameterStore, device, training)
         val loss =
-            consistency
-                .mul(HYPERCOMPLEX_LAMBDA1)
-                .use { consistencyScaled ->
-                    regLoss.mul(HYPERCOMPLEX_LAMBDA2).use { regScaled ->
-                        rankLoss.add(consistencyScaled).use { rankPlus ->
-                            rankPlus.add(regScaled)
-                        }
-                    }
-                }.also {
-                    rankLoss.close()
-                    consistency.close()
-                    regLoss.close()
+            try {
+                val consistencyScaled = consistency.mul(HYPERCOMPLEX_LAMBDA1)
+                val regScaled = regLoss.mul(HYPERCOMPLEX_LAMBDA2)
+                val rankPlus = rankLoss.add(consistencyScaled)
+                try {
+                    rankPlus.add(regScaled)
+                } finally {
+                    rankPlus.close()
+                    consistencyScaled.close()
+                    regScaled.close()
                 }
+            } finally {
+                rankLoss.close()
+                consistency.close()
+                regLoss.close()
+            }
         posParts.hyperbolic.close()
         posParts.complex.close()
         posParts.euclidean.close()

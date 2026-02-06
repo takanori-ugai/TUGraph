@@ -189,6 +189,7 @@ class ResultEvalHyperComplEx(
             edgesH.close()
             edgesC.close()
             edgesE.close()
+            attn.close()
         }
         return if (outIndex == totalSize) ranks else ranks.copyOf(outIndex)
     }
@@ -210,8 +211,12 @@ class ResultEvalHyperComplEx(
         t: NDArray,
         model: HyperComplEx,
     ): NDArray {
-        val hPlusR = mobiusAdd2d(h, r, model.curvature)
-        return hyperbolicDistance2d(hPlusR, t, model.curvature).neg()
+        val parent = h.manager
+        return parent.newSubManager().use { sm ->
+            val hPlusR = mobiusAdd2d(h, r, model.curvature).also { it.attach(sm) }
+            val dist = hyperbolicDistance2d(hPlusR, t, model.curvature).also { it.attach(sm) }
+            dist.neg().also { it.attach(parent) }
+        }
     }
 
     private fun complexScore2d(
@@ -221,17 +226,20 @@ class ResultEvalHyperComplEx(
         realIndex: NDIndex,
         imagIndex: NDIndex,
     ): NDArray {
-        val hRe = h.get(realIndex)
-        val hIm = h.get(imagIndex)
-        val rRe = r.get(realIndex)
-        val rIm = r.get(imagIndex)
-        val tRe = t.get(realIndex)
-        val tIm = t.get(imagIndex)
-        val term1 = hRe.mul(rRe).sub(hIm.mul(rIm))
-        val term2 = hRe.mul(rIm).add(hIm.mul(rRe))
-        val sum1 = term1.mul(tRe)
-        val sum2 = term2.mul(tIm)
-        return sum1.add(sum2).sum(sumAxis2d)
+        val parent = h.manager
+        return parent.newSubManager().use { sm ->
+            val hRe = h.get(realIndex).also { it.attach(sm) }
+            val hIm = h.get(imagIndex).also { it.attach(sm) }
+            val rRe = r.get(realIndex).also { it.attach(sm) }
+            val rIm = r.get(imagIndex).also { it.attach(sm) }
+            val tRe = t.get(realIndex).also { it.attach(sm) }
+            val tIm = t.get(imagIndex).also { it.attach(sm) }
+            val term1 = hRe.mul(rRe).sub(hIm.mul(rIm)).also { it.attach(sm) }
+            val term2 = hRe.mul(rIm).add(hIm.mul(rRe)).also { it.attach(sm) }
+            val sum1 = term1.mul(tRe).also { it.attach(sm) }
+            val sum2 = term2.mul(tIm).also { it.attach(sm) }
+            sum1.add(sum2).sum(sumAxis2d).also { it.attach(parent) }
+        }
     }
 
     private fun euclideanScore2d(
@@ -239,12 +247,16 @@ class ResultEvalHyperComplEx(
         r: NDArray,
         t: NDArray,
     ): NDArray =
-        h
-            .add(r)
-            .sub(t)
-            .pow(2)
-            .sum(sumAxis2d)
-            .neg()
+        h.manager.newSubManager().use { sm ->
+            val parent = h.manager
+            val base = h.add(r).also { it.attach(sm) }
+            base
+                .sub(t)
+                .pow(2)
+                .sum(sumAxis2d)
+                .neg()
+                .also { it.attach(parent) }
+        }
 
     private fun scoreTailChunk(
         hH: NDArray,
@@ -263,23 +275,19 @@ class ResultEvalHyperComplEx(
         realIndex2d: NDIndex,
         imagIndex2d: NDIndex,
     ): NDArray {
-        val baseH = mobiusAdd2d(hH, rH, model.curvature)
-        baseH.use { base ->
-            val hyper =
-                hyperbolicDistance3d(
-                    base.expandDims(1),
-                    chunkH.expandDims(0),
-                    model.curvature,
-                ).neg()
-            hyper.use { hScore ->
-                val complex = complexScoreTail(hC, rC, chunkC, realIndex2d, imagIndex2d)
-                complex.use { cScore ->
-                    val euclid = euclideanScoreTail(hE, rE, chunkE)
-                    euclid.use { eScore ->
-                        return alphaH.mul(hScore).add(alphaC.mul(cScore)).add(alphaE.mul(eScore))
-                    }
-                }
-            }
+        val parent = hH.manager
+        return parent.newSubManager().use { sm ->
+            val baseH = mobiusAdd2d(hH, rH, model.curvature).also { it.attach(sm) }
+            val baseExp = baseH.expandDims(1).also { it.attach(sm) }
+            val chunkHExp = chunkH.expandDims(0).also { it.attach(sm) }
+            val hyper = hyperbolicDistance3d(baseExp, chunkHExp, model.curvature).neg().also { it.attach(sm) }
+            val complex = complexScoreTail(hC, rC, chunkC, realIndex2d, imagIndex2d).also { it.attach(sm) }
+            val euclid = euclideanScoreTail(hE, rE, chunkE).also { it.attach(sm) }
+            alphaH
+                .mul(hyper)
+                .add(alphaC.mul(complex))
+                .add(alphaE.mul(euclid))
+                .also { it.attach(parent) }
         }
     }
 
@@ -300,16 +308,16 @@ class ResultEvalHyperComplEx(
         realIndex2d: NDIndex,
         imagIndex2d: NDIndex,
     ): NDArray {
-        val hyper =
-            hyperbolicScoreHead(rH, tH, chunkH, model.curvature)
-        hyper.use { hScore ->
-            val complex = complexScoreHead(rC, tC, chunkC, realIndex2d, imagIndex2d)
-            complex.use { cScore ->
-                val euclid = euclideanScoreHead(rE, tE, chunkE)
-                euclid.use { eScore ->
-                    return alphaH.mul(hScore).add(alphaC.mul(cScore)).add(alphaE.mul(eScore))
-                }
-            }
+        val parent = rH.manager
+        return parent.newSubManager().use { sm ->
+            val hyper = hyperbolicScoreHead(rH, tH, chunkH, model.curvature).also { it.attach(sm) }
+            val complex = complexScoreHead(rC, tC, chunkC, realIndex2d, imagIndex2d).also { it.attach(sm) }
+            val euclid = euclideanScoreHead(rE, tE, chunkE).also { it.attach(sm) }
+            alphaH
+                .mul(hyper)
+                .add(alphaC.mul(complex))
+                .add(alphaE.mul(euclid))
+                .also { it.attach(parent) }
         }
     }
 
@@ -320,15 +328,20 @@ class ResultEvalHyperComplEx(
         realIndex: NDIndex,
         imagIndex: NDIndex,
     ): NDArray {
-        val hRe = h.get(realIndex)
-        val hIm = h.get(imagIndex)
-        val rRe = r.get(realIndex)
-        val rIm = r.get(imagIndex)
-        val tRe = tChunk.get(realIndex)
-        val tIm = tChunk.get(imagIndex)
-        val term1 = hRe.mul(rRe).sub(hIm.mul(rIm))
-        val term2 = hRe.mul(rIm).add(hIm.mul(rRe))
-        return term1.matMul(tRe.transpose()).add(term2.matMul(tIm.transpose()))
+        val parent = h.manager
+        return parent.newSubManager().use { sm ->
+            val hRe = h.get(realIndex).also { it.attach(sm) }
+            val hIm = h.get(imagIndex).also { it.attach(sm) }
+            val rRe = r.get(realIndex).also { it.attach(sm) }
+            val rIm = r.get(imagIndex).also { it.attach(sm) }
+            val tRe = tChunk.get(realIndex).also { it.attach(sm) }
+            val tIm = tChunk.get(imagIndex).also { it.attach(sm) }
+            val term1 = hRe.mul(rRe).sub(hIm.mul(rIm)).also { it.attach(sm) }
+            val term2 = hRe.mul(rIm).add(hIm.mul(rRe)).also { it.attach(sm) }
+            val tReT = tRe.transpose().also { it.attach(sm) }
+            val tImT = tIm.transpose().also { it.attach(sm) }
+            term1.matMul(tReT).add(term2.matMul(tImT)).also { it.attach(parent) }
+        }
     }
 
     private fun complexScoreHead(
@@ -338,21 +351,28 @@ class ResultEvalHyperComplEx(
         realIndex2d: NDIndex,
         imagIndex2d: NDIndex,
     ): NDArray {
-        val hRe = hChunk.get(realIndex2d)
-        val hIm = hChunk.get(imagIndex2d)
-        val rRe = r.get(realIndex2d)
-        val rIm = r.get(imagIndex2d)
-        val tRe = t.get(realIndex2d)
-        val tIm = t.get(imagIndex2d)
-        val hReExp = hRe.expandDims(0)
-        val hImExp = hIm.expandDims(0)
-        val rReExp = rRe.expandDims(1)
-        val rImExp = rIm.expandDims(1)
-        val tReExp = tRe.expandDims(1)
-        val tImExp = tIm.expandDims(1)
-        val term1 = hReExp.mul(rReExp).sub(hImExp.mul(rImExp))
-        val term2 = hReExp.mul(rImExp).add(hImExp.mul(rReExp))
-        return term1.mul(tReExp).add(term2.mul(tImExp)).sum(sumAxis3d)
+        val parent = r.manager
+        return parent.newSubManager().use { sm ->
+            val hRe = hChunk.get(realIndex2d).also { it.attach(sm) }
+            val hIm = hChunk.get(imagIndex2d).also { it.attach(sm) }
+            val rRe = r.get(realIndex2d).also { it.attach(sm) }
+            val rIm = r.get(imagIndex2d).also { it.attach(sm) }
+            val tRe = t.get(realIndex2d).also { it.attach(sm) }
+            val tIm = t.get(imagIndex2d).also { it.attach(sm) }
+            val hReExp = hRe.expandDims(0).also { it.attach(sm) }
+            val hImExp = hIm.expandDims(0).also { it.attach(sm) }
+            val rReExp = rRe.expandDims(1).also { it.attach(sm) }
+            val rImExp = rIm.expandDims(1).also { it.attach(sm) }
+            val tReExp = tRe.expandDims(1).also { it.attach(sm) }
+            val tImExp = tIm.expandDims(1).also { it.attach(sm) }
+            val term1 = hReExp.mul(rReExp).sub(hImExp.mul(rImExp)).also { it.attach(sm) }
+            val term2 = hReExp.mul(rImExp).add(hImExp.mul(rReExp)).also { it.attach(sm) }
+            term1
+                .mul(tReExp)
+                .add(term2.mul(tImExp))
+                .sum(sumAxis3d)
+                .also { it.attach(parent) }
+        }
     }
 
     private fun euclideanScoreTail(
@@ -360,13 +380,18 @@ class ResultEvalHyperComplEx(
         r: NDArray,
         tChunk: NDArray,
     ): NDArray {
-        val base = h.add(r)
-        return base
-            .expandDims(1)
-            .sub(tChunk.expandDims(0))
-            .pow(2)
-            .sum(sumAxis3d)
-            .neg()
+        val parent = h.manager
+        return parent.newSubManager().use { sm ->
+            val base = h.add(r).also { it.attach(sm) }
+            val baseExp = base.expandDims(1).also { it.attach(sm) }
+            val tExp = tChunk.expandDims(0).also { it.attach(sm) }
+            baseExp
+                .sub(tExp)
+                .pow(2)
+                .sum(sumAxis3d)
+                .neg()
+                .also { it.attach(parent) }
+        }
     }
 
     private fun euclideanScoreHead(
@@ -374,13 +399,18 @@ class ResultEvalHyperComplEx(
         t: NDArray,
         hChunk: NDArray,
     ): NDArray {
-        val base = r.sub(t)
-        return hChunk
-            .expandDims(0)
-            .add(base.expandDims(1))
-            .pow(2)
-            .sum(sumAxis3d)
-            .neg()
+        val parent = r.manager
+        return parent.newSubManager().use { sm ->
+            val base = r.sub(t).also { it.attach(sm) }
+            val hExp = hChunk.expandDims(0).also { it.attach(sm) }
+            val baseExp = base.expandDims(1).also { it.attach(sm) }
+            hExp
+                .add(baseExp)
+                .pow(2)
+                .sum(sumAxis3d)
+                .neg()
+                .also { it.attach(parent) }
+        }
     }
 
     private fun hyperbolicScoreHead(
@@ -389,11 +419,14 @@ class ResultEvalHyperComplEx(
         hChunk: NDArray,
         curvature: Float,
     ): NDArray {
-        val hExp = hChunk.expandDims(0)
-        val rExp = r.expandDims(1)
-        val tExp = t.expandDims(1)
-        val hPlusR = mobiusAdd3d(hExp, rExp, curvature)
-        return hyperbolicDistance3d(hPlusR, tExp, curvature).neg()
+        val parent = r.manager
+        return parent.newSubManager().use { sm ->
+            val hExp = hChunk.expandDims(0).also { it.attach(sm) }
+            val rExp = r.expandDims(1).also { it.attach(sm) }
+            val tExp = t.expandDims(1).also { it.attach(sm) }
+            val hPlusR = mobiusAdd3d(hExp, rExp, curvature).also { it.attach(sm) }
+            hyperbolicDistance3d(hPlusR, tExp, curvature).neg().also { it.attach(parent) }
+        }
     }
 
     private fun mobiusAdd2d(
@@ -401,16 +434,38 @@ class ResultEvalHyperComplEx(
         y: NDArray,
         curvature: Float,
     ): NDArray {
-        val xy = x.mul(y).sum(sumAxis2d).reshape(x.shape[0], 1)
-        val x2 = x.pow(2).sum(sumAxis2d).reshape(x.shape[0], 1)
-        val y2 = y.pow(2).sum(sumAxis2d).reshape(x.shape[0], 1)
-        val twoC = 2.0f * curvature
-        val numLeft = x.mul(xy.mul(twoC).add(y2.mul(curvature)).add(1f))
-        val numRight = y.mul(x2.mul(-curvature).add(1f))
-        val numerator = numLeft.add(numRight)
-        val denominator =
-            xy.mul(twoC).add(x2.mul(y2).mul(curvature * curvature)).add(1f)
-        return numerator.div(denominator)
+        val parent = x.manager
+        return parent.newSubManager().use { sm ->
+            val xy =
+                x
+                    .mul(y)
+                    .sum(sumAxis2d)
+                    .reshape(x.shape[0], 1)
+                    .also { it.attach(sm) }
+            val x2 =
+                x
+                    .pow(2)
+                    .sum(sumAxis2d)
+                    .reshape(x.shape[0], 1)
+                    .also { it.attach(sm) }
+            val y2 =
+                y
+                    .pow(2)
+                    .sum(sumAxis2d)
+                    .reshape(x.shape[0], 1)
+                    .also { it.attach(sm) }
+            val twoC = 2.0f * curvature
+            val numLeft = x.mul(xy.mul(twoC).add(y2.mul(curvature)).add(1f)).also { it.attach(sm) }
+            val numRight = y.mul(x2.mul(-curvature).add(1f)).also { it.attach(sm) }
+            val numerator = numLeft.add(numRight).also { it.attach(sm) }
+            val denominator =
+                xy
+                    .mul(twoC)
+                    .add(x2.mul(y2).mul(curvature * curvature))
+                    .add(1f)
+                    .also { it.attach(sm) }
+            numerator.div(denominator).also { it.attach(parent) }
+        }
     }
 
     private fun mobiusAdd3d(
@@ -418,16 +473,38 @@ class ResultEvalHyperComplEx(
         y: NDArray,
         curvature: Float,
     ): NDArray {
-        val xy = x.mul(y).sum(sumAxis3d).reshape(x.shape[0], x.shape[1], 1)
-        val x2 = x.pow(2).sum(sumAxis3d).reshape(x.shape[0], x.shape[1], 1)
-        val y2 = y.pow(2).sum(sumAxis3d).reshape(y.shape[0], y.shape[1], 1)
-        val twoC = 2.0f * curvature
-        val numLeft = x.mul(xy.mul(twoC).add(y2.mul(curvature)).add(1f))
-        val numRight = y.mul(x2.mul(-curvature).add(1f))
-        val numerator = numLeft.add(numRight)
-        val denominator =
-            xy.mul(twoC).add(x2.mul(y2).mul(curvature * curvature)).add(1f)
-        return numerator.div(denominator)
+        val parent = x.manager
+        return parent.newSubManager().use { sm ->
+            val xy =
+                x
+                    .mul(y)
+                    .sum(sumAxis3d)
+                    .reshape(x.shape[0], x.shape[1], 1)
+                    .also { it.attach(sm) }
+            val x2 =
+                x
+                    .pow(2)
+                    .sum(sumAxis3d)
+                    .reshape(x.shape[0], x.shape[1], 1)
+                    .also { it.attach(sm) }
+            val y2 =
+                y
+                    .pow(2)
+                    .sum(sumAxis3d)
+                    .reshape(y.shape[0], y.shape[1], 1)
+                    .also { it.attach(sm) }
+            val twoC = 2.0f * curvature
+            val numLeft = x.mul(xy.mul(twoC).add(y2.mul(curvature)).add(1f)).also { it.attach(sm) }
+            val numRight = y.mul(x2.mul(-curvature).add(1f)).also { it.attach(sm) }
+            val numerator = numLeft.add(numRight).also { it.attach(sm) }
+            val denominator =
+                xy
+                    .mul(twoC)
+                    .add(x2.mul(y2).mul(curvature * curvature))
+                    .add(1f)
+                    .also { it.attach(sm) }
+            numerator.div(denominator).also { it.attach(parent) }
+        }
     }
 
     private fun hyperbolicDistance2d(
@@ -435,14 +512,32 @@ class ResultEvalHyperComplEx(
         y: NDArray,
         curvature: Float,
     ): NDArray {
-        val diff2 = x.sub(y).pow(2).sum(sumAxis2d)
-        val x2 = x.pow(2).sum(sumAxis2d)
-        val y2 = y.pow(2).sum(sumAxis2d)
-        val denom = x2.mul(-curvature).add(1f).mul(y2.mul(-curvature).add(1f))
-        val term = diff2.mul(2f).div(denom).add(1f)
-        val termClamped = term.maximum(1.0f + 1.0e-6f)
-        val acosh = acosh(termClamped)
-        return acosh.div(sqrt(curvature.toDouble()).toFloat())
+        val parent = x.manager
+        return parent.newSubManager().use { sm ->
+            val diff2 =
+                x
+                    .sub(y)
+                    .pow(2)
+                    .sum(sumAxis2d)
+                    .also { it.attach(sm) }
+            val x2 = x.pow(2).sum(sumAxis2d).also { it.attach(sm) }
+            val y2 = y.pow(2).sum(sumAxis2d).also { it.attach(sm) }
+            val denom =
+                x2
+                    .mul(-curvature)
+                    .add(1f)
+                    .mul(y2.mul(-curvature).add(1f))
+                    .also { it.attach(sm) }
+            val term =
+                diff2
+                    .mul(2f)
+                    .div(denom)
+                    .add(1f)
+                    .also { it.attach(sm) }
+            val termClamped = term.maximum(1.0f + 1.0e-6f).also { it.attach(sm) }
+            val acosh = acosh(termClamped).also { it.attach(sm) }
+            acosh.div(sqrt(curvature.toDouble()).toFloat()).also { it.attach(parent) }
+        }
     }
 
     private fun hyperbolicDistance3d(
@@ -450,20 +545,41 @@ class ResultEvalHyperComplEx(
         y: NDArray,
         curvature: Float,
     ): NDArray {
-        val diff2 = x.sub(y).pow(2).sum(sumAxis3d)
-        val x2 = x.pow(2).sum(sumAxis3d)
-        val y2 = y.pow(2).sum(sumAxis3d)
-        val denom = x2.mul(-curvature).add(1f).mul(y2.mul(-curvature).add(1f))
-        val term = diff2.mul(2f).div(denom).add(1f)
-        val termClamped = term.maximum(1.0f + 1.0e-6f)
-        val acosh = acosh(termClamped)
-        return acosh.div(sqrt(curvature.toDouble()).toFloat())
+        val parent = x.manager
+        return parent.newSubManager().use { sm ->
+            val diff2 =
+                x
+                    .sub(y)
+                    .pow(2)
+                    .sum(sumAxis3d)
+                    .also { it.attach(sm) }
+            val x2 = x.pow(2).sum(sumAxis3d).also { it.attach(sm) }
+            val y2 = y.pow(2).sum(sumAxis3d).also { it.attach(sm) }
+            val denom =
+                x2
+                    .mul(-curvature)
+                    .add(1f)
+                    .mul(y2.mul(-curvature).add(1f))
+                    .also { it.attach(sm) }
+            val term =
+                diff2
+                    .mul(2f)
+                    .div(denom)
+                    .add(1f)
+                    .also { it.attach(sm) }
+            val termClamped = term.maximum(1.0f + 1.0e-6f).also { it.attach(sm) }
+            val acosh = acosh(termClamped).also { it.attach(sm) }
+            acosh.div(sqrt(curvature.toDouble()).toFloat()).also { it.attach(parent) }
+        }
     }
 
     private fun acosh(x: NDArray): NDArray {
-        val zMinus1 = x.sub(1f)
-        val zPlus1 = x.add(1f)
-        val sqrtProd = zMinus1.mul(zPlus1).sqrt()
-        return x.add(sqrtProd).log()
+        val parent = x.manager
+        return parent.newSubManager().use { sm ->
+            val zMinus1 = x.sub(1f).also { it.attach(sm) }
+            val zPlus1 = x.add(1f).also { it.attach(sm) }
+            val sqrtProd = zMinus1.mul(zPlus1).sqrt().also { it.attach(sm) }
+            x.add(sqrtProd).log().also { it.attach(parent) }
+        }
     }
 }

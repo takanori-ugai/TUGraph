@@ -579,15 +579,7 @@ class HyperComplEx(
         fun addParam(param: Parameter) {
             val arr = parameterStore.getValue(param, device, training)
             val term = arr.pow(2).use { it.sum() }
-            sum =
-                if (sum == null) {
-                    term
-                } else {
-                    val out = sum!!.add(term)
-                    sum!!.close()
-                    term.close()
-                    out
-                }
+            sum = sum?.use { s -> term.use { t -> s.add(t) } } ?: term
         }
         for (param in entH) addParam(param)
         for (param in entC) addParam(param)

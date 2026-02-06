@@ -406,7 +406,10 @@ open class ResultEval(
             val relCol = manager.create(relArr)
             headRel.set(col0Index, headCol)
             headRel.set(col1Index, relCol)
-            val trueTailCol = manager.create(tailIds).reshape(batchSize.toLong(), 1)
+            val trueTailCol =
+                manager
+                    .create(tailIds.map { it.toLong() }.toLongArray())
+                    .reshape(batchSize.toLong(), 1)
             EvalBatch(
                 basePair = headRel,
                 trueIds = tailIds,
@@ -464,7 +467,10 @@ open class ResultEval(
             val tailCol = manager.create(tailArr)
             relTail.set(col0Index, relCol)
             relTail.set(col1Index, tailCol)
-            val trueHeadCol = manager.create(headIds).reshape(batchSize.toLong(), 1)
+            val trueHeadCol =
+                manager
+                    .create(headIds.map { it.toLong() }.toLongArray())
+                    .reshape(batchSize.toLong(), 1)
             EvalBatch(
                 basePair = relTail,
                 trueIds = headIds,

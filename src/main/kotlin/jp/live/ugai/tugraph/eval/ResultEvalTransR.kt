@@ -60,7 +60,7 @@ class ResultEvalTransR(
                     val countBetterAll = LongArray(batchSize)
                     for ((relId, indices) in indicesByRel) {
                         val idxArr = indices.toIntArray()
-                        manager.create(idxArr).use { idxNd ->
+                        batchManager.create(idxArr).use { idxNd ->
                             val headIdsNd =
                                 if (mode == EvalMode.TAIL) {
                                     baseCol0.get(idxNd)
@@ -75,7 +75,7 @@ class ResultEvalTransR(
                                 }
                             headIdsNd.use { hIds ->
                                 tailIdsNd.use { tIds ->
-                                    manager.create(longArrayOf(relId)).use { relIdNd ->
+                                    batchManager.create(longArrayOf(relId)).use { relIdNd ->
                                         val heads = entities.get(hIds)
                                         val tails = entities.get(tIds)
                                         val relEmb = edges.get(relIdNd)
@@ -143,14 +143,24 @@ class ResultEvalTransR(
                                                                                                                     sc
                                                                                                                         .gt(
                                                                                                                             ts2d,
-                                                                                                                        ).sum(intArrayOf(1))
+                                                                                                                        ).sum(
+                                                                                                                            intArrayOf(
+                                                                                                                                1,
+                                                                                                                            ),
+                                                                                                                        )
                                                                                                                 } else {
                                                                                                                     sc
                                                                                                                         .lt(
                                                                                                                             ts2d,
-                                                                                                                        ).sum(intArrayOf(1))
+                                                                                                                        ).sum(
+                                                                                                                            intArrayOf(
+                                                                                                                                1,
+                                                                                                                            ),
+                                                                                                                        )
                                                                                                                 }
-                                                                                                            countBetter.addi(countBetterNd)
+                                                                                                            countBetter.addi(
+                                                                                                                countBetterNd,
+                                                                                                            )
                                                                                                             countBetterNd.close()
                                                                                                         }
                                                                                                     }
