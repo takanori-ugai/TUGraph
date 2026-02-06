@@ -3,6 +3,7 @@ package jp.live.ugai.tugraph
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.Shape
 import ai.djl.training.tracker.Tracker
+import jp.live.ugai.tugraph.train.DenseAdagrad
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -10,7 +11,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import jp.live.ugai.tugraph.train.DenseAdagrad
 
 /**
  * Comprehensive test class for DenseAdagrad optimizer.

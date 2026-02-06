@@ -482,13 +482,25 @@ class EmbeddingTrainer(
                                 it.attach(batchManager)
                             }
                         var lossValue =
-                            losses.computeLossFromScores(
-                                pos,
-                                neg,
-                                plan.useSimilarityLoss,
-                                plan.useSelfAdversarial,
-                                plan.higherIsBetter,
-                            )
+                            if (plan.useMatryoshka) {
+                                losses.computeMatryoshkaLoss(
+                                    plan.adapter.block,
+                                    sample,
+                                    negativeSample,
+                                    plan.numNegatives,
+                                    plan.useSimilarityLoss,
+                                    plan.useSelfAdversarial,
+                                    plan.higherIsBetter,
+                                )
+                            } else {
+                                losses.computeLossFromScores(
+                                    pos,
+                                    neg,
+                                    plan.useSimilarityLoss,
+                                    plan.useSelfAdversarial,
+                                    plan.higherIsBetter,
+                                )
+                            }
                         var baseLoss: NDArray? = null
                         if (plan.regWeight > 0.0f) {
                             val reg = computeL2Reg(plan.regWeight)
@@ -515,10 +527,27 @@ class EmbeddingTrainer(
 
     private fun computeL2Reg(regWeight: Float): NDArray {
         val block = trainer.model.block
-        return block.parameters.valueAt(0).array.pow(2).sum().use { reg1 ->
-            block.parameters.valueAt(1).array.pow(2).sum().use { reg2 ->
-                reg1.add(reg2).mul(regWeight)
+        val pow0 =
+            block.parameters
+                .valueAt(0)
+                .array
+                .pow(2)
+        val pow1 =
+            block.parameters
+                .valueAt(1)
+                .array
+                .pow(2)
+        return try {
+            pow0.sum().use { reg1 ->
+                pow1.sum().use { reg2 ->
+                    reg1.add(reg2).use { sum ->
+                        sum.mul(regWeight)
+                    }
+                }
             }
+        } finally {
+            pow0.close()
+            pow1.close()
         }
     }
 }

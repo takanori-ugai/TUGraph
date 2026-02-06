@@ -86,15 +86,23 @@ internal class EmbeddingLosses(
         } else {
             val hinge =
                 if (higherIsBetter) {
-                    neg.sub(pos.expandDims(1)).add(margin).maximum(0f)
+                    pos.expandDims(1).use { posExp ->
+                        neg.sub(posExp).use { diff ->
+                            diff.add(margin).use { shifted ->
+                                shifted.maximum(0f)
+                            }
+                        }
+                    }
                 } else {
-                    pos
-                        .expandDims(1)
-                        .sub(neg)
-                        .add(margin)
-                        .maximum(0f)
+                    pos.expandDims(1).use { posExp ->
+                        posExp.sub(neg).use { diff ->
+                            diff.add(margin).use { shifted ->
+                                shifted.maximum(0f)
+                            }
+                        }
+                    }
                 }
-            hinge.mean(intArrayOf(1))
+            hinge.use { it.mean(intArrayOf(1)) }
         }
 
     /**
@@ -228,7 +236,9 @@ internal class EmbeddingLosses(
             diffHC.pow(2).use { hc2 ->
                 diffHE.pow(2).use { he2 ->
                     diffCE.pow(2).use { ce2 ->
-                        hc2.add(he2).add(ce2)
+                        hc2.add(he2).use { partial ->
+                            partial.add(ce2)
+                        }
                     }
                 }
             }
