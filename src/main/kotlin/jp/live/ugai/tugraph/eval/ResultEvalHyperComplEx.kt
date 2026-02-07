@@ -215,7 +215,8 @@ class ResultEvalHyperComplEx(
      * @param array The array to potentially cast.
      * @param target The desired data type.
      * @param model The HyperComplEx model whose `mixedPrecision` flag controls casting.
-     * @return The original array, or a converted array with `target` data type if `model.mixedPrecision` is true and the array's data type differs.
+     * @return The original array, or a converted array with `target` data type if `model.mixedPrecision` is true
+     *   and the array's data type differs.
      */
     private fun maybeCast(
         array: NDArray,
@@ -503,7 +504,8 @@ class ResultEvalHyperComplEx(
      * @param h Head embeddings with shape (batchSize, dim).
      * @param r Relation embeddings with shape (batchSize, dim).
      * @param tChunk Candidate tail embeddings with shape (chunkSize, dim).
-     * @return An NDArray of shape (batchSize, chunkSize) containing the negative squared Euclidean distances (higher values indicate closer/more similar candidates).
+     * @return An NDArray of shape (batchSize, chunkSize) containing the negative squared Euclidean distances
+     *   (higher values indicate closer/more similar candidates).
      */
     private fun euclideanScoreTail(
         h: NDArray,
@@ -559,7 +561,8 @@ class ResultEvalHyperComplEx(
      * @param t Tail embeddings in 2D form.
      * @param hChunk Chunk of candidate head embeddings (may contain multiple candidates).
      * @param curvature Positive curvature scalar used for the hyperbolic geometry.
-     * @return An `NDArray` of negated hyperbolic distances between (hChunk ⊕ r) and `t` under the given curvature; larger values indicate closer distance in hyperbolic space.
+     * @return An `NDArray` of negated hyperbolic distances between (hChunk ⊕ r) and `t` under the given curvature;
+     *   larger values indicate closer distance in hyperbolic space.
      */
     private fun hyperbolicScoreHead(
         r: NDArray,
@@ -722,7 +725,8 @@ class ResultEvalHyperComplEx(
      * @param x Tensor of points (batch-compatible) where the distance is measured from; last feature axis is folded into the distance.
      * @param y Tensor of points (batch-compatible) where the distance is measured to; must be broadcastable with `x`.
      * @param curvature Positive curvature scalar for the hyperbolic model.
-     * @return An NDArray of distances computed per pair in `x` and `y`, with the feature axis reduced (shape reflects the remaining batch dimensions).
+     * @return An NDArray of distances computed per pair in `x` and `y`, with the feature axis reduced
+     *   (shape reflects the remaining batch dimensions).
      */
     private fun hyperbolicDistance3d(
         x: NDArray,

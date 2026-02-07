@@ -288,7 +288,8 @@ open class ResultEval(
      * @param evalBatchSize Maximum number of input triples processed per outer batch.
      * @param entityChunkSize Maximum number of candidate entities evaluated per inner chunk.
      * @param buildBatch Builds an EvalBatch for the half-open range [start, end).
-     * @param buildTrueInput Constructs the model input used to compute the true-entity scores from a base pair and the column of true entity IDs.
+     * @param buildTrueInput Constructs the model input used to compute the true-entity scores from a base pair
+     *   and the column of true entity IDs.
      * @param buildChunkInput Constructs the per-chunk model input from a base pair and a column of candidate entity IDs.
      * @return A list of ranks (one Int per input triple, in inputList order).
      */
@@ -417,7 +418,8 @@ open class ResultEval(
      *
      * If filtered evaluation is enabled on this ResultEval instance, metrics are computed using filtered ranks.
      *
-     * @return A map with keys "HIT@1", "HIT@10", "HIT@100", and "MRR". "HIT@k" is the proportion of examples whose rank is less than or equal to k; "MRR" is the mean reciprocal rank (mean of 1/rank).
+     * @return A map with keys "HIT@1", "HIT@10", "HIT@100", and "MRR". "HIT@k" is the proportion of examples
+     *   whose rank is less than or equal to k; "MRR" is the mean reciprocal rank (mean of 1/rank).
      */
     fun getTailResult(): Map<String, Float> {
         require(numEntities <= Int.MAX_VALUE.toLong()) {

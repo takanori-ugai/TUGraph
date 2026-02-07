@@ -18,9 +18,12 @@ import jp.live.ugai.tugraph.train.EmbeddingTrainer
 import jp.live.ugai.tugraph.train.HingeLossLoggingListener
 
 /**
- * Runs a full demonstration workflow: loads triples from "data/sample.csv", trains a RotatE embedding model, and evaluates its predictions.
+ * Runs a full demonstration workflow: loads triples from "data/sample.csv", trains a RotatE embedding model,
+ * and evaluates its predictions.
  *
- * The workflow loads and prepares triple data, initializes the RotatE model and training pipeline, trains entity and relation embeddings, prints model state and a sample prediction, and computes head/tail evaluation results which are printed to stdout.
+ * The workflow loads and prepares triple data, initializes the RotatE model and training pipeline, trains entity
+ * and relation embeddings, prints model state and a sample prediction, and computes head/tail evaluation results
+ * which are printed to stdout.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->

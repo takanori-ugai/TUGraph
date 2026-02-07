@@ -91,7 +91,8 @@ class DistMult(
      * @param input NDArray containing triple indices in row-major order (shape (numTriples, 3) or flattened as a multiple of 3).
      * @param entities Entity embedding matrix with shape (numEnt, dim); each row is an entity embedding.
      * @param edges Relation embedding matrix with shape (numEdge, dim); each row is a relation embedding.
-     * @return An NDArray of shape (numTriples) where each entry is the sum over the elementwise product of the head, relation, and tail embeddings for the corresponding triple.
+     * @return An NDArray of shape (numTriples) where each entry is the sum over the elementwise product of the
+     *   head, relation, and tail embeddings for the corresponding triple.
      */
     fun model(
         input: NDArray,

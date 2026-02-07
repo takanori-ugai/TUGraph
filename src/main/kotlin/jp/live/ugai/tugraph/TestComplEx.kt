@@ -17,9 +17,12 @@ import jp.live.ugai.tugraph.train.EmbeddingTrainer
 import jp.live.ugai.tugraph.train.HingeLossLoggingListener
 
 /**
- * Runs a full demo that loads triples from data/sample.csv, trains a ComplEx embedding model, and evaluates results.
+ * Runs a full demo that loads triples from data/sample.csv, trains a ComplEx embedding model, and evaluates
+ * results.
  *
- * Loads CSV triples into NDArrays, constructs and initializes a ComplEx model and DJL Trainer, trains embeddings with an EmbeddingTrainer, prints training results and model entities/edges, runs a sample prediction, and computes head/tail evaluation scores with ResultEvalComplEx before cleaning up resources.
+ * Loads CSV triples into NDArrays, constructs and initializes a ComplEx model and DJL Trainer, trains embeddings
+ * with an EmbeddingTrainer, prints training results and model entities/edges, runs a sample prediction, and
+ * computes head/tail evaluation scores with ResultEvalComplEx before cleaning up resources.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->

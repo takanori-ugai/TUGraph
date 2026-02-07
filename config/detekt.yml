@@ -24,7 +24,7 @@ complexity:
 
 style:
   MaxLineLength:
-    maxLineLength: 300
+    maxLineLength: 140
   DestructuringDeclarationWithTooManyEntries:
     maxDestructuringEntries: 10
   ThrowsCount:

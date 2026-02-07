@@ -18,9 +18,12 @@ import jp.live.ugai.tugraph.train.EmbeddingTrainer
 import jp.live.ugai.tugraph.train.HingeLossLoggingListener
 
 /**
- * Trains and evaluates a DistMult knowledge-graph embedding model using triples loaded from "data/sample.csv" and prints training progress, model state, a sample prediction, and head/tail evaluation results.
+ * Trains and evaluates a DistMult knowledge-graph embedding model using triples loaded from "data/sample.csv"
+ * and prints training progress, model state, a sample prediction, and head/tail evaluation results.
  *
- * The program loads triples, derives entity and relation counts, initializes the DistMult model and trainer, runs embedding training, runs a sample prediction, evaluates results with ResultEvalDistMult, prints the tail and head metrics, and closes resources.
+ * The program loads triples, derives entity and relation counts, initializes the DistMult model and trainer,
+ * runs embedding training, runs a sample prediction, evaluates results with ResultEvalDistMult, prints the tail
+ * and head metrics, and closes resources.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->

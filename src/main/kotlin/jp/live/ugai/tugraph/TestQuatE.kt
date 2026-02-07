@@ -18,9 +18,12 @@ import jp.live.ugai.tugraph.train.EmbeddingTrainer
 import jp.live.ugai.tugraph.train.HingeLossLoggingListener
 
 /**
- * Runs a complete example: loads triples from data/sample.csv, builds and trains a QuatE embedding model, performs a sample prediction, evaluates head/tail rankings, and prints results.
+ * Runs a complete example: loads triples from data/sample.csv, builds and trains a QuatE embedding model,
+ * performs a sample prediction, evaluates head/tail rankings, and prints results.
  *
- * The function covers data loading, model and trainer initialization, embedding training with EmbeddingTrainer, prediction via a NoopTranslator-based predictor, evaluation using ResultEvalQuatE, and prints training metrics and evaluation outputs. All created resources are closed before the function exits.
+ * The function covers data loading, model and trainer initialization, embedding training with EmbeddingTrainer,
+ * prediction via a NoopTranslator-based predictor, evaluation using ResultEvalQuatE, and prints training metrics
+ * and evaluation outputs. All created resources are closed before the function exits.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->
