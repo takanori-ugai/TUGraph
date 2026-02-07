@@ -69,21 +69,26 @@ fun main() {
                 val device = batch.device
                 val entities = rotate.getEntities(parameterStore, device, false)
                 val edges = rotate.getEdges(parameterStore, device, false)
-                val embDim = entities.shape[1]
-                val usable =
-                    matryoshkaDims.filter { dim ->
-                        dim > 0L && dim <= embDim && dim % 2L == 0L
+                try {
+                    val embDim = entities.shape[1]
+                    val usable =
+                        matryoshkaDims.filter { dim ->
+                            dim > 0L && dim <= embDim && dim % 2L == 0L
+                        }
+                    require(usable.isNotEmpty()) {
+                        "No valid Matryoshka dims for RotatE (embDim=$embDim, dims=${matryoshkaDims.contentToString()})."
                     }
-                require(usable.isNotEmpty()) {
-                    "No valid Matryoshka dims for RotatE (embDim=$embDim, dims=${matryoshkaDims.contentToString()})."
-                }
-                for (dim in usable) {
-                    val score = rotate.score(batch, entities, edges, dim)
-                    try {
-                        println("Matryoshka RotatE score (totalDim=$dim): $score")
-                    } finally {
-                        score.close()
+                    for (dim in usable) {
+                        val score = rotate.score(batch, entities, edges, dim)
+                        try {
+                            println("Matryoshka RotatE score (totalDim=$dim): $score")
+                        } finally {
+                            score.close()
+                        }
                     }
+                } finally {
+                    entities.close()
+                    edges.close()
                 }
             }
         }

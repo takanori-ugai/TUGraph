@@ -17,6 +17,7 @@ import jp.live.ugai.tugraph.QuatE
 import jp.live.ugai.tugraph.RotatE
 import jp.live.ugai.tugraph.SELF_ADVERSARIAL_TEMP
 import jp.live.ugai.tugraph.matryoshkaQuatEScore
+import jp.live.ugai.tugraph.resolveQuatEComponentDimsWithWeights
 
 /**
  * Loss helpers for embedding models trained by [EmbeddingTrainer].
@@ -327,20 +328,12 @@ internal class EmbeddingLosses(
                 0L
             }
         val useTotalDims = isQuatE && dims.any { it > fullCompDim }
-        for (i in dims.indices) {
-            val d = dims[i]
-            if (d <= 0L) continue
-            if (isQuatE) {
-                val compDim =
-                    if (useTotalDims) {
-                        if (d <= embDim && d % 4L == 0L) d / 4L else null
-                    } else {
-                        if (d <= fullCompDim) d else null
-                    }
-                if (compDim != null && compDim <= fullCompDim) {
-                    usable.add(compDim to weights[i])
-                }
-            } else {
+        if (isQuatE) {
+            usable.addAll(resolveQuatEComponentDimsWithWeights(dims, weights, fullCompDim, embDim))
+        } else {
+            for (i in dims.indices) {
+                val d = dims[i]
+                if (d <= 0L) continue
                 if (d <= embDim && d % 2L == 0L) {
                     usable.add(d to weights[i])
                 }

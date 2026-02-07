@@ -40,6 +40,35 @@ internal fun resolveQuatEComponentDims(
 }
 
 /**
+ * Resolve Matryoshka dimensions for QuatE and attach weights for each usable component dimension.
+ */
+internal fun resolveQuatEComponentDimsWithWeights(
+    dims: LongArray,
+    weights: FloatArray,
+    fullDim: Long,
+    embDim: Long,
+): List<Pair<Long, Float>> {
+    require(dims.size == weights.size) { "Matryoshka dims and weights must have the same length." }
+    val componentDims = resolveQuatEComponentDims(dims, fullDim, embDim).toSet()
+    val useTotalDims = dims.any { it > fullDim }
+    val paired = ArrayList<Pair<Long, Float>>(dims.size)
+    for (i in dims.indices) {
+        val d = dims[i]
+        if (d <= 0L) continue
+        val compDim =
+            if (useTotalDims) {
+                if (d <= embDim && d % 4L == 0L) d / 4L else null
+            } else {
+                if (d <= fullDim) d else null
+            }
+        if (compDim != null && componentDims.contains(compDim)) {
+            paired.add(compDim to weights[i])
+        }
+    }
+    return paired
+}
+
+/**
  * Compute Matryoshka QuatE scores for a batch of triples at the given component dimension.
  */
 internal fun matryoshkaQuatEScore(
