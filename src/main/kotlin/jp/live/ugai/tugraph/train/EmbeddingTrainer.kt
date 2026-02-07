@@ -29,7 +29,7 @@ import kotlin.math.min
  * @param numOfEntities Number of entities in the dataset.
  * @param trainer DJL trainer configured with the model and optimizer.
  * @param epoch Number of epochs to train.
- * @param useMatryoshkaOverride Enables Matryoshka loss for supported blocks when true.
+ * @param enableMatryoshka Enables Matryoshka loss for supported blocks when true.
  */
 class EmbeddingTrainer(
     private val manager: NDManager,
@@ -37,7 +37,7 @@ class EmbeddingTrainer(
     private val numOfEntities: Long,
     private val trainer: Trainer,
     private val epoch: Int,
-    private val useMatryoshkaOverride: Boolean = false,
+    private val enableMatryoshka: Boolean = false,
 ) : java.io.Closeable {
     private val triples: NDArray
 
@@ -163,9 +163,9 @@ class EmbeddingTrainer(
                 else -> false
             }
         val useMatryoshka =
-            if (useMatryoshkaOverride) {
+            if (enableMatryoshka) {
                 if (!useMatryoshkaSupported && logger.isWarnEnabled) {
-                    logger.warn("Matryoshka override enabled for unsupported block {}.", block::class.simpleName)
+                    logger.warn("Matryoshka enabled for unsupported block {}.", block::class.simpleName)
                 }
                 useMatryoshkaSupported
             } else {

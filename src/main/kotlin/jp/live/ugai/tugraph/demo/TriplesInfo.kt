@@ -8,7 +8,7 @@ import ai.djl.training.DefaultTrainingConfig
 import ai.djl.training.Trainer
 import jp.live.ugai.tugraph.TRIPLE
 
-data class TriplesInfo(
+class TriplesInfo(
     val input: NDArray,
     val inputList: List<LongArray>,
     val numEntities: Long,

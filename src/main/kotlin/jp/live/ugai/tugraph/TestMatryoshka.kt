@@ -1,10 +1,8 @@
 package jp.live.ugai.tugraph
 
 import ai.djl.Model
-import ai.djl.ndarray.NDArray
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
-import ai.djl.ndarray.index.NDIndex
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
 import ai.djl.training.DefaultTrainingConfig
@@ -56,7 +54,7 @@ fun main() {
         val trainer = newTrainer(model, config, Shape(BATCH_SIZE.toLong(), TRIPLE))
 
         val eTrainer =
-            EmbeddingTrainer(manager.newSubManager(), input, triples.numEntities, trainer, NEPOCH, useMatryoshkaOverride = true)
+            EmbeddingTrainer(manager.newSubManager(), input, triples.numEntities, trainer, NEPOCH, enableMatryoshka = true)
         eTrainer.training()
         eTrainer.close()
         println(trainer.trainingResult)
@@ -72,18 +70,23 @@ fun main() {
                 val device = batch.device
                 val entities = quate.getEntities(parameterStore, device, false)
                 val edges = quate.getEdges(parameterStore, device, false)
-                require(entities.shape[1] % 4L == 0L) {
-                    "QuatE embedding width must be divisible by 4, was ${entities.shape[1]}."
-                }
-                val fullDim = entities.shape[1] / 4
-                val componentDims = resolveQuatEComponentDims(matryoshkaDims, fullDim, entities.shape[1])
-                for (dim in componentDims) {
-                    val score = matryoshkaQuatEScore(batch, entities, edges, dim, fullDim)
-                    try {
-                        println("Matryoshka QuatE score (componentDim=$dim): $score")
-                    } finally {
-                        score.close()
+                try {
+                    require(entities.shape[1] % 4L == 0L) {
+                        "QuatE embedding width must be divisible by 4, was ${entities.shape[1]}."
                     }
+                    val fullDim = entities.shape[1] / 4
+                    val componentDims = resolveQuatEComponentDims(matryoshkaDims, fullDim, entities.shape[1])
+                    for (dim in componentDims) {
+                        val score = matryoshkaQuatEScore(batch, entities, edges, dim, fullDim)
+                        try {
+                            println("Matryoshka QuatE score (componentDim=$dim): $score")
+                        } finally {
+                            score.close()
+                        }
+                    }
+                } finally {
+                    entities.close()
+                    edges.close()
                 }
             }
         }
@@ -116,116 +119,6 @@ fun main() {
         model.close()
     }
 }
-
-private data class QuatView(
-    val r: NDArray,
-    val i: NDArray,
-    val j: NDArray,
-    val k: NDArray,
-)
-
-private fun resolveQuatEComponentDims(
-    dims: LongArray,
-    fullDim: Long,
-    embDim: Long,
-): List<Long> {
-    val resolved = ArrayList<Long>(dims.size)
-    val useTotalDims = dims.any { it > fullDim }
-    for (d in dims) {
-        if (d <= 0L) continue
-        val compDim =
-            if (useTotalDims) {
-                if (d <= embDim && d % 4L == 0L) d / 4L else null
-            } else {
-                if (d <= fullDim) d else null
-            }
-        if (compDim != null && compDim <= fullDim) {
-            resolved.add(compDim)
-        }
-    }
-    require(resolved.isNotEmpty()) { "No valid Matryoshka dims for QuatE (fullDim=$fullDim, embDim=$embDim)." }
-    return resolved
-}
-
-private fun matryoshkaQuatEScore(
-    input: NDArray,
-    entities: NDArray,
-    edges: NDArray,
-    componentDim: Long,
-    fullDim: Long,
-): NDArray {
-    require(componentDim > 0L) { "componentDim must be > 0." }
-    require(componentDim <= fullDim) { "componentDim must be <= fullDim ($fullDim)." }
-    val numTriples = input.size() / TRIPLE
-    val parent = input.manager
-    return parent.newSubManager().use { sm ->
-        val triples = input.reshape(numTriples, TRIPLE).also { it.attach(sm) }
-        val headIds = triples.get(NDIndex(":, 0")).also { it.attach(sm) }
-        val relationIds = triples.get(NDIndex(":, 1")).also { it.attach(sm) }
-        val tailIds = triples.get(NDIndex(":, 2")).also { it.attach(sm) }
-
-        val heads = entities.get(headIds).also { it.attach(sm) }
-        val relations = edges.get(relationIds).also { it.attach(sm) }
-        val tails = entities.get(tailIds).also { it.attach(sm) }
-
-        val h = splitQuaternion(heads, componentDim, fullDim, attachTo = { it.attach(sm) })
-        val r = splitQuaternion(relations, componentDim, fullDim, attachTo = { it.attach(sm) })
-        val t = splitQuaternion(tails, componentDim, fullDim, attachTo = { it.attach(sm) })
-
-        // Hamilton product r ⊗ t
-        val rtR =
-            r.r
-                .mul(t.r)
-                .sub(r.i.mul(t.i))
-                .sub(r.j.mul(t.j))
-                .sub(r.k.mul(t.k))
-                .also { it.attach(sm) }
-        val rtI =
-            r.r
-                .mul(t.i)
-                .add(r.i.mul(t.r))
-                .add(r.j.mul(t.k))
-                .sub(r.k.mul(t.j))
-                .also { it.attach(sm) }
-        val rtJ =
-            r.r
-                .mul(t.j)
-                .sub(r.i.mul(t.k))
-                .add(r.j.mul(t.r))
-                .add(r.k.mul(t.i))
-                .also { it.attach(sm) }
-        val rtK =
-            r.r
-                .mul(t.k)
-                .add(r.i.mul(t.j))
-                .sub(r.j.mul(t.i))
-                .add(r.k.mul(t.r))
-                .also { it.attach(sm) }
-
-        val score =
-            h.r
-                .mul(rtR)
-                .add(h.i.mul(rtI))
-                .add(h.j.mul(rtJ))
-                .add(h.k.mul(rtK))
-                .sum(intArrayOf(1))
-                .also { it.attach(parent) }
-        score
-    }
-}
-
-private fun splitQuaternion(
-    base: NDArray,
-    componentDim: Long,
-    fullDim: Long,
-    attachTo: (NDArray) -> Unit,
-): QuatView =
-    QuatView(
-        base.get(NDIndex(":, 0:$componentDim")).also(attachTo),
-        base.get(NDIndex(":, $fullDim:${fullDim + componentDim}")).also(attachTo),
-        base.get(NDIndex(":, ${2 * fullDim}:${2 * fullDim + componentDim}")).also(attachTo),
-        base.get(NDIndex(":, ${3 * fullDim}:${3 * fullDim + componentDim}")).also(attachTo),
-    )
 
 /** Marker class for TestMatryoshka example. */
 class TestMatryoshka

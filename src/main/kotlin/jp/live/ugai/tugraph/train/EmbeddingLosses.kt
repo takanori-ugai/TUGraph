@@ -1,7 +1,6 @@
 package jp.live.ugai.tugraph.train
 
 import ai.djl.ndarray.NDArray
-import ai.djl.ndarray.index.NDIndex
 import ai.djl.nn.Activation
 import ai.djl.training.ParameterStore
 import ai.djl.training.Trainer
@@ -17,7 +16,7 @@ import jp.live.ugai.tugraph.MATRYOSHKA_ROTATE_WEIGHTS
 import jp.live.ugai.tugraph.QuatE
 import jp.live.ugai.tugraph.RotatE
 import jp.live.ugai.tugraph.SELF_ADVERSARIAL_TEMP
-import jp.live.ugai.tugraph.TRIPLE
+import jp.live.ugai.tugraph.matryoshkaQuatEScore
 
 /**
  * Loss helpers for embedding models trained by [EmbeddingTrainer].
@@ -342,7 +341,7 @@ internal class EmbeddingLosses(
                     usable.add(compDim to weights[i])
                 }
             } else {
-                if (d <= embDim) {
+                if (d <= embDim && d % 2L == 0L) {
                     usable.add(d to weights[i])
                 }
             }
@@ -365,13 +364,13 @@ internal class EmbeddingLosses(
                 val posScores =
                     when (block) {
                         is RotatE -> block.score(sample, entities, edges, dim)
-                        is QuatE -> scoreMatryoshkaQuatE(sample, entities, edges, dim, fullCompDim)
+                        is QuatE -> matryoshkaQuatEScore(sample, entities, edges, dim, fullCompDim)
                         else -> error("Matryoshka loss used with unsupported block.")
                     }
                 val negScores =
                     when (block) {
                         is RotatE -> block.score(negativeSample, entities, edges, dim)
-                        is QuatE -> scoreMatryoshkaQuatE(negativeSample, entities, edges, dim, fullCompDim)
+                        is QuatE -> matryoshkaQuatEScore(negativeSample, entities, edges, dim, fullCompDim)
                         else -> error("Matryoshka loss used with unsupported block.")
                     }
                 val negReshaped = negScores.reshape(posScores.shape[0], numNegatives.toLong())
@@ -407,93 +406,6 @@ internal class EmbeddingLosses(
             edges.close()
         }
     }
-
-    private data class QuatView(
-        val r: NDArray,
-        val i: NDArray,
-        val j: NDArray,
-        val k: NDArray,
-    )
-
-    private fun scoreMatryoshkaQuatE(
-        input: NDArray,
-        entities: NDArray,
-        edges: NDArray,
-        componentDim: Long,
-        fullDim: Long,
-    ): NDArray {
-        require(componentDim > 0L) { "componentDim must be > 0." }
-        require(componentDim <= fullDim) { "componentDim must be <= fullDim ($fullDim)." }
-        val numTriples = input.size() / TRIPLE
-        val parent = input.manager
-        return parent.newSubManager().use { sm ->
-            val triples = input.reshape(numTriples, TRIPLE).also { it.attach(sm) }
-            val headIds = triples.get(NDIndex(":, 0")).also { it.attach(sm) }
-            val relationIds = triples.get(NDIndex(":, 1")).also { it.attach(sm) }
-            val tailIds = triples.get(NDIndex(":, 2")).also { it.attach(sm) }
-
-            val heads = entities.get(headIds).also { it.attach(sm) }
-            val relations = edges.get(relationIds).also { it.attach(sm) }
-            val tails = entities.get(tailIds).also { it.attach(sm) }
-
-            val h = splitQuaternion(heads, componentDim, fullDim, attachTo = { it.attach(sm) })
-            val r = splitQuaternion(relations, componentDim, fullDim, attachTo = { it.attach(sm) })
-            val t = splitQuaternion(tails, componentDim, fullDim, attachTo = { it.attach(sm) })
-
-            // Hamilton product r ⊗ t
-            val rtR =
-                r.r
-                    .mul(t.r)
-                    .sub(r.i.mul(t.i))
-                    .sub(r.j.mul(t.j))
-                    .sub(r.k.mul(t.k))
-                    .also { it.attach(sm) }
-            val rtI =
-                r.r
-                    .mul(t.i)
-                    .add(r.i.mul(t.r))
-                    .add(r.j.mul(t.k))
-                    .sub(r.k.mul(t.j))
-                    .also { it.attach(sm) }
-            val rtJ =
-                r.r
-                    .mul(t.j)
-                    .sub(r.i.mul(t.k))
-                    .add(r.j.mul(t.r))
-                    .add(r.k.mul(t.i))
-                    .also { it.attach(sm) }
-            val rtK =
-                r.r
-                    .mul(t.k)
-                    .add(r.i.mul(t.j))
-                    .sub(r.j.mul(t.i))
-                    .add(r.k.mul(t.r))
-                    .also { it.attach(sm) }
-
-            val score =
-                h.r
-                    .mul(rtR)
-                    .add(h.i.mul(rtI))
-                    .add(h.j.mul(rtJ))
-                    .add(h.k.mul(rtK))
-                    .sum(intArrayOf(1))
-                    .also { it.attach(parent) }
-            score
-        }
-    }
-
-    private fun splitQuaternion(
-        base: NDArray,
-        componentDim: Long,
-        fullDim: Long,
-        attachTo: (NDArray) -> Unit,
-    ): QuatView =
-        QuatView(
-            base.get(NDIndex(":, 0:$componentDim")).also(attachTo),
-            base.get(NDIndex(":, $fullDim:${fullDim + componentDim}")).also(attachTo),
-            base.get(NDIndex(":, ${2 * fullDim}:${2 * fullDim + componentDim}")).also(attachTo),
-            base.get(NDIndex(":, ${3 * fullDim}:${3 * fullDim + componentDim}")).also(attachTo),
-        )
 
     private class MatryoshkaConfig(
         val dims: LongArray,

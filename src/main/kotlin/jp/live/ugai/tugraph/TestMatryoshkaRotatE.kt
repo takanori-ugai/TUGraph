@@ -53,7 +53,7 @@ fun main() {
         val trainer = newTrainer(model, config, Shape(BATCH_SIZE.toLong(), TRIPLE))
 
         val eTrainer =
-            EmbeddingTrainer(manager.newSubManager(), input, triples.numEntities, trainer, NEPOCH, useMatryoshkaOverride = true)
+            EmbeddingTrainer(manager.newSubManager(), input, triples.numEntities, trainer, NEPOCH, enableMatryoshka = true)
         eTrainer.training()
         eTrainer.close()
         println(trainer.trainingResult)
