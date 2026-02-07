@@ -169,9 +169,10 @@ internal class EmbeddingLosses(
         val parameterStore = ParameterStore(trainer.manager, true)
         val posParts = block.scoreParts(sample, parameterStore, training)
         val negParts = block.scoreParts(negativeSample, parameterStore, training)
+        val rawNegTotal = negParts.total
         try {
             val posScores = posParts.total
-            val negScores = negParts.total.reshape(posScores.shape[0], numNegatives.toLong())
+            val negScores = rawNegTotal.reshape(posScores.shape[0], numNegatives.toLong())
 
             val gamma = HYPERCOMPLEX_GAMMA
             val beta = HYPERCOMPLEX_BETA
@@ -229,6 +230,7 @@ internal class EmbeddingLosses(
                 negScores = negScores,
             )
         } finally {
+            rawNegTotal.close()
             posParts.hyperbolic.close()
             posParts.complex.close()
             posParts.euclidean.close()

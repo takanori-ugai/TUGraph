@@ -24,13 +24,7 @@ internal fun resolveQuatEComponentDims(
     val resolved = ArrayList<Long>(dims.size)
     val useTotalDims = dims.any { it > fullDim }
     for (d in dims) {
-        if (d <= 0L) continue
-        val compDim =
-            if (useTotalDims) {
-                if (d <= embDim && d % 4L == 0L) d / 4L else null
-            } else {
-                if (d <= fullDim) d else null
-            }
+        val compDim = toComponentDim(d, fullDim, embDim, useTotalDims)
         if (compDim != null && compDim <= fullDim) {
             resolved.add(compDim)
         }
@@ -54,19 +48,27 @@ internal fun resolveQuatEComponentDimsWithWeights(
     val paired = ArrayList<Pair<Long, Float>>(dims.size)
     for (i in dims.indices) {
         val d = dims[i]
-        if (d <= 0L) continue
-        val compDim =
-            if (useTotalDims) {
-                if (d <= embDim && d % 4L == 0L) d / 4L else null
-            } else {
-                if (d <= fullDim) d else null
-            }
+        val compDim = toComponentDim(d, fullDim, embDim, useTotalDims)
         if (compDim != null && componentDims.contains(compDim)) {
             paired.add(compDim to weights[i])
         }
     }
     return paired
 }
+
+private fun toComponentDim(
+    dim: Long,
+    fullDim: Long,
+    embDim: Long,
+    useTotalDims: Boolean,
+): Long? =
+    if (dim <= 0L) {
+        null
+    } else if (useTotalDims) {
+        if (dim <= embDim && dim % 4L == 0L) dim / 4L else null
+    } else {
+        if (dim <= fullDim) dim else null
+    }
 
 /**
  * Compute Matryoshka QuatE scores for a batch of triples at the given component dimension.

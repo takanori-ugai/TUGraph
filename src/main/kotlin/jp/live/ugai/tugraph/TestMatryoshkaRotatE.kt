@@ -54,8 +54,11 @@ fun main() {
 
         val eTrainer =
             EmbeddingTrainer(manager.newSubManager(), input, triples.numEntities, trainer, NEPOCH, enableMatryoshka = true)
-        eTrainer.training()
-        eTrainer.close()
+        try {
+            eTrainer.training()
+        } finally {
+            eTrainer.close()
+        }
         println(trainer.trainingResult)
 
         val predictor = model.newPredictor(NoopTranslator())
