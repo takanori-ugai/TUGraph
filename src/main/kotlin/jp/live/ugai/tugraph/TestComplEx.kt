@@ -1,7 +1,6 @@
 package jp.live.ugai.tugraph
 
 import ai.djl.Model
-import ai.djl.metric.Metrics
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
@@ -10,6 +9,8 @@ import ai.djl.training.listener.EpochTrainingListener
 import ai.djl.training.loss.Loss
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
+import jp.live.ugai.tugraph.demo.buildTriplesInfo
+import jp.live.ugai.tugraph.demo.newTrainer
 import jp.live.ugai.tugraph.eval.ResultEvalComplEx
 import jp.live.ugai.tugraph.train.DenseAdagrad
 import jp.live.ugai.tugraph.train.EmbeddingTrainer
@@ -25,18 +26,9 @@ fun main() {
         val csvReader = CsvToNdarray(manager)
         val input = csvReader.read("data/sample.csv")
         println(input)
-        val numOfTriples = input.shape[0]
-        val inputList = mutableListOf<LongArray>()
-        for (i in 0 until numOfTriples) {
-            inputList.add(input.get(i).toLongArray())
-        }
-        val headMax = input.get(":, 0").max().toLongArray()[0]
-        val tailMax = input.get(":, 2").max().toLongArray()[0]
-        val relMax = input.get(":, 1").max().toLongArray()[0]
-        val numEntities = maxOf(headMax, tailMax) + 1
-        val numEdges = relMax + 1
+        val triples = buildTriplesInfo(input)
         val complex =
-            ComplEx(numEntities, numEdges, DIMENSION).also {
+            ComplEx(triples.numEntities, triples.numEdges, DIMENSION).also {
                 it.initialize(manager, DataType.FLOAT32, input.shape)
             }
         val model =
@@ -54,13 +46,9 @@ fun main() {
                 .optDevices(manager.engine.getDevices(1)) // single GPU
                 .addTrainingListeners(EpochTrainingListener(), HingeLossLoggingListener()) // Hinge loss logging
 
-        val trainer =
-            model.newTrainer(config).also {
-                it.initialize(input.shape)
-                it.metrics = Metrics()
-            }
+        val trainer = newTrainer(model, config, input.shape)
 
-        val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, numEntities, trainer, NEPOCH)
+        val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, triples.numEntities, trainer, NEPOCH)
         eTrainer.training()
         println(trainer.trainingResult)
         eTrainer.close()
@@ -74,10 +62,10 @@ fun main() {
 
         val result =
             ResultEvalComplEx(
-                inputList,
+                triples.inputList,
                 manager.newSubManager(),
                 predictor,
-                numEntities,
+                triples.numEntities,
                 complEx = complex,
                 higherIsBetter = true,
             )

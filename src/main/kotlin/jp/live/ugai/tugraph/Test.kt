@@ -1,7 +1,6 @@
 package jp.live.ugai.tugraph
 
 import ai.djl.Model
-import ai.djl.metric.Metrics
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
@@ -10,6 +9,7 @@ import ai.djl.training.listener.TrainingListener
 import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
+import jp.live.ugai.tugraph.demo.newTrainer
 import jp.live.ugai.tugraph.train.EmbeddingTrainer
 
 /** Runs a basic TransE training smoke test. */
@@ -32,10 +32,7 @@ fun main() {
                 .optDevices(manager.engine.getDevices(1)) // single GPU
                 .apply { TrainingListener.Defaults.logging().forEach { addTrainingListeners(it) } } // Logging
 
-        val trainer = model.newTrainer(config)
-        trainer.initialize(Shape(4, 3))
-        val metrics = Metrics()
-        trainer.metrics = metrics
+        val trainer = newTrainer(model, config, Shape(4, 3))
 
         val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, 4, trainer, 1000)
         eTrainer.training()

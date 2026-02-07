@@ -36,6 +36,7 @@ class EmbeddingTrainer(
     private val numOfEntities: Long,
     private val trainer: Trainer,
     private val epoch: Int,
+    private val useMatryoshkaOverride: Boolean = false,
 ) : java.io.Closeable {
     private val triples: NDArray
 
@@ -158,10 +159,19 @@ class EmbeddingTrainer(
                 else -> false
             } &&
                 SELF_ADVERSARIAL_TEMP > 0.0f
-        val useMatryoshka =
+        val useMatryoshkaSupported =
             when (block) {
                 is RotatE, is QuatE -> true
                 else -> false
+            }
+        val useMatryoshka =
+            if (useMatryoshkaOverride) {
+                if (!useMatryoshkaSupported && logger.isWarnEnabled) {
+                    logger.warn("Matryoshka override enabled for unsupported block {}.", block::class.simpleName)
+                }
+                useMatryoshkaSupported
+            } else {
+                false
             }
         val useBernoulli =
             when (block) {

@@ -1,7 +1,6 @@
 package jp.live.ugai.tugraph
 
 import ai.djl.Model
-import ai.djl.metric.Metrics
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
 import ai.djl.training.DefaultTrainingConfig
@@ -10,6 +9,8 @@ import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
+import jp.live.ugai.tugraph.demo.buildTriplesInfo
+import jp.live.ugai.tugraph.demo.newTrainer
 import jp.live.ugai.tugraph.train.EmbeddingTrainer
 
 /**
@@ -25,14 +26,10 @@ fun main() {
 
         val input = csvReader.read("data/sample.csv")
         println(input)
-        val headMax = input.get(":, 0").max().toLongArray()[0]
-        val tailMax = input.get(":, 2").max().toLongArray()[0]
-        val relMax = input.get(":, 1").max().toLongArray()[0]
-        val numEntities = maxOf(headMax, tailMax) + 1
-        val numEdges = relMax + 1
+        val triples = buildTriplesInfo(input)
 
         val transe =
-            TransE(numEntities, numEdges, DIMENSION).also {
+            TransE(triples.numEntities, triples.numEdges, DIMENSION).also {
                 it.initialize(manager, DataType.FLOAT32, input.shape)
             }
         val model =
@@ -50,13 +47,9 @@ fun main() {
                 .optDevices(manager.engine.getDevices(1)) // single GPU
                 .apply { TrainingListener.Defaults.logging().forEach { addTrainingListeners(it) } } // Logging
 
-        val trainer =
-            model.newTrainer(config).also {
-                it.initialize(input.shape)
-                it.metrics = Metrics()
-            }
+        val trainer = newTrainer(model, config, input.shape)
 
-        val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, numEntities, trainer, 10)
+        val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, triples.numEntities, trainer, 10)
         eTrainer.training()
         println(trainer.trainingResult)
         eTrainer.close()

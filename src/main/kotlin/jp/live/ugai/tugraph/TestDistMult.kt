@@ -1,7 +1,6 @@
 package jp.live.ugai.tugraph
 
 import ai.djl.Model
-import ai.djl.metric.Metrics
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
@@ -12,6 +11,8 @@ import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
+import jp.live.ugai.tugraph.demo.buildTriplesInfo
+import jp.live.ugai.tugraph.demo.newTrainer
 import jp.live.ugai.tugraph.eval.ResultEvalDistMult
 import jp.live.ugai.tugraph.train.EmbeddingTrainer
 import jp.live.ugai.tugraph.train.HingeLossLoggingListener
@@ -26,30 +27,9 @@ fun main() {
         val csvReader = CsvToNdarray(manager)
         val input = csvReader.read("data/sample.csv")
         println(input)
-        val numOfTriples = input.shape[0]
-        val flat = input.toLongArray()
-        val inputList = ArrayList<LongArray>(numOfTriples.toInt())
-        var idx = 0
-        repeat(numOfTriples.toInt()) {
-            inputList.add(longArrayOf(flat[idx], flat[idx + 1], flat[idx + 2]))
-            idx += 3
-        }
-        val headMax =
-            input.get(":, 0").use { col ->
-                col.max().use { it.toLongArray()[0] }
-            }
-        val tailMax =
-            input.get(":, 2").use { col ->
-                col.max().use { it.toLongArray()[0] }
-            }
-        val relMax =
-            input.get(":, 1").use { col ->
-                col.max().use { it.toLongArray()[0] }
-            }
-        val numEntities = maxOf(headMax, tailMax) + 1
-        val numEdges = relMax + 1
+        val triples = buildTriplesInfo(input)
         val distMult =
-            DistMult(numEntities, numEdges, DIMENSION).also {
+            DistMult(triples.numEntities, triples.numEdges, DIMENSION).also {
                 it.initialize(manager, DataType.FLOAT32, input.shape)
             }
         val model =
@@ -66,13 +46,9 @@ fun main() {
                 .optDevices(manager.engine.getDevices(1)) // single GPU
                 .addTrainingListeners(EpochTrainingListener(), HingeLossLoggingListener()) // Hinge loss logging
 
-        val trainer =
-            model.newTrainer(config).also {
-                it.initialize(Shape(BATCH_SIZE.toLong(), TRIPLE))
-                it.metrics = Metrics()
-            }
+        val trainer = newTrainer(model, config, Shape(BATCH_SIZE.toLong(), TRIPLE))
 
-        val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, numEntities, trainer, NEPOCH)
+        val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, triples.numEntities, trainer, NEPOCH)
         eTrainer.training()
         eTrainer.close()
         println(trainer.trainingResult)
@@ -88,10 +64,10 @@ fun main() {
 
         val result =
             ResultEvalDistMult(
-                inputList,
+                triples.inputList,
                 manager.newSubManager(),
                 predictor,
-                numEntities,
+                triples.numEntities,
                 distMult = distMult,
                 higherIsBetter = true,
             )

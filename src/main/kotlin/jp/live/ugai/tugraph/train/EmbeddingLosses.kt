@@ -1,6 +1,7 @@
 package jp.live.ugai.tugraph.train
 
 import ai.djl.ndarray.NDArray
+import ai.djl.ndarray.index.NDIndex
 import ai.djl.nn.Activation
 import ai.djl.training.ParameterStore
 import ai.djl.training.Trainer
@@ -16,6 +17,7 @@ import jp.live.ugai.tugraph.MATRYOSHKA_ROTATE_WEIGHTS
 import jp.live.ugai.tugraph.QuatE
 import jp.live.ugai.tugraph.RotatE
 import jp.live.ugai.tugraph.SELF_ADVERSARIAL_TEMP
+import jp.live.ugai.tugraph.TRIPLE
 
 internal class EmbeddingLosses(
     private val trainer: Trainer,
@@ -255,6 +257,9 @@ internal class EmbeddingLosses(
      * For each configured Matryoshka dimension that is valid for the block's entity embedding size, this function
      * computes positive and negative scores at that dimension, derives a per-dimension loss via
      * computeLossFromScores(...), multiplies it by the corresponding weight, and returns the sum across dimensions.
+     * For QuatE blocks, dimensions can be specified either as per-component sizes or as total embedding sizes
+     * (multiples of 4); when any dimension exceeds the per-component size, dimensions are treated as total sizes
+     * and converted to component sizes.
      *
      * @param block The model block used for scoring; must be a RotatE or QuatE instance.
      * @param sample NDArray of positive triples (shape [batchSize, 3]).
@@ -302,29 +307,65 @@ internal class EmbeddingLosses(
         val weights = config.weights
         val entities = config.entities
         val edges = config.edges
-        val scorer: (NDArray, Long) -> NDArray =
-            when (block) {
-                is RotatE -> { input, dim -> block.score(input, entities, edges, dim) }
-                is QuatE -> { input, dim -> block.score(input, entities, edges, dim) }
-                else -> error("Matryoshka loss used with unsupported block.")
-            }
         require(dims.size == weights.size) { "Matryoshka dims and weights must have the same length." }
 
         val embDim = entities.shape[1]
         val usable = ArrayList<Pair<Long, Float>>(dims.size)
+        val isQuatE = block is QuatE
+        val fullCompDim =
+            if (isQuatE) {
+                require(embDim % 4L == 0L) { "QuatE embedding width must be divisible by 4, was $embDim." }
+                embDim / 4L
+            } else {
+                0L
+            }
+        val useTotalDims = isQuatE && dims.any { it > fullCompDim }
         for (i in dims.indices) {
             val d = dims[i]
-            if (d > 0 && d <= embDim) {
-                usable.add(d to weights[i])
+            if (d <= 0L) continue
+            if (isQuatE) {
+                val compDim =
+                    if (useTotalDims) {
+                        if (d <= embDim && d % 4L == 0L) d / 4L else null
+                    } else {
+                        if (d <= fullCompDim) d else null
+                    }
+                if (compDim != null && compDim <= fullCompDim) {
+                    usable.add(compDim to weights[i])
+                }
+            } else {
+                if (d <= embDim) {
+                    usable.add(d to weights[i])
+                }
             }
         }
-        require(usable.isNotEmpty()) { "No valid Matryoshka dims for embedding size $embDim." }
+        val dimLabel =
+            if (isQuatE) {
+                if (useTotalDims) {
+                    "QuatE total dim (emb=$embDim)"
+                } else {
+                    "QuatE component dim (full=$fullCompDim, emb=$embDim)"
+                }
+            } else {
+                "embedding size $embDim"
+            }
+        require(usable.isNotEmpty()) { "No valid Matryoshka dims for $dimLabel." }
 
         var total: NDArray? = null
         try {
             for ((dim, weight) in usable) {
-                val posScores = scorer(sample, dim)
-                val negScores = scorer(negativeSample, dim)
+                val posScores =
+                    when (block) {
+                        is RotatE -> block.score(sample, entities, edges, dim)
+                        is QuatE -> scoreMatryoshkaQuatE(sample, entities, edges, dim, fullCompDim)
+                        else -> error("Matryoshka loss used with unsupported block.")
+                    }
+                val negScores =
+                    when (block) {
+                        is RotatE -> block.score(negativeSample, entities, edges, dim)
+                        is QuatE -> scoreMatryoshkaQuatE(negativeSample, entities, edges, dim, fullCompDim)
+                        else -> error("Matryoshka loss used with unsupported block.")
+                    }
                 val negReshaped = negScores.reshape(posScores.shape[0], numNegatives.toLong())
                 val loss =
                     computeLossFromScores(
@@ -358,6 +399,93 @@ internal class EmbeddingLosses(
             edges.close()
         }
     }
+
+    private data class QuatView(
+        val r: NDArray,
+        val i: NDArray,
+        val j: NDArray,
+        val k: NDArray,
+    )
+
+    private fun scoreMatryoshkaQuatE(
+        input: NDArray,
+        entities: NDArray,
+        edges: NDArray,
+        componentDim: Long,
+        fullDim: Long,
+    ): NDArray {
+        require(componentDim > 0L) { "componentDim must be > 0." }
+        require(componentDim <= fullDim) { "componentDim must be <= fullDim ($fullDim)." }
+        val numTriples = input.size() / TRIPLE
+        val parent = input.manager
+        return parent.newSubManager().use { sm ->
+            val triples = input.reshape(numTriples, TRIPLE).also { it.attach(sm) }
+            val headIds = triples.get(NDIndex(":, 0")).also { it.attach(sm) }
+            val relationIds = triples.get(NDIndex(":, 1")).also { it.attach(sm) }
+            val tailIds = triples.get(NDIndex(":, 2")).also { it.attach(sm) }
+
+            val heads = entities.get(headIds).also { it.attach(sm) }
+            val relations = edges.get(relationIds).also { it.attach(sm) }
+            val tails = entities.get(tailIds).also { it.attach(sm) }
+
+            val h = splitQuaternion(heads, componentDim, fullDim, attachTo = { it.attach(sm) })
+            val r = splitQuaternion(relations, componentDim, fullDim, attachTo = { it.attach(sm) })
+            val t = splitQuaternion(tails, componentDim, fullDim, attachTo = { it.attach(sm) })
+
+            // Hamilton product r ⊗ t
+            val rtR =
+                r.r
+                    .mul(t.r)
+                    .sub(r.i.mul(t.i))
+                    .sub(r.j.mul(t.j))
+                    .sub(r.k.mul(t.k))
+                    .also { it.attach(sm) }
+            val rtI =
+                r.r
+                    .mul(t.i)
+                    .add(r.i.mul(t.r))
+                    .add(r.j.mul(t.k))
+                    .sub(r.k.mul(t.j))
+                    .also { it.attach(sm) }
+            val rtJ =
+                r.r
+                    .mul(t.j)
+                    .sub(r.i.mul(t.k))
+                    .add(r.j.mul(t.r))
+                    .add(r.k.mul(t.i))
+                    .also { it.attach(sm) }
+            val rtK =
+                r.r
+                    .mul(t.k)
+                    .add(r.i.mul(t.j))
+                    .sub(r.j.mul(t.i))
+                    .add(r.k.mul(t.r))
+                    .also { it.attach(sm) }
+
+            val score =
+                h.r
+                    .mul(rtR)
+                    .add(h.i.mul(rtI))
+                    .add(h.j.mul(rtJ))
+                    .add(h.k.mul(rtK))
+                    .sum(intArrayOf(1))
+                    .also { it.attach(parent) }
+            score
+        }
+    }
+
+    private fun splitQuaternion(
+        base: NDArray,
+        componentDim: Long,
+        fullDim: Long,
+        attachTo: (NDArray) -> Unit,
+    ): QuatView =
+        QuatView(
+            base.get(NDIndex(":, 0:$componentDim")).also(attachTo),
+            base.get(NDIndex(":, $fullDim:${fullDim + componentDim}")).also(attachTo),
+            base.get(NDIndex(":, ${2 * fullDim}:${2 * fullDim + componentDim}")).also(attachTo),
+            base.get(NDIndex(":, ${3 * fullDim}:${3 * fullDim + componentDim}")).also(attachTo),
+        )
 
     private class MatryoshkaConfig(
         val dims: LongArray,
