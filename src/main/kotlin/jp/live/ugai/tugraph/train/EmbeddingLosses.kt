@@ -19,6 +19,11 @@ import jp.live.ugai.tugraph.RotatE
 import jp.live.ugai.tugraph.SELF_ADVERSARIAL_TEMP
 import jp.live.ugai.tugraph.TRIPLE
 
+/**
+ * Loss helpers for embedding models trained by [EmbeddingTrainer].
+ *
+ * @param trainer Trainer that owns the model and parameter store used for scoring.
+ */
 internal class EmbeddingLosses(
     private val trainer: Trainer,
 ) {
@@ -108,8 +113,11 @@ internal class EmbeddingLosses(
         }
 
     /**
-     * Computes HyperComplEx loss as the sum of self-adversarial ranking loss, multi-space consistency loss,
-     * and L2 regularization.
+     * Container for HyperComplEx loss and the corresponding positive/negative scores.
+     *
+     * @property loss Aggregated loss NDArray.
+     * @property posScores Scores for positive samples.
+     * @property negScores Scores for negative samples.
      */
     data class HyperLossResult(
         val loss: NDArray,

@@ -22,13 +22,14 @@ import jp.live.ugai.tugraph.TransR
 import kotlin.math.min
 
 /**
- * A class for training an embedding model.
+ * Orchestrates training for a knowledge-graph embedding model.
  *
- * @property manager The NDManager instance used for creating NDArrays.
- * @property triples The NDArray containing the training triples.
- * @property numOfEntities The number of entities in the training data.
- * @property trainer The Trainer instance for training the model.
- * @property epoch The number of training epochs.
+ * @param manager NDManager used to allocate and own training arrays.
+ * @param rawTriples NDArray containing training triples (shape [numTriples, 3] or flat multiple of 3).
+ * @param numOfEntities Number of entities in the dataset.
+ * @param trainer DJL trainer configured with the model and optimizer.
+ * @param epoch Number of epochs to train.
+ * @param useMatryoshkaOverride Enables Matryoshka loss for supported blocks when true.
  */
 class EmbeddingTrainer(
     private val manager: NDManager,
@@ -104,13 +105,10 @@ class EmbeddingTrainer(
     }
 
     /**
-     * Train the embedding model using the provided triples and trainer for the configured number of epochs.
+     * Trains the embedding model for the configured number of epochs.
      *
-     * Processes the dataset in batches with vectorized negative sampling; computes either similarity-style
-     * or hinge-style loss (optionally with self-adversarial weighting and L2 regularization); applies
-     * gradient updates via the Trainer; records training and validation metrics; normalizes or projects
-     * model-specific blocks (e.g., translation or hyperbolic blocks) after parameter updates; and logs
-     * anomalous conditions such as NaN values or skipped update steps due to zero gradients.
+     * The loop batches triples, generates negatives, computes the configured loss, and updates parameters.
+     * It also tracks metrics, applies post-update normalization/projection when needed, and logs anomalies.
      */
     fun training() {
         validateInputs()
@@ -431,19 +429,16 @@ class EmbeddingTrainer(
     /**
      * Releases resources held by this trainer by closing the underlying NDManager.
      *
-     * After calling this method the trainer's manager and any NDArrays attached to it become invalid and
-     * should not be used.
+     * After calling this method, NDArrays attached to this manager are invalid and must not be used.
      */
     override fun close() {
         manager.close()
     }
 
     /**
-     * Computes the average training loss over the given triples using the current model and plan settings.
+     * Computes the average loss over the provided triples using the current model and plan settings.
      *
-     * Evaluates loss in batches, generating negatives with optional Bernoulli sampling, using either
-     * similarity-based loss (with optional self-adversarial weighting) or hinge loss, and applying
-     * L2 regularization when enabled in the plan.
+     * Uses the same negative sampling and loss configuration as training, without gradient updates.
      *
      * @param data NDArray of triples to evaluate (shape: [totalTriples, 3]).
      * @param plan Training settings used to evaluate the loss.

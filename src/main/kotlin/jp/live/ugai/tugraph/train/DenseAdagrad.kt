@@ -9,6 +9,12 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Dense Adagrad optimizer implementation that avoids sparse gradient conversion.
+ *
+ * This is useful when gradients are already dense or when sparse conversion would add overhead.
+ *
+ * @param learningRateTracker Tracker that provides per-parameter learning rates.
+ * @param epsilon Numerical stability term added to the denominator.
+ * @param builder Optimizer builder used to configure base optimizer settings.
  */
 class DenseAdagrad(
     private val learningRateTracker: ParameterTracker,

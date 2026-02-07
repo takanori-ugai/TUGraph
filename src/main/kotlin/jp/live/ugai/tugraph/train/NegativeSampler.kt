@@ -8,12 +8,31 @@ import jp.live.ugai.tugraph.TRIPLE
 import org.slf4j.Logger
 import java.util.concurrent.ThreadLocalRandom
 
+/**
+ * Generates negative samples for a batch of triples.
+ *
+ * Uses optional Bernoulli sampling per relation and avoids existing triples via [inputSet].
+ *
+ * @param numEntities Total number of entities available for sampling.
+ * @param bernoulliProb Relation-specific probabilities for head corruption.
+ * @param inputSet Set of known triples used to avoid false negatives.
+ * @param logger Logger for warnings when resampling fails.
+ */
 internal class NegativeSampler(
     private val numEntities: Long,
     private val bernoulliProb: Map<Long, Float>,
     private val inputSet: Set<TripleKey>,
     private val logger: Logger,
 ) {
+    /**
+     * Samples negative triples for the provided batch.
+     *
+     * @param manager NDManager used to allocate the output array.
+     * @param input NDArray of triples to corrupt (shape [batchSize, 3] or equivalent flat size).
+     * @param numNegatives Number of negatives per positive triple.
+     * @param useBernoulli Whether to use relation-specific Bernoulli corruption.
+     * @return NDArray of negatives with shape [batchSize * numNegatives, 3].
+     */
     fun sample(
         manager: NDManager,
         input: NDArray,

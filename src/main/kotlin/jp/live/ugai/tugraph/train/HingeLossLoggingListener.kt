@@ -5,7 +5,10 @@ import ai.djl.training.listener.EvaluatorTrainingListener
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Logs hinge-loss values populated by EmbeddingTrainer into TrainingResult.
+ * Publishes the latest hinge-loss metrics into the training result stream.
+ *
+ * EmbeddingTrainer updates the listener via [updateEvaluations], and this listener reports the
+ * most recent train/validation hinge losses at each epoch boundary.
  */
 class HingeLossLoggingListener : EvaluatorTrainingListener() {
     private var epoch = 0
