@@ -24,7 +24,9 @@ class ResultEvalDistMult(
      * @param entityChunkSize Maximum number of entities loaded into memory at once when scoring.
      * @param mode Determines which column (head or tail) is treated as the fixed entity for scoring.
      * @param buildBatch Function that builds an EvalBatch for inputs in the half-open range [start, end).
-     * @return An IntArray of length equal to the number of processed inputs (or fewer if truncated) where each entry is the rank (1 + count of entities with a better score than the true entity) for the corresponding input.
+     * @return An IntArray of length equal to the number of processed inputs (or fewer if truncated) where each
+     *   entry is the rank (1 + count of entities with a better score than the true entity) for the
+     *   corresponding input.
      */
     protected override fun computeRanks(
         evalBatchSize: Int,

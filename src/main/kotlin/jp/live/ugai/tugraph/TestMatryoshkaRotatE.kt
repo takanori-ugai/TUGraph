@@ -1,16 +1,18 @@
 package jp.live.ugai.tugraph
 
 import ai.djl.Model
-import ai.djl.metric.Metrics
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
 import ai.djl.training.DefaultTrainingConfig
+import ai.djl.training.ParameterStore
 import ai.djl.training.listener.EpochTrainingListener
 import ai.djl.training.loss.Loss
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
+import jp.live.ugai.tugraph.demo.buildTriplesInfo
+import jp.live.ugai.tugraph.demo.newTrainer
 import jp.live.ugai.tugraph.eval.ResultEvalRotatE
 import jp.live.ugai.tugraph.train.DenseAdagrad
 import jp.live.ugai.tugraph.train.EmbeddingTrainer
@@ -20,7 +22,7 @@ import jp.live.ugai.tugraph.train.HingeLossLoggingListener
  * Runs a complete example that loads triple data, trains a RotatE embedding model, evaluates results, and computes Matryoshka scores.
  *
  * Loads triples from data/sample.csv, constructs and trains a RotatE model with an EmbeddingTrainer, computes nested-dimension
- * Matryoshka dot scores for a small batch of entities, performs a single prediction, evaluates head/tail metrics using ResultEvalRotatE,
+ * Matryoshka RotatE scores for a small batch of triples, performs a single prediction, evaluates head/tail metrics using ResultEvalRotatE,
  * and closes all allocated resources.
  */
 fun main() {
@@ -28,31 +30,10 @@ fun main() {
         val csvReader = CsvToNdarray(manager)
         val input = csvReader.read("data/sample.csv")
         println(input)
-        val numOfTriples = input.shape[0]
-        val flat = input.toLongArray()
-        val inputList = ArrayList<LongArray>(numOfTriples.toInt())
-        var idx = 0
-        repeat(numOfTriples.toInt()) {
-            inputList.add(longArrayOf(flat[idx], flat[idx + 1], flat[idx + 2]))
-            idx += 3
-        }
-        val headMax =
-            input.get(":, 0").use { col ->
-                col.max().use { it.toLongArray()[0] }
-            }
-        val tailMax =
-            input.get(":, 2").use { col ->
-                col.max().use { it.toLongArray()[0] }
-            }
-        val relMax =
-            input.get(":, 1").use { col ->
-                col.max().use { it.toLongArray()[0] }
-            }
-        val numEntities = maxOf(headMax, tailMax) + 1
-        val numEdges = relMax + 1
+        val triples = buildTriplesInfo(input)
 
         val rotate =
-            RotatE(numEntities, numEdges, DIMENSION).also {
+            RotatE(triples.numEntities, triples.numEdges, DIMENSION).also {
                 it.initialize(manager, DataType.FLOAT32, input.shape)
             }
         val model =
@@ -69,43 +50,49 @@ fun main() {
                 .optDevices(manager.engine.getDevices(1)) // single GPU
                 .addTrainingListeners(EpochTrainingListener(), HingeLossLoggingListener()) // Hinge loss logging
 
-        val trainer =
-            model.newTrainer(config).also {
-                it.initialize(Shape(BATCH_SIZE.toLong(), TRIPLE))
-                it.metrics = Metrics()
-            }
+        val trainer = newTrainer(model, config, Shape(BATCH_SIZE.toLong(), TRIPLE))
 
-        val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, numEntities, trainer, NEPOCH)
-        eTrainer.training()
-        eTrainer.close()
+        val eTrainer =
+            EmbeddingTrainer(manager.newSubManager(), input, triples.numEntities, trainer, NEPOCH, enableMatryoshka = true)
+        try {
+            eTrainer.training()
+        } finally {
+            eTrainer.close()
+        }
         println(trainer.trainingResult)
 
         val predictor = model.newPredictor(NoopTranslator())
 
-        // Matryoshka scores using nested dimensions on entity embeddings.
-        val matryoshkaDims = longArrayOf(DIMENSION, DIMENSION * 2)
-        val matryoshka = Matryoshka(matryoshkaDims)
-        val firstBatch = input.get("0:${minOf(4, numOfTriples.toInt())}, :")
+        // Matryoshka scores using nested dimensions on RotatE triples.
+        val matryoshkaDims = MATRYOSHKA_ROTATE_DIMS
+        val firstBatch = input.get("0:${minOf(4, triples.numTriples)}, :")
         firstBatch.use { batch ->
-            val heads = batch.get(":, 0")
-            val tails = batch.get(":, 2")
-            try {
-                val ent = rotate.getEntities()
-                val headEmb = ent.get(heads)
-                val tailEmb = ent.get(tails)
+            manager.newSubManager().use { sm ->
+                val parameterStore = ParameterStore(sm, true)
+                val device = batch.device
+                val entities = rotate.getEntities(parameterStore, device, false)
+                val edges = rotate.getEdges(parameterStore, device, false)
                 try {
-                    val scores = matryoshka.dotScores(headEmb, tailEmb)
-                    for (i in scores.indices) {
-                        println("Matryoshka dot score (dim=${matryoshkaDims[i]}): ${scores[i]}")
-                        scores[i].close()
+                    val embDim = entities.shape[1]
+                    val usable =
+                        matryoshkaDims.filter { dim ->
+                            dim > 0L && dim <= embDim && dim % 2L == 0L
+                        }
+                    require(usable.isNotEmpty()) {
+                        "No valid Matryoshka dims for RotatE (embDim=$embDim, dims=${matryoshkaDims.contentToString()})."
+                    }
+                    for (dim in usable) {
+                        val score = rotate.score(batch, entities, edges, dim)
+                        try {
+                            println("Matryoshka RotatE score (totalDim=$dim): $score")
+                        } finally {
+                            score.close()
+                        }
                     }
                 } finally {
-                    headEmb.close()
-                    tailEmb.close()
+                    entities.close()
+                    edges.close()
                 }
-            } finally {
-                heads.close()
-                tails.close()
             }
         }
 
@@ -116,10 +103,10 @@ fun main() {
 
         val result =
             ResultEvalRotatE(
-                inputList,
+                triples.inputList,
                 manager.newSubManager(),
                 predictor,
-                numEntities,
+                triples.numEntities,
                 rotatE = rotate,
                 higherIsBetter = false,
             )

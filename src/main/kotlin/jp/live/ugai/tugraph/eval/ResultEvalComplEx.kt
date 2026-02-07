@@ -22,10 +22,12 @@ class ResultEvalComplEx(
      * Compute 1-based ranks for each input example using ComplEx scoring.
      *
      * @param evalBatchSize Maximum number of examples processed in a single evaluation batch.
-     * @param entityChunkSize Number of entities processed per internal chunk when comparing scores; used to limit memory/compute per step.
+     * @param entityChunkSize Number of entities processed per internal chunk when comparing scores; used to limit
+     *   memory/compute per step.
      * @param mode Evaluation mode indicating whether the model predicts the head or the tail (affects how scores are computed).
      * @param buildBatch Function that constructs an EvalBatch for the half-open index range [start, end).
-     * @return An IntArray of length equal to the number of processed inputs (or a truncated copy if interrupted), where each element is the 1-based rank of the true entity for that example.
+     * @return An IntArray of length equal to the number of processed inputs (or a truncated copy if interrupted),
+     *   where each element is the 1-based rank of the true entity for that example.
      */
     protected override fun computeRanks(
         evalBatchSize: Int,

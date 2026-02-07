@@ -113,7 +113,8 @@ internal object EvalQuatE {
      * @param jIndex NDIndex selecting the second imaginary component within an embedding.
      * @param kIndex NDIndex selecting the third imaginary component within an embedding.
      * @param batchSize Number of rows in the resulting score (output shape will be (batchSize, 1)).
-     * @return NDArray of shape (batchSize, 1) containing the score for each true tail, computed as the sum of elementwise products across quaternion components (r, i, j, k).
+     * @return NDArray of shape (batchSize, 1) containing the score for each true tail, computed as the sum of
+     *   elementwise products across quaternion components (r, i, j, k).
      */
     fun computeTrueScoreTail(
         a: Parts,
@@ -141,7 +142,8 @@ internal object EvalQuatE {
     /**
      * Compute scores between an accumulated quaternion head `a` and true head entity embeddings selected by `trueIdsFlat`.
      *
-     * The score for each pair is the sum over component-wise products: a.r*h.r + a.i*h.i + a.j*h.j + a.k*h.k, returned with shape (batchSize, 1).
+     * The score for each pair is the sum over component-wise products: a.r*h.r + a.i*h.i + a.j*h.j + a.k*h.k,
+     * returned with shape (batchSize, 1).
      *
      * @param a Accumulated quaternion head components (r, i, j, k).
      * @param trueIdsFlat NDArray of indices selecting true head embeddings from `entities`.

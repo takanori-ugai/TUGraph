@@ -1,7 +1,6 @@
 package jp.live.ugai.tugraph
 
 import ai.djl.Model
-import ai.djl.metric.Metrics
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
@@ -12,6 +11,8 @@ import ai.djl.training.loss.Loss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
+import jp.live.ugai.tugraph.demo.buildTriplesInfo
+import jp.live.ugai.tugraph.demo.newTrainer
 import jp.live.ugai.tugraph.eval.ResultEvalTransE
 import jp.live.ugai.tugraph.train.EmbeddingTrainer
 import jp.live.ugai.tugraph.train.HingeLossLoggingListener
@@ -28,23 +29,11 @@ fun main() {
         val tsvReader = TsvToNdarray(manager)
         val input = tsvReader.read("data/ex/train2id-hrt.txt")
         println(input.get("0:10"))
-        val numOfTriples = input.shape[0]
-        val flat = input.toLongArray()
-        val inputList = ArrayList<LongArray>(numOfTriples.toInt())
-        var idx = 0
-        repeat(numOfTriples.toInt()) {
-            inputList.add(longArrayOf(flat[idx], flat[idx + 1], flat[idx + 2]))
-            idx += 3
-        }
+        val triples = buildTriplesInfo(input)
         println("End Loading")
-        val headMax = input.get(":, 0").max().toLongArray()[0]
-        val tailMax = input.get(":, 2").max().toLongArray()[0]
-        val relMax = input.get(":, 1").max().toLongArray()[0]
-        val numEntities = maxOf(headMax, tailMax) + 1
-        val numEdges = relMax + 1
         println("End Loading2")
         val transe =
-            TransE(numEntities, numEdges, DIMENSION).also {
+            TransE(triples.numEntities, triples.numEdges, DIMENSION).also {
                 it.initialize(manager, DataType.FLOAT16, input.shape)
             }
         println("End Loading3")
@@ -64,14 +53,10 @@ fun main() {
                 .addTrainingListeners(EpochTrainingListener(), HingeLossLoggingListener()) // Hinge loss logging
         println("End Loading4")
 
-        val trainer =
-            model.newTrainer(config).also {
-                it.initialize(Shape(BATCH_SIZE.toLong(), TRIPLE))
-                it.metrics = Metrics()
-            }
+        val trainer = newTrainer(model, config, Shape(BATCH_SIZE.toLong(), TRIPLE))
 
         println("End Loading5")
-        val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, numEntities, trainer, NEPOCH)
+        val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, triples.numEntities, trainer, NEPOCH)
         println("Training Start")
         eTrainer.training()
         eTrainer.close()
@@ -89,7 +74,14 @@ fun main() {
             println(predictor.predict(NDList(it)).singletonOrThrow().toFloatArray()[0])
         }
 
-        val result = ResultEvalTransE(inputList, manager.newSubManager(), predictor, numEntities, transE = transe)
+        val result =
+            ResultEvalTransE(
+                triples.inputList,
+                manager.newSubManager(),
+                predictor,
+                triples.numEntities,
+                transE = transe,
+            )
         println("Tail")
         result.getTailResult().forEach {
             println("${it.key} : ${it.value}")

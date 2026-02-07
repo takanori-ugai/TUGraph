@@ -64,11 +64,13 @@ class QuatE(
     /**
      * Compute QuatE scores for one or two batches of triples and return them as an NDList.
      *
-     * @param inputs NDList whose first element is a batch of triples; if a second element is present it is treated as an additional batch to score.
+     * @param inputs NDList whose first element is a batch of triples; if a second element is present it is
+     *   treated as an additional batch to score.
      * @param parameterStore Parameter store used to retrieve model parameters.
      * @param training Whether parameters should be fetched in training mode.
      * @param params Additional parameters (unused by this implementation).
-     * @return An NDList containing one NDArray of scores for the first input batch, and a second NDArray if a second input batch was provided.
+     * @return An NDList containing one NDArray of scores for the first input batch, and a second NDArray if a
+     *   second input batch was provided.
      */
     @Override
     override fun forwardInternal(

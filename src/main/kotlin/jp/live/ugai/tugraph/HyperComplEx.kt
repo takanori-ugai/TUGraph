@@ -351,11 +351,13 @@ class HyperComplEx(
     }
 
     /**
-     * Casts the given NDArray to the target data type only when mixed-precision mode is enabled and the array's type differs from the target.
+     * Casts the given NDArray to the target data type only when mixed-precision mode is enabled and the array's
+     * type differs from the target.
      *
      * @param array The array to potentially cast.
      * @param target The desired data type.
-     * @return The input `array` converted to `target` if mixed precision is enabled and types differ, otherwise the original `array`.
+     * @return The input `array` converted to `target` if mixed precision is enabled and types differ, otherwise
+     *   the original `array`.
      */
     private fun maybeCast(
         array: NDArray,
@@ -673,7 +675,8 @@ class HyperComplEx(
     /**
      * Collects every model parameter (entity and relation shards across spaces, plus attention) into a single list.
      *
-     * @return A list containing all `Parameter` instances: entity hyperbolic/complex/euclidean shards, relation hyperbolic/complex/euclidean shards, and the attention weight parameter.
+     * @return A list containing all `Parameter` instances: entity hyperbolic/complex/euclidean shards, relation
+     *   hyperbolic/complex/euclidean shards, and the attention weight parameter.
      */
     private fun allParameters(): List<Parameter> {
         val params = ArrayList<Parameter>(entH.size + entC.size + entE.size + relH.size + relC.size + relE.size + 1)

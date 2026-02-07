@@ -1,7 +1,6 @@
 package jp.live.ugai.tugraph
 
 import ai.djl.Model
-import ai.djl.metric.Metrics
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
@@ -11,45 +10,29 @@ import ai.djl.training.listener.EpochTrainingListener
 import ai.djl.training.loss.Loss
 import ai.djl.training.tracker.Tracker
 import ai.djl.translate.NoopTranslator
+import jp.live.ugai.tugraph.demo.buildTriplesInfo
+import jp.live.ugai.tugraph.demo.newTrainer
 import jp.live.ugai.tugraph.eval.ResultEvalRotatE
 import jp.live.ugai.tugraph.train.DenseAdagrad
 import jp.live.ugai.tugraph.train.EmbeddingTrainer
 import jp.live.ugai.tugraph.train.HingeLossLoggingListener
 
 /**
- * Runs a full demonstration workflow: loads triples from "data/sample.csv", trains a RotatE embedding model, and evaluates its predictions.
+ * Runs a full demonstration workflow: loads triples from "data/sample.csv", trains a RotatE embedding model,
+ * and evaluates its predictions.
  *
- * The workflow loads and prepares triple data, initializes the RotatE model and training pipeline, trains entity and relation embeddings, prints model state and a sample prediction, and computes head/tail evaluation results which are printed to stdout.
+ * The workflow loads and prepares triple data, initializes the RotatE model and training pipeline, trains entity
+ * and relation embeddings, prints model state and a sample prediction, and computes head/tail evaluation results
+ * which are printed to stdout.
  */
 fun main() {
     NDManager.newBaseManager().use { manager ->
         val csvReader = CsvToNdarray(manager)
         val input = csvReader.read("data/sample.csv")
         println(input)
-        val numOfTriples = input.shape[0]
-        val flat = input.toLongArray()
-        val inputList = ArrayList<LongArray>(numOfTriples.toInt())
-        var idx = 0
-        repeat(numOfTriples.toInt()) {
-            inputList.add(longArrayOf(flat[idx], flat[idx + 1], flat[idx + 2]))
-            idx += 3
-        }
-        val headMax =
-            input.get(":, 0").use { col ->
-                col.max().use { it.toLongArray()[0] }
-            }
-        val tailMax =
-            input.get(":, 2").use { col ->
-                col.max().use { it.toLongArray()[0] }
-            }
-        val relMax =
-            input.get(":, 1").use { col ->
-                col.max().use { it.toLongArray()[0] }
-            }
-        val numEntities = maxOf(headMax, tailMax) + 1
-        val numEdges = relMax + 1
+        val triples = buildTriplesInfo(input)
         val rotate =
-            RotatE(numEntities, numEdges, DIMENSION).also {
+            RotatE(triples.numEntities, triples.numEdges, DIMENSION).also {
                 it.initialize(manager, DataType.FLOAT32, input.shape)
             }
         val model =
@@ -66,13 +49,9 @@ fun main() {
                 .optDevices(manager.engine.getDevices(1)) // single GPU
                 .addTrainingListeners(EpochTrainingListener(), HingeLossLoggingListener()) // Hinge loss logging
 
-        val trainer =
-            model.newTrainer(config).also {
-                it.initialize(Shape(BATCH_SIZE.toLong(), TRIPLE))
-                it.metrics = Metrics()
-            }
+        val trainer = newTrainer(model, config, Shape(BATCH_SIZE.toLong(), TRIPLE))
 
-        val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, numEntities, trainer, NEPOCH)
+        val eTrainer = EmbeddingTrainer(manager.newSubManager(), input, triples.numEntities, trainer, NEPOCH)
         eTrainer.training()
         eTrainer.close()
         println(trainer.trainingResult)
@@ -88,10 +67,10 @@ fun main() {
 
         val result =
             ResultEvalRotatE(
-                inputList,
+                triples.inputList,
                 manager.newSubManager(),
                 predictor,
-                numEntities,
+                triples.numEntities,
                 rotatE = rotate,
                 higherIsBetter = false,
             )

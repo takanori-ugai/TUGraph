@@ -16,7 +16,14 @@ import jp.live.ugai.tugraph.MATRYOSHKA_ROTATE_WEIGHTS
 import jp.live.ugai.tugraph.QuatE
 import jp.live.ugai.tugraph.RotatE
 import jp.live.ugai.tugraph.SELF_ADVERSARIAL_TEMP
+import jp.live.ugai.tugraph.matryoshkaQuatEScore
+import jp.live.ugai.tugraph.resolveQuatEComponentDimsWithWeights
 
+/**
+ * Loss helpers for embedding models trained by [EmbeddingTrainer].
+ *
+ * @param trainer Trainer that owns the model and parameter store used for scoring.
+ */
 internal class EmbeddingLosses(
     private val trainer: Trainer,
 ) {
@@ -106,8 +113,11 @@ internal class EmbeddingLosses(
         }
 
     /**
-     * Computes HyperComplEx loss as the sum of self-adversarial ranking loss, multi-space consistency loss,
-     * and L2 regularization.
+     * Container for HyperComplEx loss and the corresponding positive/negative scores.
+     *
+     * @property loss Aggregated loss NDArray.
+     * @property posScores Scores for positive samples.
+     * @property negScores Scores for negative samples.
      */
     data class HyperLossResult(
         val loss: NDArray,
@@ -159,9 +169,10 @@ internal class EmbeddingLosses(
         val parameterStore = ParameterStore(trainer.manager, true)
         val posParts = block.scoreParts(sample, parameterStore, training)
         val negParts = block.scoreParts(negativeSample, parameterStore, training)
+        val rawNegTotal = negParts.total
         try {
             val posScores = posParts.total
-            val negScores = negParts.total.reshape(posScores.shape[0], numNegatives.toLong())
+            val negScores = rawNegTotal.reshape(posScores.shape[0], numNegatives.toLong())
 
             val gamma = HYPERCOMPLEX_GAMMA
             val beta = HYPERCOMPLEX_BETA
@@ -219,6 +230,7 @@ internal class EmbeddingLosses(
                 negScores = negScores,
             )
         } finally {
+            rawNegTotal.close()
             posParts.hyperbolic.close()
             posParts.complex.close()
             posParts.euclidean.close()
@@ -255,6 +267,9 @@ internal class EmbeddingLosses(
      * For each configured Matryoshka dimension that is valid for the block's entity embedding size, this function
      * computes positive and negative scores at that dimension, derives a per-dimension loss via
      * computeLossFromScores(...), multiplies it by the corresponding weight, and returns the sum across dimensions.
+     * For QuatE blocks, dimensions can be specified either as per-component sizes or as total embedding sizes
+     * (multiples of 4); when any dimension exceeds the per-component size, dimensions are treated as total sizes
+     * and converted to component sizes.
      *
      * @param block The model block used for scoring; must be a RotatE or QuatE instance.
      * @param sample NDArray of positive triples (shape [batchSize, 3]).
@@ -302,29 +317,57 @@ internal class EmbeddingLosses(
         val weights = config.weights
         val entities = config.entities
         val edges = config.edges
-        val scorer: (NDArray, Long) -> NDArray =
-            when (block) {
-                is RotatE -> { input, dim -> block.score(input, entities, edges, dim) }
-                is QuatE -> { input, dim -> block.score(input, entities, edges, dim) }
-                else -> error("Matryoshka loss used with unsupported block.")
-            }
         require(dims.size == weights.size) { "Matryoshka dims and weights must have the same length." }
 
         val embDim = entities.shape[1]
         val usable = ArrayList<Pair<Long, Float>>(dims.size)
-        for (i in dims.indices) {
-            val d = dims[i]
-            if (d > 0 && d <= embDim) {
-                usable.add(d to weights[i])
+        val isQuatE = block is QuatE
+        val fullCompDim =
+            if (isQuatE) {
+                require(embDim % 4L == 0L) { "QuatE embedding width must be divisible by 4, was $embDim." }
+                embDim / 4L
+            } else {
+                0L
+            }
+        val useTotalDims = isQuatE && dims.any { it > fullCompDim }
+        if (isQuatE) {
+            usable.addAll(resolveQuatEComponentDimsWithWeights(dims, weights, fullCompDim, embDim))
+        } else {
+            for (i in dims.indices) {
+                val d = dims[i]
+                if (d <= 0L) continue
+                if (d <= embDim && d % 2L == 0L) {
+                    usable.add(d to weights[i])
+                }
             }
         }
-        require(usable.isNotEmpty()) { "No valid Matryoshka dims for embedding size $embDim." }
+        val dimLabel =
+            if (isQuatE) {
+                if (useTotalDims) {
+                    "QuatE total dim (emb=$embDim)"
+                } else {
+                    "QuatE component dim (full=$fullCompDim, emb=$embDim)"
+                }
+            } else {
+                "embedding size $embDim"
+            }
+        require(usable.isNotEmpty()) { "No valid Matryoshka dims for $dimLabel." }
 
         var total: NDArray? = null
         try {
             for ((dim, weight) in usable) {
-                val posScores = scorer(sample, dim)
-                val negScores = scorer(negativeSample, dim)
+                val posScores =
+                    when (block) {
+                        is RotatE -> block.score(sample, entities, edges, dim)
+                        is QuatE -> matryoshkaQuatEScore(sample, entities, edges, dim, fullCompDim)
+                        else -> error("Matryoshka loss used with unsupported block.")
+                    }
+                val negScores =
+                    when (block) {
+                        is RotatE -> block.score(negativeSample, entities, edges, dim)
+                        is QuatE -> matryoshkaQuatEScore(negativeSample, entities, edges, dim, fullCompDim)
+                        else -> error("Matryoshka loss used with unsupported block.")
+                    }
                 val negReshaped = negScores.reshape(posScores.shape[0], numNegatives.toLong())
                 val loss =
                     computeLossFromScores(

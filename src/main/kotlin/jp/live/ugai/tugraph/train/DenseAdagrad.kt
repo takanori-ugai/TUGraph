@@ -9,6 +9,12 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Dense Adagrad optimizer implementation that avoids sparse gradient conversion.
+ *
+ * This is useful when gradients are already dense or when sparse conversion would add overhead.
+ *
+ * @param learningRateTracker Tracker that provides per-parameter learning rates.
+ * @param epsilon Numerical stability term added to the denominator.
+ * @param builder Optimizer builder used to configure base optimizer settings.
  */
 class DenseAdagrad(
     private val learningRateTracker: ParameterTracker,
@@ -21,10 +27,12 @@ class DenseAdagrad(
      * Updates the given parameter `weight` in-place using the Dense Adagrad optimizer with the provided `grad`.
      *
      * The method:
-     * - Validates the computed learning rate and configured weight decay and throws IllegalStateException if either is NaN or infinite.
+     * - Validates the computed learning rate and configured weight decay and throws IllegalStateException if
+     *   either is NaN or infinite.
      * - Optionally rescales and clips `grad`, and optionally adds a weight-decay term before applying updates.
      * - Updates the optimizer's per-parameter, per-device accumulated squared-gradient state.
-     * - Computes the denominator as sqrt(accumulated_state) + epsilon and applies the Adagrad update: weight -= (lr * processedGrad) / denom.
+     * - Computes the denominator as sqrt(accumulated_state) + epsilon and applies the Adagrad update:
+     *   weight -= (lr * processedGrad) / denom.
      *
      * @param name Identifier for the parameter; used to read and update the optimizer state for this parameter and device.
      * @param weight The parameter NDArray to update in-place.
