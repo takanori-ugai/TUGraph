@@ -48,7 +48,7 @@ dependencies {
     implementation("com.opencsv:opencsv:5.12.0")
     testImplementation("org.junit.jupiter:junit-jupiter-api:6.0.3")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:6.0.3")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.3")
 }
 
 tasks {
